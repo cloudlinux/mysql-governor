@@ -1,3 +1,9 @@
+governor-mysql (1.2-109) stable; urgency=medium
+
+  * CLOS-2506: Fixed MySQL community downloads URL
+
+ -- Timur Averianov <taverianov@cloudlinux.com>  Tue, 16 Apr 2024 10:00:00 +0000
+
 governor-mysql (1.2-108) stable; urgency=medium
 
   * CLOS-2473: Implied --yes option in non-tty mode

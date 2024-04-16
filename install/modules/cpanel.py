@@ -267,7 +267,7 @@ class cPanelManager(InstallManager):
         Download mysql80-community-release repository and install it locally
         """
         # download repo file
-        url = 'https://repo.mysql.com/mysql80-community-release-el{v}.noarch.rpm'.format(v=self.cl_version)
+        url = "https://repo.mysql.com/mysql80-community-release-el{v}.rpm".format(v=self.cl_version)
         repo_file = os.path.join(self.SOURCE, 'mysql-community-release.rpm')
         repo_md5 = {
             6: 'ec5978dc1c9b79ef570e3bc08ba3d531',
