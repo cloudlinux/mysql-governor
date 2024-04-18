@@ -208,9 +208,7 @@ parse_map_file_every_hour (void *data)
 {
   struct governor_config data_cfg;
   time_t last_mod, curr;
-  get_config_data (&data_cfg);
 
-  WRITE_LOG (NULL, 0, "USERMAP thread: BEGIN", data_cfg.log_mode);
   curr = last_modify_map ();
   if (curr == -1)
     {
@@ -221,6 +219,7 @@ parse_map_file_every_hour (void *data)
     {
       curr--;
     }
+  get_config_data (&data_cfg);
   while (1)
     {
       last_mod = last_modify_map ();
@@ -247,7 +246,6 @@ parse_map_file_every_hour (void *data)
       sleep (DELTA_TIME);
     }
 
-  WRITE_LOG (NULL, 0, "USERMAP thread: END", data_cfg.log_mode);
   return NULL;
 }
 

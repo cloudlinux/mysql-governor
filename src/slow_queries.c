@@ -87,9 +87,7 @@ parse_slow_query (void *data)
   char sql_buffer[_DBGOVERNOR_BUFFER_8192];
   char log_buffer[_DBGOVERNOR_BUFFER_8192];
   struct governor_config data_cfg;
-  get_config_data (&data_cfg);
 
-  WRITE_LOG (NULL, 0, "SLOW_QUERIY thread: BEGIN", data_cfg.log_mode);
   MYSQL **mysql_do_kill_internal = get_mysql_connect ();
   MYSQL_RES *res;
   MYSQL_ROW row;
@@ -104,6 +102,7 @@ parse_slow_query (void *data)
   char User[USERNAMEMAXLEN];
   char State[_DBGOVERNOR_BUFFER_256];
 
+  get_config_data (&data_cfg);
 
   while (1)
     {
@@ -201,6 +200,4 @@ parse_slow_query (void *data)
 	}
       sleep (DELTA_TIME);
     }
-    WRITE_LOG (NULL, 0, "SLOW_QUERIY thread: END", data_cfg.log_mode);
-    return NULL;
 }

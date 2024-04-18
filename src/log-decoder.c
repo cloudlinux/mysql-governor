@@ -190,41 +190,60 @@ insertSystemInfo (char *buffer)
 }
 
 void
-prepareRestrictDescription (char *buffer, Account * ac, stats_limit_cfg * limit)
+prepareRestrictDescription (char *buffer, Account * ac,
+			    stats_limit_cfg * limit)
 {
-	if (ac->info.field_restrict == NO_PERIOD)
-	{
-		strcpy (buffer, "unrestrict");
-	}
-	else
-	{
-		sprintf (buffer, "%s LIMIT_ENFORCED period %s, field %s value %lld/limit %ld restrict level %d",
-			ac->id, getPeriodName(ac), getParamName(ac), getRestrictValue (ac), getLimitValue (ac, limit), ac->restricted + 1);
-	}
+  strcpy (buffer, "");
+  if (ac->info.field_restrict == NO_PERIOD)
+    {
+      strcpy (buffer, "unrestrict");
+      if (cfg->restrict_format >= 2)
+	insertSystemInfo (buffer);
+      return;
+    }
+  else
+    {
 
-	if (cfg->restrict_format >= 2)
+      sprintf (buffer,
+	       "%s LIMIT_ENFORCED period %s, field %s value %llu/limit %ld restrict level %d",
+	       ac->id, getPeriodName(ac), getParamName(ac),
+	       (unsigned long long) getRestrictValue (ac), getLimitValue (ac,
+									  limit),
+	       ac->restricted + 1);
+      if (cfg->restrict_format >= 2)
 	{
-		insertSystemInfo (buffer);
+	  insertSystemInfo (buffer);
 	}
+      return;
+    }
 }
 
 void
-prepareRestrictDescriptionLimit (char *buffer, Account * ac, stats_limit_cfg * limit)
+prepareRestrictDescriptionLimit (char *buffer, Account * ac,
+				 stats_limit_cfg * limit)
 {
-	if (ac->info.field_restrict == NO_PERIOD)
-	{
-		strcpy (buffer, "unrestrict");
-	}
-	else
-	{
-		sprintf (buffer, "%s LIMIT_ENFORCED period %s, field %s value %lld/limit %ld",
-			ac->id, getPeriodName(ac), getParamName(ac), getRestrictValue (ac), getLimitValue (ac, limit));
-	}
+  strcpy (buffer, "");
+  if (ac->info.field_restrict == NO_PERIOD)
+    {
+      strcpy (buffer, "unrestrict");
+      if (cfg->restrict_format >= 2)
+	insertSystemInfo (buffer);
+      return;
+    }
+  else
+    {
 
-	if (cfg->restrict_format >= 2)
+      sprintf (buffer,
+	       "%s LIMIT_ENFORCED period %s, field %s value %llu/limit %ld",
+	       ac->id, getPeriodName(ac), getParamName(ac),
+	       (unsigned long long) getRestrictValue (ac), getLimitValue (ac,
+									  limit));
+      if (cfg->restrict_format >= 2)
 	{
-		insertSystemInfo (buffer);
+	  insertSystemInfo (buffer);
 	}
+      return;
+    }
 }
 
 /*Get a list of parameters corresponding to the period, the so-called dump*/

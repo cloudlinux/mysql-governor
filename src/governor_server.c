@@ -171,8 +171,6 @@ proceed_data_every_second (void *data)
   struct timespec cur_tm;
   struct governor_config data_cfg;
 
-  get_config_data (&data_cfg);
-  WRITE_LOG (NULL, 0, "MONITOR thread: BEGIN", data_cfg.log_mode);
   while (1)
     {
       sleep (1);
@@ -202,7 +200,6 @@ proceed_data_every_second (void *data)
 	  print_to_restrict_log_stats (NULL);
 	}
     }
-  WRITE_LOG (NULL, 0, "MONITOR thread: END", data_cfg.log_mode);
   return NULL;
 }
 
@@ -215,7 +212,6 @@ term_handler (int i)
 void *
 get_data_from_client (void *data)
 {
-  struct governor_config data_cfg;
   int ret;
   int timeout = 1000;
   struct sockaddr_un fsaun;
@@ -223,13 +219,12 @@ get_data_from_client (void *data)
   double old_tm = 0.0, new_tm = 0.0;
   int fromlen = sizeof (fsaun);
   nfds = 1;
-
-  get_config_data (&data_cfg);
-  WRITE_LOG (NULL, 0, "DAEMON thread: BEGIN", data_cfg.log_mode);
   fds = (struct pollfd *) calloc (1, nfds * sizeof (struct pollfd));
   fds->fd = get_soket ();
   fds->events = POLLIN;
   reinit_command_list ();
+
+  struct governor_config data_cfg;
 
   struct sigaction sa = { 0 };
   sigset_t newset;
@@ -246,7 +241,6 @@ get_data_from_client (void *data)
 
       if (break_thread)
 	{
-	  WRITE_LOG (NULL, 0, "DAEMON thread: END by signal", data_cfg.log_mode);
 	  return NULL;
 	}
 
@@ -539,7 +533,6 @@ get_data_from_client (void *data)
 	}
 
     }
-  WRITE_LOG (NULL, 0, "DAEMON thread: END", data_cfg.log_mode);
   return NULL;
 }
 

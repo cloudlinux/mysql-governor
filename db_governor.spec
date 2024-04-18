@@ -482,7 +482,8 @@ fi
 %{_includedir}/libgovernor.h
 
 %changelog
-* Tue Apr 16 2024 Timur Averianov <taverianov@cloudlinux.com> 1.2-109
+* Thu Apr 18 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-109
+- CLOS-2572: Reverted CLOS-2322 and CLOS-2535
 - CLOS-2506: Fixed MySQL community downloads URL
 
 * Mon Mar 18 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-108
@@ -495,6 +496,7 @@ fi
 * Tue Feb 27 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-106
 - CLOS-2373: Backup confirmation added to governor script
 
+* Tue Feb 20 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-105
 - CLOS-2322: Fixed DB limits not applying to users after a MySQL Governor service restart
 - CLOS-2418: MySQL 8.0 community edition repo url changed
 
