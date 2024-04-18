@@ -338,9 +338,6 @@ void initGovernor(void) {
 	// Open slow queries log if exists
 	if (data_cfg.slow_queries_log)
 		open_slow_queries_log(data_cfg.slow_queries_log);
-
-	// Initialize extended logging flags
-	extlog_init();
 }
 
 void trackingDaemon(void) {
