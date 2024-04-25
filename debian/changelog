@@ -1,5 +1,12 @@
+governor-mysql (1.2-110) stable; urgency=medium
+
+  * CLOS-2535: Governor threads logging added
+
+ -- Aleksandr Demeshko <ademeshko@cloudlinux.com>  Thu, 25 Mar 2024 10:00:00 +0000
+
 governor-mysql (1.2-109) stable; urgency=medium
 
+  * CLOS-2572: No LVE exit issue fixed
   * CLOS-2572: Reverted CLOS-2322 and CLOS-2535
   * CLOS-2506: Fixed MySQL community downloads URL
 

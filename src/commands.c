@@ -438,6 +438,7 @@ send_governor (void *data)
 
   get_config_data (&data_cfg);
 
+  WRITE_LOG (NULL, 0, "SERVICE thread: BEGIN", data_cfg.log_mode);
   for (;;)
     {
       if (!data_cfg.is_gpl)
@@ -455,5 +456,6 @@ send_governor (void *data)
       sd_notify (0, "WATCHDOG=1");
 #endif
     }
+  WRITE_LOG (NULL, 0, "SERVICE thread: END", data_cfg.log_mode);
   return NULL;
 }

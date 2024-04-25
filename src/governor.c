@@ -527,21 +527,31 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	if (!data_cfg.is_gpl) {
-		if (init_bad_users_list() < 0) {
-			WRITE_LOG (NULL, 0, "Can't init BAD list, work in monytor only mode",
+	if (!data_cfg.is_gpl)
+	{
+		if (init_bad_users_list() < 0)
+		{
+			WRITE_LOG (NULL, 0, "Can't init BAD list, work in monitor only mode",
 					data_cfg.log_mode);
 			get_config()->use_lve = 0;
 			governor_enable_reconn(data_cfg.log_mode);
-		} else {
+		}
+		else
+		{
 			WRITE_LOG (NULL, 0, "BAD list init successfully", data_cfg.log_mode);
 			governor_enable_reconn_lve(data_cfg.log_mode);
 		}
-	} else
+	}
+	else
+	{
+		WRITE_LOG (NULL, 0, "No LVE, work in monitor only mode", data_cfg.log_mode);
 		governor_enable_reconn(data_cfg.log_mode);
+	}
 
+	WRITE_LOG (NULL, 0, "Creating DAEMON thread ...", data_cfg.log_mode);
 	ret = pthread_create(&thread, NULL, get_data_from_client, NULL);
-	if (ret < 0) {
+	if (ret < 0)
+	{
 		if (!data_cfg.is_gpl) {
 			remove_bad_users_list();
 		}
@@ -553,8 +563,16 @@ int main(int argc, char *argv[]) {
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+	else
+	{
+		WRITE_LOG (NULL, 0, "DAEMON thread created", data_cfg.log_mode);
+	}
+
+	WRITE_LOG (NULL, 0, "Creating SERVICE thread ...", data_cfg.log_mode);
 	ret = pthread_create(&thread_governor, NULL, send_governor, NULL);
-	if (ret < 0) {
+	if (ret < 0)
+	{
+		WRITE_LOG (NULL, 0, "FAILED to create SERVICE thread - EXITING", data_cfg.log_mode);
 		pthread_cancel(thread);
 		if (!data_cfg.is_gpl) {
 			remove_bad_users_list();
@@ -567,8 +585,16 @@ int main(int argc, char *argv[]) {
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+	else
+	{
+		WRITE_LOG (NULL, 0, "SERVICE thread created", data_cfg.log_mode);
+	}
+
+	WRITE_LOG (NULL, 0, "Creating DBTOP_SERVER thread ...", data_cfg.log_mode);
 	ret = pthread_create(&thread_dbtop, NULL, run_server, NULL);
-	if (ret < 0) {
+	if (ret < 0)
+	{
+		WRITE_LOG (NULL, 0, "FAILED to create DBTOP_SERVER thread - EXITING", data_cfg.log_mode);
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		if (!data_cfg.is_gpl) {
@@ -582,8 +608,15 @@ int main(int argc, char *argv[]) {
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+	else
+	{
+		WRITE_LOG (NULL, 0, "DBTOP_SERVER thread created", data_cfg.log_mode);
+	}
+
 	ret = pthread_create(&thread_prcd, NULL, proceed_data_every_second, NULL);
-	if (ret < 0) {
+	if (ret < 0)
+	{
+		WRITE_LOG (NULL, 0, "FAILED to create MONITOR thread - EXITING", data_cfg.log_mode);
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
@@ -598,9 +631,16 @@ int main(int argc, char *argv[]) {
 		config_free();
 		exit(EXIT_FAILURE);
 	}
-	ret = pthread_create(&thread_user_map, NULL, parse_map_file_every_hour,
-			NULL);
-	if (ret < 0) {
+	else
+	{
+		WRITE_LOG (NULL, 0, "MONITOR thread created", data_cfg.log_mode);
+	}
+
+	WRITE_LOG (NULL, 0, "Creating USERMAP thread ...", data_cfg.log_mode);
+	ret = pthread_create(&thread_user_map, NULL, parse_map_file_every_hour, NULL);
+	if (ret < 0)
+	{
+		WRITE_LOG (NULL, 0, "FAILED to create USERMAP thread - EXITING", data_cfg.log_mode);
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
@@ -616,10 +656,18 @@ int main(int argc, char *argv[]) {
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+	else
+	{
+		WRITE_LOG (NULL, 0, "USERMAP thread created", data_cfg.log_mode);
+	}
 
-	if (data_cfg.slow_queries) {
+	if (data_cfg.slow_queries)
+	{
+		WRITE_LOG (NULL, 0, "Creating SLOW_QUERY thread ...", data_cfg.log_mode);
 		ret = pthread_create(&thread_slow_query, NULL, parse_slow_query, NULL);
-		if (ret < 0) {
+		if (ret < 0)
+		{
+			WRITE_LOG (NULL, 0, "FAILED to create SLOW_QUERY thread - EXITING", data_cfg.log_mode);
 			pthread_cancel(thread);
 			pthread_cancel(thread_governor);
 			pthread_cancel(thread_dbtop);
@@ -636,11 +684,18 @@ int main(int argc, char *argv[]) {
 			config_free();
 			exit(EXIT_FAILURE);
 		}
+		else
+		{
+			WRITE_LOG (NULL, 0, "SLOW_QUERY thread created", data_cfg.log_mode);
+		}
 	}
 
 
+	WRITE_LOG (NULL, 0, "Creating USERMAP_ONREQ thread ...", data_cfg.log_mode);
 	ret = pthread_create(&therad_renew_dbusermap, NULL, renew_map_on_request, NULL);
-	if (ret < 0) {
+	if (ret < 0)
+	{
+		WRITE_LOG (NULL, 0, "FAILED to create USERMAP_ONREQ thread - EXITING", data_cfg.log_mode);
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
@@ -660,6 +715,10 @@ int main(int argc, char *argv[]) {
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+	else
+	{
+		WRITE_LOG (NULL, 0, "USERMAP_ONREQ thread created", data_cfg.log_mode);
+	}
 
 
 	pthread_detach(thread_governor);
@@ -671,6 +730,7 @@ int main(int argc, char *argv[]) {
 	}
 	pthread_detach(therad_renew_dbusermap);
 	pthread_join(thread, NULL);
+	WRITE_LOG (NULL, 0, "DAEMON thread finished - EXITING", data_cfg.log_mode);
 
 	pthread_cancel(thread_governor);
 	pthread_cancel(thread_dbtop);

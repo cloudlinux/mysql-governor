@@ -51,12 +51,11 @@ run_server (void *data)
 
   get_config_data (&data_cfg);
 
+  WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: BEGIN", data_cfg.log_mode);
   if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
-      WRITE_LOG (NULL, 0, "Can't create socket(DBTOP)", data_cfg.log_mode);
-      close_log ();
-      close_restrict_log ();
-      exit (EXIT_FAILURE);
+      WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: Can't create socket: %d", data_cfg.log_mode, errno);
+      return NULL;
     }
 
   saun.sun_family = AF_UNIX;
@@ -67,25 +66,22 @@ run_server (void *data)
 
   if (bind (s, (struct sockaddr *) &saun, len) < 0)
     {
-      WRITE_LOG (NULL, 0, "Can't server bind(DBTOP)", data_cfg.log_mode);
-      close_log ();
-      close_restrict_log ();
+      WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: bind failed: %d", data_cfg.log_mode, errno);
       close (s);
-      exit (EXIT_FAILURE);
+      return NULL;
     }
 
   if (listen (s, 3) < 0)
     {
-      WRITE_LOG (NULL, 0, "Can't server listen(DBTOP)", data_cfg.log_mode);
-      close_log ();
-      close_restrict_log ();
+      WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: listen failed: %d", data_cfg.log_mode, errno);
       close (s);
-      exit (EXIT_FAILURE);
+      return NULL;
     }
   /* Start daemon accept cycle */
   accept_connections (s);
   close (s);
 
+  WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: END", data_cfg.log_mode);
   return NULL;
 }
 
@@ -214,6 +210,7 @@ renew_map_on_request (void *data)
   struct governor_config data_cfg;
   get_config_data (&data_cfg);
 
+  WRITE_LOG (NULL, 0, "USERMAP_ONREQ thread: BEGIN", data_cfg.log_mode);
   while (1)
     {
 	  if (flag_need_to_renew_dbmap){
@@ -243,6 +240,7 @@ renew_map_on_request (void *data)
 	  sleep(DBMAPHOOK_RECHECK);
     }
 
+  WRITE_LOG (NULL, 0, "USERMAP_ONREQ thread: END", data_cfg.log_mode);
   return NULL;
 }
 
