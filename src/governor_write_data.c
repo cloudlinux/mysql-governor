@@ -668,7 +668,6 @@ void governor_destroy_lve(void)
 }
 
 __thread uint32_t lve_uid = 0;
-__thread uint32_t in_lve = 0;
 //Thread dependent variable for thread cookie storage needs for governor_enter_lve, governor_lve_exit
 __thread uint32_t lve_cookie = 0;
 
@@ -680,11 +679,6 @@ int governor_enter_lve(uint32_t * cookie, char *username)
 	{
 		print_message_log("%s(%s) FAILED - LVE is not inited %p-%p", __FUNCTION__, username, lve_enter_flags, lve);
 		return -1;
-	}
-	if (in_lve)
-	{
-		print_message_log("%s(%s) - already in LVE", __FUNCTION__, username);
-		return 1;
 	}
 
 	if (!strncmp("root", username, 4 ))
@@ -715,7 +709,6 @@ int governor_enter_lve(uint32_t * cookie, char *username)
 					//lve_exit(lve, cookie);
 					//return -1;
 			lve_uid = container_lve;
-			in_lve = 1;
 			print_message_log("%s(%s) ALREADY IN LVE as lve_enter_flags(%d) ret %d with errno==EPERM", __FUNCTION__, username, container_lve, rc);
 			return 0;
 		}
@@ -723,7 +716,6 @@ int governor_enter_lve(uint32_t * cookie, char *username)
 		return -1;
 	}
 	lve_uid = container_lve;
-	in_lve = 1;
 	print_message_log("%s(%s) lve_enter_flags(%d) ENTERED INTO LVE", __FUNCTION__, username, container_lve, rc, keep_errno, EPERM);
 	return 0;
 }
@@ -734,12 +726,6 @@ int governor_enter_lve_light(uint32_t * cookie)
 	{
 		print_message_log("%s FAILED - LVE is not inited %p-%p", __FUNCTION__, lve_enter_flags, lve);
 		return -1;
-	}
-
-	if (in_lve)
-	{
-		print_message_log("%s  - already in LVE", __FUNCTION__ );
-		return 1;
 	}
 
 	if (!lve_uid)
@@ -775,15 +761,8 @@ void governor_lve_exit(uint32_t * cookie)
 		return;
 	}
 
-	if (!in_lve)
-	{
-		print_message_log("%s - not in LVE (uid %d)", __FUNCTION__, lve_uid);
-		return;
-	}
-
 	print_message_log("%s (uid %d)", __FUNCTION__, lve_uid);
 	lve_exit(lve, cookie);
-	in_lve = 0;
 }
 
 
