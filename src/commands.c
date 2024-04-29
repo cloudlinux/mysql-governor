@@ -154,35 +154,54 @@ account_unrestrict (Account * ac)
 void
 account_restrict (Account * ac, stats_limit_cfg * limit)
 {
-  int i;
-  User_stats *us;
-  //Command cmd;
-  struct governor_config data_cfg;
+	int i;
+	User_stats *us;
+	struct governor_config data_cfg;
 
-  get_config_data (&data_cfg);
-  if (data_cfg.is_gpl)
-    return;
-  if (data_cfg.all_lve || !data_cfg.use_lve)
-    return;			//lve use=all or off
-
-  for (i = 0; i < ac->users->len; i++)
-    {
-      us = g_ptr_array_index (ac->users, i);
-      Command *cmd = g_malloc (sizeof (Command));
-      if (cmd)
+	get_config_data (&data_cfg);
+	if (data_cfg.is_gpl)
 	{
-	  if (command_list)
-	    {
-	      strlcpy (cmd->username, us->id, USERNAMEMAXLEN);
-	      cmd->command = FREEZE;
-	      pthread_mutex_lock (&mtx_commands);
-	      command_list = g_list_append (command_list, cmd);
-	      pthread_mutex_unlock (&mtx_commands);
-	      if (data_cfg.logqueries_use == 2)
-		log_user_queries (cmd->username, data_cfg.log_mode);
-	    }
+		FREEZE_EXT_LOG("%s: exiting due to is_gpl", __FUNCTION__);
+		return;
 	}
-    }
+	if (data_cfg.all_lve || !data_cfg.use_lve)
+	{
+		FREEZE_EXT_LOG("%s: exiting due to all_lve=%d and use_lve=%d", __FUNCTION__, data_cfg.all_lve, data_cfg.use_lve);
+		return;			//lve use=all or off
+	}
+
+	if (!command_list)
+	{
+		FREEZE_EXT_LOG("%s: exiting due to command_list is NULL", __FUNCTION__);
+		return;
+	}
+
+	for (i = 0; i < ac->users->len; i++)
+	{
+		us = g_ptr_array_index (ac->users, i);
+		FREEZE_EXT_LOG("%s: %d/%d", __FUNCTION__,  i, ac->users->len );
+		Command *cmd = g_malloc (sizeof (Command));
+		if (cmd)
+		{
+			strlcpy (cmd->username, us->id, USERNAMEMAXLEN);
+			cmd->command = FREEZE;
+			pthread_mutex_lock (&mtx_commands);
+			FREEZE_EXT_LOG("%s: %d/%d: before appending %s:%d(FREEZE) into command_list with len %d",
+					__FUNCTION__, i, ac->users->len, cmd->username, cmd->command, g_list_length(command_list) );
+			command_list = g_list_append (command_list, cmd);
+			FREEZE_EXT_LOG("%s: %d/%d: after appending command_list len %d", __FUNCTION__, g_list_length(command_list) );
+			pthread_mutex_unlock (&mtx_commands);
+			if (data_cfg.logqueries_use == 2)
+			{
+				log_user_queries (cmd->username, data_cfg.log_mode);
+			}
+		}
+		else
+		{
+			FREEZE_EXT_LOG("%s: skipped %d due to g_malloc(%u) failure", __FUNCTION__, i, sizeof (Command) );
+		}
+	}
+
   if (data_cfg.exec_script)
     {
       pid_t trigger_pid;
@@ -265,64 +284,70 @@ destroy_key(gpointer key)
 void
 send_commands (Command * cmd, void *data)
 {
-  struct governor_config data_cfg;
+	struct governor_config data_cfg;
+	get_config_data (&data_cfg);
 
-  get_config_data (&data_cfg);
-
-  if (cmd)
-    {
-      Account *user_info = NULL;
-      unsigned max_user_conn = 0;
-
-      if (max_user_conn_table == NULL)
+	if (cmd)
 	{
-	  max_user_conn_table = g_hash_table_new_full (g_str_hash, g_str_equal, destroy_key, NULL);
-	}
+		Account *user_info = NULL;
+		unsigned max_user_conn = 0;
 
-      switch (cmd->command)
-	{
-	case FREEZE:
-	  {
-	    max_user_conn = select_max_user_connections (cmd->username, data_cfg.log_mode);
-	    g_hash_table_insert (max_user_conn_table, strdup (cmd->username), GUINT_TO_POINTER (max_user_conn));
-	    if (data_cfg.use_lve)
-	      {
-		if (add_user_to_list (cmd->username, data_cfg.all_lve) < 0)
-		  {
-		    if (data_cfg.log_mode == DEBUG_MODE)
-		      {
-			WRITE_LOG (NULL, 0, "Can't add user to BAD list %s",
-				   data_cfg.log_mode, cmd->username);
-		      }
-		  }
-		else
-		  {
-		    if (data_cfg.max_user_connections &&
-		       (data_cfg.max_user_connections < max_user_conn || max_user_conn == 0))
-		      {
-			update_user_limit_no_flush (cmd->username,
-						    (unsigned int) data_cfg.max_user_connections,
-						    data_cfg.log_mode);
-			is_any_flush = 1;
-		      }
-		  }
-	      }
-	    else
-	      {
-		if (data_cfg.max_user_connections &&
-		   (data_cfg.max_user_connections < max_user_conn || max_user_conn == 0))
-		  {
-		    update_user_limit_no_flush (cmd->username,
-					       (unsigned int) data_cfg.max_user_connections,
-					       data_cfg.log_mode);
-		    is_any_flush = 1;
-		  }
-	      }
-	    //lve_connection(cmd->username, data_cfg.log_mode);
-	    if (data_cfg.logqueries_use == 1)
-	      log_user_queries (cmd->username, data_cfg.log_mode);
-	  }
-	  break;
+		if (max_user_conn_table == NULL)
+		{
+			max_user_conn_table = g_hash_table_new_full (g_str_hash, g_str_equal, destroy_key, NULL);
+		}
+
+		switch (cmd->command)
+		{
+		case FREEZE:
+		{
+			max_user_conn = select_max_user_connections (cmd->username, data_cfg.log_mode);
+			g_hash_table_insert (max_user_conn_table, strdup (cmd->username), GUINT_TO_POINTER (max_user_conn));
+			if (data_cfg.use_lve)
+			{
+				FREEZE_EXT_LOG("%s(FREEZE): before call of add_user_to_list(%s, %d) due to use_lve!=0", __FUNCTION__,
+						cmd->username, data_cfg.all_lve);
+				if (add_user_to_list (cmd->username, data_cfg.all_lve) < 0)
+				{
+					if (data_cfg.log_mode == DEBUG_MODE)
+					{
+						WRITE_LOG (NULL, 0, "Can't add user to BAD list %s", data_cfg.log_mode, cmd->username);
+					}
+				}
+				else
+				{
+					FREEZE_EXT_LOG("%s(FREEZE): call of add_user_to_list(%s, %d) SUCCESS", __FUNCTION__,
+							cmd->username, data_cfg.all_lve);
+					if (data_cfg.max_user_connections &&
+						(data_cfg.max_user_connections < max_user_conn || max_user_conn == 0))
+					{
+						update_user_limit_no_flush (cmd->username,
+										(unsigned int) data_cfg.max_user_connections,
+										data_cfg.log_mode);
+						is_any_flush = 1;
+					}
+				}
+			}
+			else
+			{
+				FREEZE_EXT_LOG("%s(FREEZE): no call of add_user_to_list(%s, %d) due to use_lve==off", __FUNCTION__,
+						cmd->username, data_cfg.all_lve);
+
+				if (data_cfg.max_user_connections &&
+					(data_cfg.max_user_connections < max_user_conn || max_user_conn == 0))
+				{
+					update_user_limit_no_flush (cmd->username,
+									(unsigned int) data_cfg.max_user_connections,
+									data_cfg.log_mode);
+					is_any_flush = 1;
+				}
+			}
+			//lve_connection(cmd->username, data_cfg.log_mode);
+			if (data_cfg.logqueries_use == 1)
+				log_user_queries (cmd->username, data_cfg.log_mode);
+		}
+		break;
+
 	case UNFREEZE:
 	  {
 	    max_user_conn = GPOINTER_TO_UINT (g_hash_table_lookup (max_user_conn_table, cmd->username));
@@ -363,79 +388,100 @@ send_commands (Command * cmd, void *data)
 void *
 send_commands_cycle_in (void *data)
 {
-
-  struct governor_config data_cfg;
-  get_config_data (&data_cfg);
-  is_any_flush = 0;
-  g_list_foreach (command_list_send, (GFunc) send_commands, NULL);
-  if (data_cfg.max_user_connections && is_any_flush)
-    flush_user_priv (data_cfg.log_mode);
-  is_any_flush = 0;
-  is_send_command_cycle = 0;
-  return NULL;
+	struct governor_config data_cfg;
+	get_config_data (&data_cfg);
+	is_any_flush = 0;
+	FREEZE_EXT_LOG("%s: before calling send_commands for command_list_send %p its len %d", __FUNCTION__,
+			command_list_send, command_list_send ? g_list_length (command_list_send) : -666);
+	if (command_list_send)
+	{
+		g_list_foreach (command_list_send, (GFunc) send_commands, NULL);
+	}
+	if (data_cfg.max_user_connections && is_any_flush)
+		flush_user_priv (data_cfg.log_mode);
+	is_any_flush = 0;
+	is_send_command_cycle = 0;
+	return NULL;
 }
 
 void
 copy_commands (Command * cmd, void *data)
 {
-  if (cmd)
-    {
-      Command *cmd_in = g_malloc (sizeof (Command));
-      if (cmd_in)
+	if (!cmd)
 	{
-	  if (command_list_send)
-	    {
-	      strlcpy (cmd_in->username, cmd->username, USERNAMEMAXLEN);
-	      cmd_in->command = cmd->command;
-	      command_list_send = g_list_append (command_list_send, cmd_in);
-	    }
+		return;
 	}
-    }
+
+	if (!command_list_send)
+	{
+		FREEZE_EXT_LOG("%s: command_list_send is NULL", __FUNCTION__);
+		return;
+	}
+
+	Command *cmd_in = g_malloc (sizeof (Command));
+	if (!cmd_in)
+	{
+		FREEZE_EXT_LOG("%s: g_malloc(%u) failed", __FUNCTION__, sizeof(Command));
+		return;
+	}
+
+	strlcpy (cmd_in->username, cmd->username, USERNAMEMAXLEN);
+	cmd_in->command = cmd->command;
+	FREEZE_EXT_LOG("%s: before append(%s, %d) into command_list_send", __FUNCTION__, cmd_in->username, cmd_in->command );
+	command_list_send = g_list_append (command_list_send, cmd_in);
 }
 
 void
 send_command_copy_list (void)
 {
-  reinit_command_list_send ();
-  pthread_mutex_lock (&mtx_commands);
-  if (command_list)
-    g_list_foreach (command_list, (GFunc) copy_commands, NULL);
-  pthread_mutex_unlock (&mtx_commands);
-  reinit_command_list ();
+	reinit_command_list_send ();
+	pthread_mutex_lock (&mtx_commands);
+	if (command_list && g_list_length (command_list) > 1)
+		g_list_foreach (command_list, (GFunc) copy_commands, NULL);
+	pthread_mutex_unlock (&mtx_commands);
+	reinit_command_list ();
 }
 
 void
 send_commands_cycle (void)
 {
-  struct governor_config data_cfg;
-  get_config_data (&data_cfg);
+	struct governor_config data_cfg;
+	get_config_data (&data_cfg);
 
-  if (data_cfg.is_gpl)
-    return;
+	if (data_cfg.is_gpl)
+	{
+		FREEZE_EXT_LOG("%s: exiting due to is_gpl", __FUNCTION__);
+		return;
+	}
 
-  int ret;
-  pthread_t thread;
-  if (!is_send_command_cycle)
-    {
-      is_send_command_cycle = 1;
-      send_command_copy_list ();
-      if (g_list_length (command_list_send) > 0)
+	int ret;
+	pthread_t thread;
+	if (!is_send_command_cycle)
 	{
-	  pthread_create (&thread, NULL, send_commands_cycle_in, NULL);
-	  pthread_detach (thread);
+		is_send_command_cycle = 1;
+		send_command_copy_list ();
+		if (g_list_length (command_list_send) > 1) // for now list starts with empty element, so no work if length==1
+		{
+			FREEZE_EXT_LOG("%s: after call send_command_copy_list list_len==%d>1, so create a thread to send",
+					__FUNCTION__, g_list_length (command_list_send));
+			pthread_create (&thread, NULL, send_commands_cycle_in, NULL);
+			pthread_detach (thread);
+		}
+		else
+		{
+			is_send_command_cycle = 0;
+		}
 	}
-      else
+	else
 	{
-	  is_send_command_cycle = 0;
+		FREEZE_EXT_LOG("%s: exiting due to is_send_command_cycle", __FUNCTION__);
 	}
-    }
 }
 
 void *
 send_governor (void *data)
 {
   struct governor_config data_cfg;
-
   get_config_data (&data_cfg);
 
   WRITE_LOG (NULL, 0, "SERVICE thread: BEGIN", data_cfg.log_mode);

@@ -37,8 +37,8 @@
 #include "dbtop_server.h"
 
 void accept_connections (int s);
-void *run_writer (void *data);
-void *run_dbctl_command (void *data);
+static void *run_writer (void *data);
+static void *run_dbctl_command (void *data);
 void send_account (const char *key, Account * ac, FILE * out);
 
 void *
@@ -55,6 +55,9 @@ run_server (void *data)
   if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
       WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: Can't create socket: %d", data_cfg.log_mode, errno);
+//      close_log ();
+//      close_restrict_log ();
+//      exit (EXIT_FAILURE);
       return NULL;
     }
 
@@ -67,14 +70,20 @@ run_server (void *data)
   if (bind (s, (struct sockaddr *) &saun, len) < 0)
     {
       WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: bind failed: %d", data_cfg.log_mode, errno);
+//      close_log ();
+//      close_restrict_log ();
       close (s);
+//      exit (EXIT_FAILURE);
       return NULL;
     }
 
   if (listen (s, 3) < 0)
     {
       WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: listen failed: %d", data_cfg.log_mode, errno);
+//      close_log ();
+//      close_restrict_log ();
       close (s);
+//      exit (EXIT_FAILURE);
       return NULL;
     }
   /* Start daemon accept cycle */
@@ -85,6 +94,10 @@ run_server (void *data)
   return NULL;
 }
 
+/*
+    This function is called from handle_client_connect, open file descriptor is passed as a pointer.
+    handle_client_connect expects that this function will close file descriptor
+*/
 void *
 run_dbtop_command (void *data)
 {
@@ -127,6 +140,9 @@ run_dbtop_command (void *data)
   return NULL;
 }
 
+/*
+    handle_client_connect expects that functions called from it will close file descriptor
+*/
 void *handle_client_connect(void *fd)
 {
   int ns = (int) ((intptr_t) fd), result;
@@ -244,7 +260,35 @@ renew_map_on_request (void *data)
   return NULL;
 }
 
-void *
+/* NOTE:
+   Modifying a GHashTable while iterating over it can lead to undefined behavior.
+   More safe and common approach to mitigate this issue is to create a snapshot of
+   the keys and then iterate over this snapshot to make the necessary modifications.
+ */
+static void
+dbctl_restrict_set_safe(GHashTable *accounts_hash, DbCtlCommand *command)
+{
+	GList *keys, *iterator;
+	gpointer key;
+
+	lock_acc();
+	keys = g_hash_table_get_keys(accounts_hash);
+
+	for (iterator = keys; iterator; iterator = iterator->next)
+	{
+		key = iterator->data;
+		dbctl_restrict_set(key, g_hash_table_lookup(accounts_hash, key), command);
+	}
+
+	unlock_acc();
+	g_list_free(keys);
+}
+
+/*
+    This function is called from handle_client_connect, open file descriptor is passed as a pointer.
+    handle_client_connect expects that this function will close file descriptor
+*/
+static void *
 run_dbctl_command (void *data)
 {
   int result;
@@ -268,20 +312,18 @@ run_dbctl_command (void *data)
       reinit_users_list ();
     }
   else if (command.command == RESTRICT)
-    {
-      if (!data_cfg.is_gpl)
+  {
+	if (!data_cfg.is_gpl)
 	{
-	  if (data_cfg.all_lve || !data_cfg.use_lve)
-	    {
-	      close (ns);
-	      return NULL;	//lve use=all or off
-	    }
-	  lock_acc ();
-	  g_hash_table_foreach ((GHashTable *) get_accounts (),
-				(GHFunc) dbctl_restrict_set, &command);
-	  unlock_acc ();
+		if (data_cfg.all_lve || !data_cfg.use_lve)
+		{
+			close (ns);
+			return NULL;	//lve use=all or off
+		}
+		GHashTable *accounts = get_accounts();
+		dbctl_restrict_set_safe(accounts, &command);
 	}
-    }
+  }
   else if (command.command == UNRESTRICT)
     {
       if (!data_cfg.is_gpl)
@@ -347,12 +389,19 @@ run_dbctl_command (void *data)
 	  flag_need_to_renew_dbmap = 1;
   }
 
-  close (ns);
+  if (ns >= 0)
+  {
+    close (ns);
+  }
 
   return NULL;
 }
 
-void *
+/*
+    This function is called from handle_client_connect, open file descriptor is passed as a pointer.
+    handle_client_connect expects that this function will close file descriptor
+*/
+static void *
 run_writer (void *data)
 {
   FILE *out;

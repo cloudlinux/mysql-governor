@@ -452,132 +452,154 @@ check_restrict (Account * ac)
 static int
 check_restrict_limit (Account * ac)
 {
-  stats_limit_cfg cfg_buf;
-  stats_limit_cfg *sl = config_get_account_limit (ac->id, &cfg_buf);
-  int restrict_period = 0;
-  GOVERNORS_FIELD_NAME _cur = is_stat_overlimit_current (&ac->current, sl);
-  time_t now;
-  time (&now);
-  struct governor_config data_cfg;
-  get_config_data (&data_cfg);
+	stats_limit_cfg cfg_buf;
+	stats_limit_cfg *sl = config_get_account_limit (ac->id, &cfg_buf);
+	int restrict_period = 0;
+	GOVERNORS_FIELD_NAME ol_field;
+	char tmp_buf[_DBGOVERNOR_BUFFER_8192];
+	struct governor_config data_cfg;
 
-  if (_cur != NORESTRICT_PARAM2)
-    {
-      //Current restrict
-      restrict_period = data_cfg.l_unlimit;
-      if (data_cfg.statistic_mode)
-	IncNumberOfRestricts (ac->id, get_cause_of_restrict (_cur));
-      int old_restricted = ac->restricted;
-      ac->restricted = 1000;
-      ac->timeout = restrict_period;
-      time (&ac->start_count);
-      ac->info.field_restrict = CURRENT_PERIOD;
-      ac->info.field_level_restrict = _cur;
-      if (!old_restricted)
-	account_restrict (ac, sl);
-      if (data_cfg.restrict_log)
+	get_config_data (&data_cfg);
+
+	ol_field = is_stat_overlimit_current (&ac->current, sl);
+	if (ol_field != NORESTRICT_PARAM2)
 	{
-	  char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-	  prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-	  WRITE_LOG (&ac->current,
-		     1,
-		     tmp_buf, data_cfg.log_mode);
-
-	}
-      return 1;
-
-    }
-  else
-    {
-      GOVERNORS_FIELD_NAME _short =
-	is_stat_overlimit_short (&ac->short_average, sl);
-      if (_short != NORESTRICT_PARAM2)
-	{
-	  //Short restrict
-	  restrict_period = data_cfg.l_unlimit;
-	  if (data_cfg.statistic_mode)
-	    IncNumberOfRestricts (ac->id, get_cause_of_restrict (_cur));
-	  int old_restricted = ac->restricted;
-	  ac->restricted = 1000;
-	  ac->timeout = restrict_period;
-	  time (&ac->start_count);
-	  ac->info.field_restrict = SHORT_PERIOD;
-	  ac->info.field_level_restrict = _short;
-	  if (!old_restricted)
-	    account_restrict (ac, sl);
-	  if (data_cfg.restrict_log)
-	    {
-	      char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-	      prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-	      WRITE_LOG (&ac->short_average,
-			 1,
-			 tmp_buf, data_cfg.log_mode);
-
-	    }
-	  return 1;
-	}
-      else
-	{
-	  GOVERNORS_FIELD_NAME _mid = is_stat_overlimit_mid (&ac->mid_average,
-							     sl);
-	  if (_mid != NORESTRICT_PARAM2)
-	    {
-	      //Mid restrict
-	      restrict_period = data_cfg.l_unlimit;
-	      if (data_cfg.statistic_mode)
-		IncNumberOfRestricts (ac->id, get_cause_of_restrict (_cur));
-	      int old_restricted = ac->restricted;
-	      ac->restricted = 1000;
-	      ac->timeout = restrict_period;
-	      time (&ac->start_count);
-	      ac->info.field_restrict = MID_PERIOD;
-	      ac->info.field_level_restrict = _mid;
-	      if (!old_restricted)
-		account_restrict (ac, sl);
-	      if (data_cfg.restrict_log)
+		//Current restrict
+		restrict_period = data_cfg.l_unlimit;
+		if (data_cfg.statistic_mode)
+			IncNumberOfRestricts (ac->id, get_cause_of_restrict (ol_field));
+		int old_restricted = ac->restricted;
+		ac->restricted = 1000;
+		ac->timeout = restrict_period;
+		time (&ac->start_count);
+		ac->info.field_restrict = CURRENT_PERIOD;
+		ac->info.field_level_restrict = ol_field;
+		FREEZE_EXT_LOG("%s(cur): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period,
+			ac->info.field_restrict, (long)ac->start_count);
+		if (!old_restricted)
 		{
-		  char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-		  prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-		  WRITE_LOG (&ac->mid_average,
-			     1,
-			     tmp_buf, data_cfg.log_mode);
+			FREEZE_EXT_LOG("%s(cur): Before account_restrict call", __FUNCTION__);
+			account_restrict (ac, sl);
 		}
-	      return 1;
-	    }
-	  else
-	    {
-	      GOVERNORS_FIELD_NAME _long =
-		is_stat_overlimit_long (&ac->long_average, sl);
-	      if (_long != NORESTRICT_PARAM2)
+		else
 		{
-		  //Long restrict
-		  restrict_period = data_cfg.l_unlimit;
-		  if (data_cfg.statistic_mode)
-		    IncNumberOfRestricts (ac->id,
-					  get_cause_of_restrict (_cur));
-		  int old_restricted = ac->restricted;
-		  ac->restricted = 1000;
-		  ac->timeout = restrict_period;
-		  time (&ac->start_count);
-		  ac->info.field_restrict = LONG_PERIOD;
-		  ac->info.field_level_restrict = _long;
-		  if (!old_restricted)
-		    account_restrict (ac, sl);
-		  if (data_cfg.restrict_log)
-		    {
-		      char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-		      prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-
-		      WRITE_LOG (&ac->long_average,
-				 1,
-				 tmp_buf, data_cfg.log_mode);
-		    }
-		  return 1;
+			FREEZE_EXT_LOG("%s(cur): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
 		}
-	    }
+		if (data_cfg.restrict_log)
+		{
+			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
+			WRITE_LOG (&ac->current, 1, tmp_buf, data_cfg.log_mode);
+		}
+		return 1;
 	}
-    }
-  return 0;
+
+	ol_field = is_stat_overlimit_short (&ac->short_average, sl);
+	if (ol_field != NORESTRICT_PARAM2)
+	{
+		//Short restrict
+		restrict_period = data_cfg.l_unlimit;
+		if (data_cfg.statistic_mode)
+		{
+			IncNumberOfRestricts (ac->id, get_cause_of_restrict (ol_field));
+		}
+		int old_restricted = ac->restricted;
+		ac->restricted = 1000;
+		ac->timeout = restrict_period;
+		time (&ac->start_count);
+		ac->info.field_restrict = SHORT_PERIOD;
+		ac->info.field_level_restrict = ol_field;
+		FREEZE_EXT_LOG("%s(short): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period, 
+			ac->info.field_restrict, (long)ac->start_count);
+		if (!old_restricted)
+		{
+			FREEZE_EXT_LOG("%s(short): Before account_restrict call", __FUNCTION__);
+			account_restrict (ac, sl);
+		}
+		else
+		{
+			FREEZE_EXT_LOG("%s(short): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
+		}
+		if (data_cfg.restrict_log)
+		{
+			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
+			WRITE_LOG (&ac->short_average, 1, tmp_buf, data_cfg.log_mode);
+		}
+		return 1;
+	}
+
+	ol_field = is_stat_overlimit_mid (&ac->mid_average, sl);
+	if (ol_field != NORESTRICT_PARAM2)
+	{
+		//Mid restrict
+		restrict_period = data_cfg.l_unlimit;
+		if (data_cfg.statistic_mode)
+		{
+			IncNumberOfRestricts (ac->id, get_cause_of_restrict (ol_field));
+		}
+		int old_restricted = ac->restricted;
+		ac->restricted = 1000;
+		ac->timeout = restrict_period;
+		time (&ac->start_count);
+		ac->info.field_restrict = MID_PERIOD;
+		ac->info.field_level_restrict = ol_field;
+		FREEZE_EXT_LOG("%s(mid): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period, 
+			ac->info.field_restrict, (long)ac->start_count);
+		if (!old_restricted)
+		{
+			FREEZE_EXT_LOG("%s(mid): Before account_restrict call", __FUNCTION__);
+			account_restrict (ac, sl);
+		}
+		else
+		{
+			FREEZE_EXT_LOG("%s(mid): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
+		}
+		if (data_cfg.restrict_log)
+		{
+			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
+			WRITE_LOG (&ac->mid_average, 1, tmp_buf, data_cfg.log_mode);
+		}
+		return 1;
+	}
+
+	ol_field = is_stat_overlimit_long (&ac->long_average, sl);
+	if (ol_field != NORESTRICT_PARAM2)
+	{
+		//Long restrict
+		restrict_period = data_cfg.l_unlimit;
+		if (data_cfg.statistic_mode)
+		{
+			IncNumberOfRestricts (ac->id, get_cause_of_restrict (ol_field));
+		}
+		int old_restricted = ac->restricted;
+		ac->restricted = 1000;
+		ac->timeout = restrict_period;
+		time (&ac->start_count);
+		ac->info.field_restrict = LONG_PERIOD;
+		ac->info.field_level_restrict = ol_field;
+		FREEZE_EXT_LOG("%s(long): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period, 
+			ac->info.field_restrict, (long)ac->start_count);
+		if (!old_restricted)
+		{
+			FREEZE_EXT_LOG("%s(long): Before account_restrict call", __FUNCTION__);
+			account_restrict (ac, sl);
+		}
+		else
+		{
+			FREEZE_EXT_LOG("%s(long): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
+		}
+		if (data_cfg.restrict_log)
+		{
+			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
+			WRITE_LOG (&ac->long_average, 1, tmp_buf, data_cfg.log_mode);
+		}
+		 return 1;
+	}
+
+	return 0;
 }
 
 static void
@@ -1023,32 +1045,30 @@ AddDbGovStatitrics (double old_tm)
 void
 proceed_accounts (double tm)
 {
-  struct governor_config data_cfg;
-  get_config_data (&data_cfg);
+	struct governor_config data_cfg;
+	get_config_data (&data_cfg);
 
-  send_to_glib_info snd = { data_cfg.debug_user, tm, data_cfg.log_mode };
+	send_to_glib_info snd = { data_cfg.debug_user, tm, data_cfg.log_mode };
 
-  increment_tick ();
-  pthread_mutex_lock (&mtx_account);
-  pthread_mutex_lock (&mtx_counters);
-  g_hash_table_foreach (get_counters_table (),
-			(GHFunc) add_user_stats_from_counter,
-			(gpointer) & snd);
-  pthread_mutex_unlock (&mtx_counters);
-  g_hash_table_foreach (users, (GHFunc) tick_empty_users, NULL);
+	increment_tick ();
+	pthread_mutex_lock (&mtx_account);
+	pthread_mutex_lock (&mtx_counters);
+	g_hash_table_foreach (get_counters_table(), (GHFunc) add_user_stats_from_counter, (gpointer) &snd);
+	pthread_mutex_unlock (&mtx_counters);
+	g_hash_table_foreach (users, (GHFunc) tick_empty_users, NULL);
 
-  g_hash_table_foreach (accounts, (GHFunc) calc_acc_stats, (gpointer) & snd);
-  if (data_cfg.restrict_mode)
-    {
-      g_hash_table_foreach (accounts, (GHFunc) account_analyze_limit, NULL);
-    }
-  else
-    {
-      g_hash_table_foreach (accounts, (GHFunc) account_analyze, NULL);
-    }
-  if (data_cfg.statistic_mode)
-    old_tm_stats = AddDbGovStatitrics (old_tm_stats);
-  pthread_mutex_unlock (&mtx_account);
+	g_hash_table_foreach (accounts, (GHFunc) calc_acc_stats, (gpointer) & snd);
+	if (data_cfg.restrict_mode)
+	{
+		g_hash_table_foreach (accounts, (GHFunc) account_analyze_limit, NULL);
+	}
+	else
+	{
+		g_hash_table_foreach (accounts, (GHFunc) account_analyze, NULL);
+	}
+	if (data_cfg.statistic_mode)
+		old_tm_stats = AddDbGovStatitrics (old_tm_stats);
+	pthread_mutex_unlock (&mtx_account);
 }
 
 void

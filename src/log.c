@@ -7,11 +7,14 @@
  * Author: Igor Seletskiy <iseletsk@cloudlinux.com>, Alexey Berezhok <alexey.berezhok@cloudlinux.com>
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "data.h"
 #include "governor_config.h"
@@ -108,8 +111,12 @@ write_log (FILE *f, const char *error_file, int error_line, MODE_TYPE mode, Stat
     return EINVAL;
   strftime (current_date, 128, "%c", &timeinfo);
 
+  // According to man 3 basename,
+  // GNU version of basename is selected by defining _GNU_SOURCE + not including libgen.h
   if (mode == DEBUG_MODE)
-    rc = fprintf (f, "[%s] %s:%d ", current_date, error_file, error_line);
+    rc = fprintf (f, "[%s] %s:%d ", current_date, basename(error_file), error_line);
+  else if (mode == EXTLOG_MODE)
+    rc = fprintf (f, "[%d:%d] [%s] %s:%d ", (int)getpid(), (int)gettid_p(), current_date, basename(error_file), error_line);
   else
     rc = fprintf (f, "[%s] ", current_date);
 
@@ -258,3 +265,60 @@ print_config (void *icfg)
     }
 }
 
+/*
+    Extended logging sectiom
+*/
+// Set of extended logging flags - the subsystem logging is enabled if corresponding bit is set
+static unsigned extlog_flags;
+
+typedef struct _extlog_files_t {
+	const char *fname;
+	unsigned flag;
+} extlog_files_t;
+
+// Switching particular extended logging - mapping between flags and file-flags
+static extlog_files_t extlog_flags_by_files[] = {
+	{ "extlog-freeze.flag", EXTLOG_USER_FREEZE },
+	{ NULL, 0 }
+};
+
+// initialize extlog_flags by extlog_flags_by_files
+void extlog_init(void)
+{
+	extlog_files_t *cur;
+	static const int flag_max_size = 256;
+	size_t blen = strlen(PATH_TO_GOVERNOR_PRIVATE_DIR);
+	char fname[blen + flag_max_size];
+	char *ptr = fname + blen;
+	struct stat flag_stat;
+
+	extlog_flags = 0;
+	memcpy(fname, PATH_TO_GOVERNOR_PRIVATE_DIR, blen); //without NULL
+	for (cur = extlog_flags_by_files; cur->fname != NULL; ++cur)
+	{
+		strncpy(ptr, cur->fname, flag_max_size);
+		if (!stat(fname, &flag_stat))
+			extlog_flags |= cur->flag;
+	}
+}
+
+#define EXT_LOG(extlog_mode, fmt, ...) do { \
+	extlog(extlog_mode, __FILE__, __LINE__, fmt, ##__VA_ARGS__); \
+} while(0)
+
+#define FREEZE_EXT_LOG(fmt, ...) do { \
+	EXT_LOG(EXTLOG_USER_FREEZE, fmt, ##__VA_ARGS__); \
+} while(0)
+
+int extlog(unsigned extlog_mode, const char *error_file, int error_line, char *fmt, ...)
+{
+	int rc;
+	if (!(extlog_flags & extlog_mode))
+		return 0;
+
+	va_list args;
+	va_start (args, fmt);
+	rc = write_log(restrict_log, error_file, error_line, EXTLOG_MODE, NULL, fmt, args);
+	va_end (args);
+	return rc;
+}

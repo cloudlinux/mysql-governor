@@ -27,10 +27,10 @@
 #include "shared_memory.h"
 #include "dbuser_map.h"
 
-#ifdef TEST
+//#ifdef TEST
 #include <sys/syscall.h>
 #include <stdarg.h>
-#endif
+//#endif
 
 #define MAX_ITEMS_IN_TABLE 100000
 
@@ -77,7 +77,7 @@ typedef struct __shm_structure {
 } shm_structure;
 
 shm_structure *bad_list = NULL;
-int shm_fd = 0;
+int shm_fd = -1;
 
 int init_bad_users_list_utility(void) {
 
@@ -89,6 +89,7 @@ int init_bad_users_list_utility(void) {
 			(PROT_READ | PROT_WRITE), MAP_SHARED,
 			shm_fd, 0)) == MAP_FAILED) {
 		close(shm_fd);
+		shm_fd = -1;
 		return -1;
 	}
 
@@ -105,7 +106,11 @@ int remove_bad_users_list_utility(void) {
 	{
 		cl_munmap ((void *) bad_list, sizeof (shm_structure));
 	}
-	close(shm_fd);
+	if (shm_fd >= 0)
+	{
+		close(shm_fd);
+		shm_fd = -1;
+	}
 	return 0;
 }
 
@@ -197,6 +202,7 @@ int init_bad_users_list(void) {
 		WRITE_LOG (NULL, 0, "cl_map(%s) failed with %d code - EXITING",
 				data_cfg.log_mode, shared_memory_name, errno);
 		close(shm_fd);
+		shm_fd = -1;
 		umask(old_umask);
 		return -1;
 	}
@@ -209,6 +215,7 @@ int init_bad_users_list(void) {
 					data_cfg.log_mode, shared_memory_name, errno);
 			cl_munmap ((void *) bad_list, sizeof (shm_structure));
 			close(shm_fd);
+			shm_fd = -1;
 			umask(old_umask);
 			return -1;
 		}
@@ -244,43 +251,88 @@ int remove_bad_users_list(void) {
 	{
 		cl_munmap ((void *) bad_list, sizeof (shm_structure));
 	}
-	close(shm_fd);
+	if (shm_fd >= 0)
+	{
+		close(shm_fd);
+		shm_fd = -1;
+	}
+	bad_list = NULL;
 	return 0;
 }
 
-int is_user_in_list(const char *username) {
+static int is_user_in_list(const char *username, struct governor_config *cfgptr) {
 	if (!bad_list || (bad_list == MAP_FAILED))
+	{
+		FREEZE_EXT_LOG("%s(%s): EXIT as bad_list is NOT INITED %p", __FUNCTION__, username, bad_list);
 		return -1;
+	}
 	long index;
 	for (index = 0; index < bad_list->numbers; index++) {
-		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN))
+		FREEZE_EXT_LOG("%s(%s): %ld/%ld: before check against(%s)", __FUNCTION__, username,
+				index, bad_list->numbers, bad_list->items[index].username);
+		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN-1))
+		{
+			FREEZE_EXT_LOG("%s(%s): %ld/%ld: FOUND(%s)", __FUNCTION__, username,
+					index, bad_list->numbers, bad_list->items[index].username);
 			return 1;
+		}
 	}
+	FREEZE_EXT_LOG("%s(%s): NOT FOUND from %ld", __FUNCTION__, username, bad_list->numbers);
 	return 0;
 }
 
 #ifndef LIBGOVERNOR
 int add_user_to_list(const char *username, int is_all) {
+	struct governor_config data_cfg;
+	get_config_data(&data_cfg);
+
 	if (!bad_list || (bad_list == MAP_FAILED))
+	{
+		FREEZE_EXT_LOG("%s(%s, %d): FAILED as bad_list is NOT INITED %p", __FUNCTION__, username, is_all, bad_list);
 		return -1;
+	}
+
+	// First check if the user is already in the list
+	// before any locks and heavy operation on the map
+	if (is_user_in_list(username, &data_cfg))
+	{
+		FREEZE_EXT_LOG("%s(%s, %d): EXIT as is_user_in_list FOUND it", __FUNCTION__, username, is_all);
+		return 0;
+	}
+
 	int uid = BAD_LVE;
 	if (lock_read_map() == 0) {
 		uid = get_uid(username);
 		unlock_rdwr_map();
+		FREEZE_EXT_LOG("%s(%s, %d): get_uid ret %d", __FUNCTION__, username, is_all, uid);
+	}
+	else
+	{
+		FREEZE_EXT_LOG("%s(%s, %d): lock_read_map failed so NO CALL to get_uid and uid left BAD_LVE %d", __FUNCTION__, username, is_all, uid);
 	}
 	if (is_all && uid == BAD_LVE) {
+		FREEZE_EXT_LOG("%s(%s, %d): set uid to 0 due to is_all!=0 and uid==BAD_LVE", __FUNCTION__, username, is_all);
 		uid = 0;
 	}
-	if (!is_user_in_list(username)) {
-		if ((bad_list->numbers + 1) == MAX_ITEMS_IN_TABLE)
-			return -2;
-		if (sem_wait(&bad_list->sem) == 0) {
-			strlcpy(bad_list->items[bad_list->numbers].username, username,
-			USERNAMEMAXLEN);
-			bad_list->items[bad_list->numbers++].uid = uid;
-			sem_post(&bad_list->sem);
-		}
+
+	if ((bad_list->numbers + 1) == MAX_ITEMS_IN_TABLE)
+	{
+		FREEZE_EXT_LOG("%s(%s, %d): FAILED as must add it but NO SPACE", __FUNCTION__, username, is_all);
+		return -2;
 	}
+
+	if (sem_wait(&bad_list->sem) == 0) {
+		FREEZE_EXT_LOG("%s(%s, %d): adding it with uid %d to %ld pos", __FUNCTION__, username, is_all, uid, bad_list->numbers);
+		strlcpy(bad_list->items[bad_list->numbers].username, username, USERNAMEMAXLEN);
+		bad_list->items[bad_list->numbers++].uid = uid;
+		sem_post(&bad_list->sem);
+	}
+	else
+	{
+		FREEZE_EXT_LOG("%s(%s, %d): FAILED as must add it but sem_wait FAILED %d", __FUNCTION__, username, is_all, errno);
+		return -3;
+	}
+
 	return 0;
 }
 #endif
@@ -290,7 +342,7 @@ int delete_user_from_list(char *username) {
 		return -1;
 	long index;
 	for (index = 0; index < bad_list->numbers; index++) {
-		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN)) {
+		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN-1)) {
 			if (sem_wait(&bad_list->sem) == 0) {
 				if (index == (bad_list->numbers - 1)) {
 					bad_list->numbers--;
@@ -426,6 +478,8 @@ int user_in_bad_list_cleint_show(void) {
 			} else {
 				if (errno == EAGAIN) {
 					trys++;
+					if (trys == 400)
+						break;
 				} else {
 					trys = 0;
 				}
@@ -439,7 +493,7 @@ int user_in_bad_list_cleint_show(void) {
 	return fnd;
 }
 
-int shm_fd_clents_global = 0;
+int shm_fd_clents_global = -1;
 shm_structure *bad_list_clents_global = NULL;
 pthread_mutex_t mtx_shared = PTHREAD_MUTEX_INITIALIZER;
 
@@ -471,6 +525,7 @@ int init_bad_users_list_client(void) {
 	if (bad_list_clents_global == MAP_FAILED)
 	{
 		close(shm_fd_clents_global);
+		shm_fd_clents_global = -1;
 		pthread_mutex_unlock(&mtx_shared);
 		umask(old_umask);
 		return -2;
@@ -484,6 +539,7 @@ int init_bad_users_list_client(void) {
 			cl_munmap ((void *) bad_list_clents_global, sizeof (shm_structure));
 			bad_list_clents_global = NULL;
 			close(shm_fd_clents_global);
+			shm_fd_clents_global = -1;
 			pthread_mutex_unlock(&mtx_shared);
 			return -2;
 		}
@@ -519,6 +575,7 @@ int init_bad_users_list_client_without_init(void) {
 	if (bad_list_clents_global == MAP_FAILED)
 	{
 		close(shm_fd_clents_global);
+		shm_fd_clents_global = -1;
 		pthread_mutex_unlock(&mtx_shared);
 		return -2;
 	}
@@ -532,51 +589,64 @@ int remove_bad_users_list_client(void) {
 	pthread_mutex_lock(&mtx_shared);
 	if (bad_list_clents_global && (bad_list_clents_global != MAP_FAILED))
 		cl_munmap ((void *) bad_list_clents_global, sizeof (shm_structure));
-	close(shm_fd_clents_global);
+	if (shm_fd_clents_global >= 0)
+	{
+		close(shm_fd_clents_global);
+	}
 	pthread_mutex_unlock(&mtx_shared);
 	return 0;
 }
 
 int32_t is_user_in_bad_list_cleint_persistent(char *username) {
-	print_message_log("GOVERNOR: is_user_in_bad_list_cleint_persistent user %s", username);
-	int32_t fnd = 0;
+	int32_t fnd = -1;
 
-	print_message_log("GOVERNOR: is_user_in_bad_list_cleint_persistent user %s map %p=%d",
-				username, bad_list_clents_global, bad_list_clents_global != MAP_FAILED);
-	if (bad_list_clents_global && (bad_list_clents_global != MAP_FAILED)) {
-		print_message_log("GOVERNOR: is_user_in_bad_list_cleint_persistent user %s numbers %d",
-                                       username, bad_list_clents_global->numbers);
-		int trys = 1;
-		while (trys) {
-			if (sem_trywait(&bad_list_clents_global->sem) == 0) {
-				long index = 0;
-				for (index = 0; index < bad_list_clents_global->numbers; index++) {
-					print_message_log("GOVERNOR: is_user_in_bad_list_cleint_persistent user %s user at index %d - %s, uid %d",
-						username, index, bad_list_clents_global->items[index].username,
-						bad_list_clents_global->items[index].uid);
-					if (!strncmp(
-							bad_list_clents_global->items[index].username,
-							username, USERNAMEMAXLEN)) {
-						fnd = bad_list_clents_global->items[index].uid;
-						break;
-					}
+	if (!bad_list_clents_global || (bad_list_clents_global == MAP_FAILED))
+	{
+		print_message_log("%s(%s): FAILED as bad_list is not inited: %p", __FUNCTION__, username, bad_list_clents_global);
+		return fnd;
+	}
+
+	print_message_log("%s(%s): before search from %ld num", __FUNCTION__, username, bad_list_clents_global->numbers);
+	int trys = 1;
+	while (trys) {
+		if (sem_trywait(&bad_list_clents_global->sem) == 0) {
+			long index;
+			int found = 0;
+			for (index = 0; index < bad_list_clents_global->numbers; index++)
+			{
+				print_message_log("%s(%s): %ld/%ld before check against(%s)",
+						__FUNCTION__, username, index, bad_list_clents_global->numbers, 
+						bad_list_clents_global->items[index].username );
+				if (!strncmp(bad_list_clents_global->items[index].username, username, USERNAMEMAXLEN))
+				{
+					fnd = bad_list_clents_global->items[index].uid;
+					print_message_log("%s (%s): %ld/%ld FOUND - uid %d",
+							    __FUNCTION__, username, index, bad_list_clents_global->numbers, fnd );
+					found = 1;
+					break;
 				}
-				trys = 0;
-				sem_post(&bad_list_clents_global->sem);
+			}
+			trys = 0;
+			sem_post(&bad_list_clents_global->sem);
+			if (!found)
+			{
+				fnd = 0;
+				print_message_log("%s(%s): cannot find it in bad_list", __FUNCTION__, username);
+			}
+		}
+		else {
+			if (errno == EAGAIN) {
+				trys++;
+				if (trys == 400) {
+					print_message_log("%s(%s): FAILED - %d failures to acquire semaphore", __FUNCTION__, username, trys);
+					break;
+				}
 			} else {
-				if (errno == EAGAIN) {
-					trys++;
-					if (trys == 400) {
-						break;
-					}
-				} else {
-					trys = 0;
-				}
-
+				print_message_log("%s(%s): FAILED - sem_trywait failed with errno %d", __FUNCTION__, username, errno);
+				trys = 0;
 			}
 		}
 	}
-
 	return fnd;
 }
 
@@ -612,32 +682,34 @@ void printf_bad_list_cleint_persistent(void) {
 	return;
 }
 
-#ifdef TEST
-#ifndef GETTID
-pid_t gettid_p(void) {return syscall(__NR_gettid);}
-#endif
 
-void _print_message_log(char *format, ...)
+static FILE *mysqld_message_log;
+
+void governor_init_message_log(void)
 {
-	char data[8192];
-	FILE *fp = fopen("/var/log/dbgovernor-debug.log","a");
-	if(fp){
-
-		char dt[20]; // space enough for DD/MM/YYYY HH:MM:SS and terminator
-		struct tm tm;
-		time_t current_time;
-
-		current_time = time(NULL);
-		tm = *localtime(&current_time); // convert time_t to struct tm
-		strftime(dt, sizeof dt, "%d/%m/%Y %H:%M:%S", &tm); // format
-
-		va_list ptr;
-		va_start(ptr, format);
-		vsprintf(data, format, ptr);
-		va_end(ptr);
-		fprintf(fp, "%s: TID %d %s\n", dt, gettid_p(), data);
-		fclose(fp);
-	}
+    struct stat fstat;
+    mysqld_message_log = stat("/usr/share/lve/dbgovernor/extlog-mysqld.flag", &fstat) ?
+				NULL : fopen("/var/log/dbgovernor-debug.log","a");
 }
-#endif
+
+void print_message_log(char *format, ...)
+{
+	char dt[20]; // space enough for DD/MM/YYYY HH:MM:SS and terminator
+	struct tm tm;
+	time_t current_time;
+	char data[8192];
+	va_list ptr;
+
+	if (!mysqld_message_log)
+		return;
+
+	current_time = time(NULL);
+	tm = *localtime(&current_time); // convert time_t to struct tm
+	strftime(dt, sizeof dt, "%d/%m/%Y %H:%M:%S", &tm); // format
+
+	va_start(ptr, format);
+	vsprintf(data, format, ptr);
+	va_end(ptr);
+	fprintf(mysqld_message_log, "%s: PID %d TID %d %s\n", dt, getpid(), gettid_p(), data);
+}
 
