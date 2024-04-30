@@ -483,6 +483,7 @@ fi
 
 %changelog
 * Thu Apr 25 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-110
+- CLOS-2322: Fixed DB limits not applying to users after a MySQL Governor service restart
 - CLOS-2535: Governor threads logging added
 
 * Thu Apr 18 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-109
