@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/syscall.h>
 
 /* Max user length in MySQL */
 #define USERNAMEMAXLEN 16*4
@@ -44,6 +45,7 @@ typedef char parameter_t[USERNAMEMAXLEN];
 
 #define PATH_TO_GOVERNOR_STATS "/var/lve/dbgovernor/"
 #define PATH_TO_LOG_USER_QUERIES "/var/lve/dbgovernor-store/"
+#define PATH_TO_GOVERNOR_PRIVATE_DIR PATH_TO_GOVERNOR_STATS
 
 #define DBUSER_MAP_FILE "/etc/container/dbuser-map"
 #define DUPLICATE_CONFIG_PATH "/var/run/mysql-governor-config.xml"
@@ -72,7 +74,8 @@ typedef enum
   NORESTRICT_MODE,
   IGNORE_MODE,
   OLD_RESTRICT_MODE,
-  NEW_RESTRICT_MODE
+  NEW_RESTRICT_MODE,
+  EXTLOG_MODE
 } MODE_TYPE;
 
 typedef struct
@@ -222,5 +225,10 @@ typedef struct _user_map
   int uid;
   username_t account_name;
 } UserMap;
+
+
+#ifndef gettid_p
+#define gettid_p() ((pid_t)syscall(__NR_gettid))
+#endif
 
 #endif /* DATA_H_ */
