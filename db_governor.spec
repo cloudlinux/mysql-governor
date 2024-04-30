@@ -482,13 +482,12 @@ fi
 %{_includedir}/libgovernor.h
 
 %changelog
-* Thu Apr 25 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-110
-- CLOS-2322: Fixed DB limits not applying to users after a MySQL Governor service restart
+* Tue Apr 30 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-110
+- CLOS-2322: Fixed issue with not applying limits after Governor service restart
 - CLOS-2535: Governor threads logging added
 
 * Thu Apr 18 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-109
-- CLOS-2572: No LVE exit issue fixed
-- CLOS-2572: Reverted CLOS-2322 and CLOS-2535
+- CLOS-2572: LVE busy in MySQL processes issue fixed
 - CLOS-2506: Fixed MySQL community downloads URL
 
 * Mon Mar 18 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-108
