@@ -79,6 +79,7 @@ override_dh_auto_install:
 	install -D -m 755 $(CURDIR)/install/scripts/dbgovernor_map $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/dbgovernor_map
 	install -D -m 755 $(CURDIR)/install/scripts/dbgovernor_map.py $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/dbgovernor_map.py
 	install -D -m 755 $(CURDIR)/install/scripts/dbgovernor_map_plesk.py $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/dbgovernor_map_plesk.py
+	install -D -m 755 $(CURDIR)/install/scripts/dbgovernor_watchdog.py $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py
 	install -D -m 755 $(CURDIR)/install/scripts/detect-cpanel-mysql-version.pm $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 	install -D -m 755 $(CURDIR)/install/scripts/cpanel-mysql-url-detect.pm $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
 	install -D -m 755 $(CURDIR)/install/scripts/set_cpanel_mysql_version.pm $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm
@@ -92,6 +93,7 @@ override_dh_auto_install:
 	install -D -m 755 $(CURDIR)/install/utils/mysql_export $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/utils/mysql_export
 	install -D -m 755 $(CURDIR)/debian/governor-mysql/usr/bin/dbctl $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/utils/dbctl_orig
 	install -D -m 755 $(CURDIR)/install/cpanel/upgrade-mysql-disabler.sh $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/cpanel/upgrade-mysql-disabler.sh
+	install -D -m 600 $(CURDIR)/install/sentry_dsn $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/sentry_dsn
 	install -m 755 $(CURDIR)/install/dbctl $(CURDIR)/debian/tmp/usr/sbin/dbctl
 	mkdir -p $(CURDIR)/debian/tmp/etc/cron.d/
 	install -D -m 644 $(CURDIR)/debian/source/lvedbgovernor-utils-cron $(CURDIR)/debian/tmp/etc/cron.d/

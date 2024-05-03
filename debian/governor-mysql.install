@@ -32,6 +32,7 @@
  usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
  usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
  usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm
+ usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py
  usr/share/lve/dbgovernor/scripts/mysql_hook
  usr/share/lve/dbgovernor/scripts/map_hook
  usr/share/lve/dbgovernor/scripts/sync_hook
@@ -47,3 +48,4 @@
  etc/cron.d/lvedbgovernor-utils-cron
  usr/share/lve/dbgovernor/governor_package_limitting.py
  usr/share/lve/dbgovernor/creates_individual_limits_vector_list.py
+ usr/share/lve/dbgovernor/sentry_dsn

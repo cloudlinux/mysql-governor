@@ -1,3 +1,9 @@
+governor-mysql (1.2-111) stable; urgency=medium
+
+  * CLOS-2385: Added watchdog monitoring utility to governor package
+
+ -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Thu, 02 May 2024 10:00:00 +0000
+
 governor-mysql (1.2-110) stable; urgency=medium
 
   * CLOS-2322: Fixed issue with not applying limits after Governor service restart
