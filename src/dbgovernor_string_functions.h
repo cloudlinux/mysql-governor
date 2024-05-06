@@ -15,5 +15,4 @@
 
 size_t strlcpy (char *dst, const char *src, size_t siz);
 
-
 #endif /* DBGOVERNOR_STRING_FUNCTIONS_H_ */

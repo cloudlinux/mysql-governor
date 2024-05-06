@@ -19,14 +19,14 @@
 #define M_load_defaults int (*_load_defaults)(const char *, const char **, int *, char ***)
 #define M_mysql_init void * (*_mysql_init)(void *)
 #define M_mysql_real_connect void * (*_mysql_real_connect)( \
-    void *, \
-    const char *, \
-    const char *, \
-    const char *, \
-    const char *, \
-    unsigned int, \
-    const char *, \
-    unsigned long)
+	void *, \
+	const char *, \
+	const char *, \
+	const char *, \
+	const char *, \
+	unsigned int, \
+	const char *, \
+	unsigned long)
 #define M_mysql_options int (*_mysql_options)(void *mysql, int mysql_option, const char *)
 #define M_mysql_query int (*_mysql_query)(void *mysql, const char *)
 #define M_mysql_close void (*_mysql_close)(void *)

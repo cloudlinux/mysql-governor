@@ -17,44 +17,44 @@
 
 struct governor_config
 {
-  char *db_login;
-  char *db_password;
-  stats_limit_cfg default_limit;
-  GHashTable *account_limits;
-  char *host;
-  char *log;
-  MODE_TYPE log_mode;
-  char *restrict_log;
-  char separator;
-  unsigned level1, level2, level3, level4;	// in seconds
-  unsigned timeout;		// in seconds
-  unsigned interval_short;	// in seconds
-  unsigned interval_mid;	// in seconds
-  unsigned interval_long;	// in seconds
-  char *training_log;
-  unsigned training_interval;
-  unsigned restrict_format;
-  char *exec_script;
-  int use_lve;
-  int statistic_mode;
-  int logqueries_use;
-  int daemon_monitor;
-  int max_user_connections;
-  int killuser;
-  int is_gpl;
-  int separate_lve;
-  int all_lve;
-  int slow_queries;
-  int restrict_mode;
-  unsigned l_unlimit;		// in seconds
-  char *slow_queries_log;
-  char *debug_user;
-  int save_statistic_uid;
-  int improved_accuracy;
+	char *db_login;
+	char *db_password;
+	stats_limit_cfg default_limit;
+	GHashTable *account_limits;
+	char *host;
+	char *log;
+	MODE_TYPE log_mode;
+	char *restrict_log;
+	char separator;
+	unsigned level1, level2, level3, level4;	// in seconds
+	unsigned timeout;		// in seconds
+	unsigned interval_short;	// in seconds
+	unsigned interval_mid;	// in seconds
+	unsigned interval_long;	// in seconds
+	char *training_log;
+	unsigned training_interval;
+	unsigned restrict_format;
+	char *exec_script;
+	int use_lve;
+	int statistic_mode;
+	int logqueries_use;
+	int daemon_monitor;
+	int max_user_connections;
+	int killuser;
+	int is_gpl;
+	int separate_lve;
+	int all_lve;
+	int slow_queries;
+	int restrict_mode;
+	unsigned l_unlimit;		// in seconds
+	char *slow_queries_log;
+	char *debug_user;
+	int save_statistic_uid;
+	int improved_accuracy;
 };
 
 stats_limit_cfg *config_get_account_limit (const char *account_id,
-					   stats_limit_cfg * cfgin);
+					stats_limit_cfg * cfgin);
 void config_free (void);
 struct governor_config *config_init (const char *path);
 int save_duplicate_config (xml_data* xml);

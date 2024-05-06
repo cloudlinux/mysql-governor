@@ -31,15 +31,15 @@ typedef char my_bool;
 
 enum mysql_option
 {
-  MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE,
-  MYSQL_INIT_COMMAND, MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
-  MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
-  MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
-  MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
-  MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
-  MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT
+	MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE,
+	MYSQL_INIT_COMMAND, MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
+	MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
+	MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
+	MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
+	MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
+	MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
+	MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
+	MYSQL_OPT_SSL_VERIFY_SERVER_CERT
 };
 
 //MYSQL_OPT_RECONNECT - в 5.0, 5.1 и 5.5
@@ -58,19 +58,19 @@ enum mysql_option
 // MariaDB 10.4+ needs special sql for working with max_user_connections
 
 #define MARIADB104_USER_CONN_LIMIT \
-  "UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '%lu') WHERE user='%s'"
+	"UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '%lu') WHERE user='%s'"
 
 #define MARIADB104_USER_CONN_LIMIT_UNFREEZE \
-  "UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '0')" \
-  "WHERE CAST(IFNULL(JSON_VALUE(Priv, '$.max_user_connections'), 0) AS SIGNED)=%lu"
+	"UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '0')" \
+	"WHERE CAST(IFNULL(JSON_VALUE(Priv, '$.max_user_connections'), 0) AS SIGNED)=%lu"
 
 #define MARIADB104_USER_CONN_LIMIT_UNFREEZE_LVE \
-  "UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '0')" \
-  "WHERE CAST(IFNULL(JSON_VALUE(Priv, '$.max_user_connections'), 0) AS SIGNED)<>0"
+	"UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '0')" \
+	"WHERE CAST(IFNULL(JSON_VALUE(Priv, '$.max_user_connections'), 0) AS SIGNED)<>0"
 
 #define MARIADB104_USER_CONN_LIMIT_UNFREEZE_DAILY \
-  "UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '0')" \
-  "WHERE CAST(IFNULL(JSON_VALUE(Priv, '$.max_user_connections'), 0) AS SIGNED)=%lu" \
+	"UPDATE mysql.global_priv SET Priv = JSON_SET(Priv, '$.max_user_connections', '0')" \
+	"WHERE CAST(IFNULL(JSON_VALUE(Priv, '$.max_user_connections'), 0) AS SIGNED)=%lu" \
 
 //Сброс userstat статистики
 #define QUERY_FLUSH_USER_STATISTICS "FLUSH USER_STATISTICS"
@@ -119,12 +119,12 @@ enum mysql_option
  */
 int
 db_connect_common (MYSQL ** internal_db,
-		   const char *host,
-		   const char *user_name,
-		   const char *user_password,
-		   const char *db_name,
-		   MODE_TYPE debug_mode, int argc, char *argv[],
-		   int save_global);
+	const char *host,
+	const char *user_name,
+	const char *user_password,
+	const char *db_name,
+	MODE_TYPE debug_mode, int argc, char *argv[],
+	int save_global);
 
 /*
  * Функция выполнения запроса к БД. Сердце коннектора
@@ -134,12 +134,12 @@ db_connect_common (MYSQL ** internal_db,
  */
 int
 db_mysql_exec_query (const char *query, MYSQL ** mysql_internal,
-		     MODE_TYPE debug_mode);
+	MODE_TYPE debug_mode);
 
 int
 db_connect (const char *host, const char *user_name,
-      const char *user_password, const char *db_name, int argc,
-      char *argv[], MODE_TYPE debug_mode);
+	const char *user_password, const char *db_name, int argc,
+	char *argv[], MODE_TYPE debug_mode);
 
 int
 check_mysql_version (MODE_TYPE debug_mode);
@@ -155,21 +155,21 @@ long db_mysql_get_integer (char *result, unsigned long length);
 double db_mysql_get_float (char *result, unsigned long length);
 //Из формата БД в строку фиксированного размера
 void db_mysql_get_string (char *buffer, char *result, unsigned long length,
-			  unsigned long max_bufer_len);
+			unsigned long max_bufer_len);
 //Получить строку с последней ошибкой передаваемому соединению
 char *db_getlasterror (MYSQL * mysql_internal);
 void
 update_user_limit (char *user_name, unsigned int limit, MODE_TYPE debug_mode);
 void
 update_user_limit_no_flush (char *user_name, unsigned int limit,
-			    MODE_TYPE debug_mode);
+			MODE_TYPE debug_mode);
 unsigned select_max_user_connections (char *username, MODE_TYPE debug_mode);
 void flush_user_stat (MODE_TYPE debug_mode);
 void flush_user_priv (MODE_TYPE debug_mode);
 void kill_query (char *user_name, MODE_TYPE debug_mode);
 void kill_connection (char *user_name, MODE_TYPE debug_mode);
 void kill_query_by_id (long id, MODE_TYPE debug_mode,
-		       MYSQL ** mysql_internal);
+			MYSQL ** mysql_internal);
 void governor_enable (MODE_TYPE debug_mode);
 void governor_enable_reconn (MODE_TYPE debug_mode);
 void governor_enable_lve (MODE_TYPE debug_mode);

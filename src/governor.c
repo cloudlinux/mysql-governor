@@ -56,7 +56,8 @@
 /* Lock a file region (private; public interfaces below) */
 
 static int lockReg_III(int fd_III, int cmd_III, int type_III, int whence_III,
-		int start_III, off_t len_III) {
+		int start_III, off_t len_III)
+{
 	struct flock fl;
 
 	fl.l_type = type_III;
@@ -69,14 +70,16 @@ static int lockReg_III(int fd_III, int cmd_III, int type_III, int whence_III,
 
 int /* Lock a file region using nonblocking F_SETLK */
 lockRegion_III(int fd_III, int type_III, int whence_III, int start_III,
-		int len_III) {
+		int len_III)
+{
 	return lockReg_III(fd_III, F_SETLK, type_III, whence_III, start_III,
 			len_III);
 }
 
 int /* Lock a file region using blocking F_SETLKW */
 lockRegionWait_III(int fd_III, int type_III, int whence_III, int start_III,
-		int len_III) {
+		int len_III)
+{
 	return lockReg_III(fd_III, F_SETLKW, type_III, whence_III, start_III,
 			len_III);
 }
@@ -85,7 +88,8 @@ lockRegionWait_III(int fd_III, int type_III, int whence_III, int start_III,
  PID of process holding incompatible lock, or -1 on error. */
 
 pid_t regionIsLocked_III(int fd_III, int type_III, int whence_III,
-		int start_III, int len_III) {
+		int start_III, int len_III)
+{
 	struct flock fl;
 
 	fl.l_type = type_III;
@@ -99,13 +103,15 @@ pid_t regionIsLocked_III(int fd_III, int type_III, int whence_III,
 	return (fl.l_type == F_UNLCK) ? 0 : fl.l_pid;
 }
 
-int createPidFile_III(const char *pidFile_III, int flags_III) {
+int createPidFile_III(const char *pidFile_III, int flags_III)
+{
 	char buffer[_DBGOVERNOR_BUFFER_2048];
 	int fd;
 	char buf[BUF_SIZE_III];
 
 	fd = open(pidFile_III, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-	if (fd == -1) {
+	if (fd == -1)
+	{
 		return -1;
 	}
 
@@ -117,30 +123,35 @@ int createPidFile_III(const char *pidFile_III, int flags_III) {
 	 fcntl() to set the close-on-exec flag after opening the file */
 
 	flags_III = fcntl(fd, F_GETFD); /* Fetch flags */
-	if (flags_III == -1) {
+	if (flags_III == -1)
+	{
 		close(fd);
 		return -1;
 	}
 
 	flags_III |= FD_CLOEXEC; /* Turn on FD_CLOEXEC */
 
-	if (fcntl(fd, F_SETFD, flags_III) == -1) { /* Update flags */
+	if (fcntl(fd, F_SETFD, flags_III) == -1) /* Update flags */
+	{
 		close(fd);
 		return -1;
 	}
 
-	if (lockRegion_III(fd, F_WRLCK, SEEK_SET, 0, 0) == -1) {
+	if (lockRegion_III(fd, F_WRLCK, SEEK_SET, 0, 0) == -1)
+	{
 		close(fd);
 		return -1;
 	}
 
-	if (ftruncate(fd, 0) == -1) {
+	if (ftruncate(fd, 0) == -1)
+	{
 		close(fd);
 		return -1;
 	}
 
 	snprintf(buf, BUF_SIZE_III, "%ld\n", (long) getpid());
-	if (write(fd, buf, strlen(buf)) != strlen(buf)) {
+	if (write(fd, buf, strlen(buf)) != strlen(buf))
+	{
 		close(fd);
 		return -1;
 	}
@@ -149,31 +160,35 @@ int createPidFile_III(const char *pidFile_III, int flags_III) {
 	return 0;
 }
 
-void becameDaemon(int self_supporting) {
+void becameDaemon(int self_supporting)
+{
 	struct governor_config data_cfg;
 
 	get_config_data(&data_cfg);
 
 	/* Start daemon */
-	if (self_supporting) {
-		switch (fork()) {
-		case -1:
-			fprintf(stderr, "Can't start daemon\n");
-			fflush(stderr);
-			exit(EXIT_FAILURE);
-			break;
-		case 0:
-			break;
-		default:
-			config_free();
-			_exit(EXIT_SUCCESS);
-			break;
+	if (self_supporting)
+	{
+		switch (fork())
+		{
+			case -1:
+				fprintf(stderr, "Can't start daemon\n");
+				fflush(stderr);
+				exit(EXIT_FAILURE);
+				break;
+			case 0:
+				break;
+			default:
+				config_free();
+				_exit(EXIT_SUCCESS);
+				break;
 		}
 	}
 
 #ifndef SYSTEMD_FLAG
 	/* Set session leader */
-	if (setsid() == -1) {
+	if (setsid() == -1)
+	{
 		WRITE_LOG (NULL, 0, "Can't start setsid", data_cfg.log_mode);
 		close_log();
 		close_restrict_log();
@@ -185,28 +200,31 @@ void becameDaemon(int self_supporting) {
 	}
 #endif
 	/* Create new daemon as session leader */
-	if (self_supporting) {
-		switch (fork()) {
-		case -1:
-			WRITE_LOG (NULL, 0, "Can't start daemon", data_cfg.log_mode);
-			close_log();
-			close_restrict_log();
-			close_slow_queries_log();
-			config_free();
-			fprintf(stderr, "Can't start daemon\n");
-			fflush(stderr);
-			exit(EXIT_FAILURE);
-			break;
-		case 0:
-			break;
-		default:
-			config_free();
-			_exit(EXIT_SUCCESS);
-			break;
+	if (self_supporting)
+	{
+		switch (fork())
+		{
+			case -1:
+				WRITE_LOG (NULL, 0, "Can't start daemon", data_cfg.log_mode);
+				close_log();
+				close_restrict_log();
+				close_slow_queries_log();
+				config_free();
+				fprintf(stderr, "Can't start daemon\n");
+				fflush(stderr);
+				exit(EXIT_FAILURE);
+				break;
+			case 0:
+				break;
+			default:
+				config_free();
+				_exit(EXIT_SUCCESS);
+				break;
 		}
 	}
 	umask(0);
-	if ((chdir("/")) < 0) {
+	if ((chdir("/")) < 0)
+	{
 		WRITE_LOG (NULL, 0, "Child chdir error", data_cfg.log_mode);
 		close_log();
 		close_restrict_log();
@@ -217,7 +235,8 @@ void becameDaemon(int self_supporting) {
 		exit(EXIT_FAILURE);
 	}
 	/* Create pid file of programm */
-	if (createPidFile_III(PID_PATH, 0) == -1) {
+	if (createPidFile_III(PID_PATH, 0) == -1)
+	{
 		WRITE_LOG (NULL, 0, "Unable to create PID file", data_cfg.log_mode);
 		close_log();
 		close_restrict_log();
@@ -228,40 +247,46 @@ void becameDaemon(int self_supporting) {
 		exit(EXIT_FAILURE);
 	}
 
-        int fd;
-        const char * fd_dname = "/proc/self/fd/";
-        struct dirent * fd_dp;
-        DIR * fd_dir = opendir(fd_dname);
+	int fd;
+	const char * fd_dname = "/proc/self/fd/";
+	struct dirent * fd_dp;
+	DIR * fd_dir = opendir(fd_dname);
 
-        /* Go through /proc/<cur-pid>/fd/ directory to find out
-        ** all open descriptors and close them (expect of logs)
-        */
-        if (fd_dir) {
-                while ((fd_dp = readdir(fd_dir)) != NULL) {
-                        fd = atoi(fd_dp->d_name);
-                        if (!fd) {
-                                continue;
-                        }
+	/* Go through /proc/<cur-pid>/fd/ directory to find out
+	** all open descriptors and close them (expect of logs)
+	*/
+	if (fd_dir)
+	{
+		while ((fd_dp = readdir(fd_dir)) != NULL)
+		{
+			fd = atoi(fd_dp->d_name);
+			if (!fd)
+			{
+				continue;
+			}
 
-                        if (get_log()) {
-                                FILE *tmp_fd = get_log();
-                                if (fd == fileno(tmp_fd))
-                                        continue;
-                        }
-                        if (get_restrict_log()) {
-                                FILE *tmp_fd = get_restrict_log();
-                                if (fd == fileno(tmp_fd))
-                                        continue;
-                        }
-                        if (get_slow_queries_log()) {
-                                FILE *tmp_fd = get_slow_queries_log();
-                                if (fd == fileno(tmp_fd))
-                                        continue;
-                        }
-                        close(fd);
-                }
-                closedir(fd_dir);
-        }
+			if (get_log())
+			{
+					FILE *tmp_fd = get_log();
+					if (fd == fileno(tmp_fd))
+						continue;
+			}
+			if (get_restrict_log())
+			{
+					FILE *tmp_fd = get_restrict_log();
+					if (fd == fileno(tmp_fd))
+						continue;
+			}
+			if (get_slow_queries_log())
+			{
+					FILE *tmp_fd = get_slow_queries_log();
+					if (fd == fileno(tmp_fd))
+						continue;
+			}
+			close(fd);
+		}
+		closedir(fd_dir);
+	}
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
@@ -272,7 +297,8 @@ void becameDaemon(int self_supporting) {
 	open("/dev/null", O_RDWR);
 }
 
-int install_signals_handlers(void) {
+int install_signals_handlers(void)
+{
 	signal(SIGPIPE, SIG_IGN);
 	//Since we can create childs of the demon, we would need to close them correctly
 	//sigset (SIGCHLD, &whenchildwasdie);
@@ -281,7 +307,8 @@ int install_signals_handlers(void) {
 	return 0;
 }
 
-void check_for_zero(stats_limit_cfg * st) {
+void check_for_zero(stats_limit_cfg * st)
+{
 	MACRO_CHECK_ZERO (cpu);
 	MACRO_CHECK_ZERO (read);
 	MACRO_CHECK_ZERO (write);
@@ -297,21 +324,23 @@ void check_for_zero(stats_limit_cfg * st) {
 	MACRO_CHECK_ZERO_LONG (cpu);
 	MACRO_CHECK_ZERO_LONG (read);
 	MACRO_CHECK_ZERO_LONG (write);
-
 }
 
 #ifndef NOGOVERNOR
 
-void initGovernor(void) {
+void initGovernor(void)
+{
 	// init global structures
-	if (!config_init(CONFIG_PATH)) {
+	if (!config_init(CONFIG_PATH))
+	{
 		fprintf(stderr, "Unable to read config file: %s\n", CONFIG_PATH);
 		fflush(stderr);
 		exit(EXIT_FAILURE);
 	}
 
 	// Set signal handlers
-	if (install_signals_handlers() < 0) {
+	if (install_signals_handlers() < 0)
+	{
 		fprintf(stderr, "Can't install signal catcher\n");
 		fflush(stderr);
 		config_free();
@@ -321,7 +350,8 @@ void initGovernor(void) {
 	// Open error log
 	struct governor_config data_cfg;
 	get_config_data(&data_cfg);
-	if (open_log(data_cfg.log)) {
+	if (open_log(data_cfg.log))
+	{
 		fprintf(stderr, "Can't open log file\n");
 		fflush(stderr);
 		config_free();
@@ -343,7 +373,8 @@ void initGovernor(void) {
 	extlog_init();
 }
 
-void trackingDaemon(void) {
+void trackingDaemon(void)
+{
 	int status = 0;
 	struct governor_config data_cfg;
 	becameDaemon(0);
@@ -356,8 +387,9 @@ void trackingDaemon(void) {
 	
 	pid_t pid_daemon = fork();
 
-	if (pid_daemon > 0) {
-		//    config_free();
+	if (pid_daemon > 0)
+	{
+		// config_free();
 		wait(&status);
 
 		get_config_data(&data_cfg);
@@ -366,8 +398,10 @@ void trackingDaemon(void) {
 		int max_file_descriptor = sysconf(FOPEN_MAX), file_o;
 		struct stat buf_stat;
 
-		for (file_o = 2; file_o < max_file_descriptor; file_o++) {
-			if (!fstat(file_o, &buf_stat)) {
+		for (file_o = 2; file_o < max_file_descriptor; file_o++)
+		{
+			if (!fstat(file_o, &buf_stat))
+			{
 				close(file_o);
 			}
 		}
@@ -376,7 +410,8 @@ void trackingDaemon(void) {
 	}
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 	int ret;
 	pthread_t thread, thread_governor, thread_dbtop, thread_prcd,
 			thread_user_map, thread_slow_query, therad_renew_dbusermap;
@@ -384,15 +419,18 @@ int main(int argc, char *argv[]) {
 
 	struct governor_config data_cfg;
 
-	if (argc > 1) {
+	if (argc > 1)
+	{
 		if (strcmp(argv[argc - 1], "-v") == 0 || strcmp(argv[argc - 1],
 				"--version") == 0) {
 			printf("governor-mysql version %s\n", GOVERNOR_CUR_VER);
 			exit(0);
 		} else if (strcmp(argv[argc - 1], "-c") == 0 || strcmp(argv[argc - 1],
-				"--config") == 0) {
+				"--config") == 0)
+		{
 			only_print = 1;
-		} else {
+		} else
+		{
 			printf("governor-mysql starting error\n");
 			exit(-1);
 		}
@@ -403,10 +441,13 @@ int main(int argc, char *argv[]) {
 	initGovernor();
 	get_config_data(&data_cfg);
 
-	if (only_print) {
-		if (geteuid() == 0) {
+	if (only_print)
+	{
+		if (geteuid() == 0)
+		{
 			print_config_full();
-		} else {
+		} else
+		{
 			printf("governor-mysql version %s\n", GOVERNOR_CUR_VER);
 		}
 		close_log();
@@ -420,12 +461,14 @@ int main(int argc, char *argv[]) {
 	becameDaemon (0);
 	sd_notify (0, "READY=1");
 #else
-	if (data_cfg.daemon_monitor) {
+	if (data_cfg.daemon_monitor)
+	{
 		if (fork() == 0)
 			trackingDaemon();
 		else
 			exit(EXIT_SUCCESS);
-	} else {
+	} else
+	{
 		becameDaemon(1);
 	}
 #endif
@@ -448,7 +491,8 @@ int main(int argc, char *argv[]) {
 #endif
 
 	get_config_data(&data_cfg);
-	if (init_mysql_function() < 0) {
+	if (init_mysql_function() < 0)
+	{
 		WRITE_LOG (NULL, 0, "Can't load mysql functions", data_cfg.log_mode);
 		close_log();
 		close_restrict_log();
@@ -458,12 +502,15 @@ int main(int argc, char *argv[]) {
 	}
 
 	int trying_to_connect = 0;
-	while (1) {
+	while (1)
+	{
 		get_config_data(&data_cfg);
 		if (db_connect(data_cfg.host, data_cfg.db_login, data_cfg.db_password,
-				"information_schema", argc, argv, data_cfg.log_mode) < 0) {
+				"information_schema", argc, argv, data_cfg.log_mode) < 0)
+		{
 			trying_to_connect++;
-			if (trying_to_connect > 3) {
+			if (trying_to_connect > 3)
+			{
 				WRITE_LOG (NULL, 0, "Can't connect to mysql. Please check that mysql is running otherwise"
 				" check host, login and password in /etc/container/mysql-governor.xml file", data_cfg.log_mode);
 				/* To avoid too frequent service restart when mysql is not available */
@@ -475,12 +522,14 @@ int main(int argc, char *argv[]) {
 				config_free();
 				remove("/usr/share/lve/dbgovernor/governor_connected");
 				exit(EXIT_FAILURE);
-			} else {
+			} else
+			{
 				WRITE_LOG (NULL, 0, "Can't connect to mysql. Try to reconnect", data_cfg.log_mode);
 				/* To avoid too frequent reconnect tries when mysql is not available */
 				sleep(20);
 			}
-		} else {
+		} else
+		{
 			WRITE_LOG (NULL, 0, "Governor successfully connected to mysql", data_cfg.log_mode);
 			creat("/usr/share/lve/dbgovernor/governor_connected", 0600);
 			break;
@@ -488,7 +537,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	get_config_data(&data_cfg);
-	if (!check_mysql_version(data_cfg.log_mode)) {
+	if (!check_mysql_version(data_cfg.log_mode))
+	{
 		WRITE_LOG (NULL, 0, "Incorrect mysql version", data_cfg.log_mode);
 		db_close();
 		delete_mysql_function();
@@ -498,7 +548,8 @@ int main(int argc, char *argv[]) {
 		config_free();
 		remove("/usr/share/lve/dbgovernor/cll_lve_installed");
 		exit(EXIT_FAILURE);
-	} else {
+	} else
+	{
 		creat("/usr/share/lve/dbgovernor/cll_lve_installed", 0600);
 	}
 
@@ -507,9 +558,9 @@ int main(int argc, char *argv[]) {
 	config_add_work_user(get_work_user());
 
 	WRITE_LOG (NULL, 0, "Started",
-			data_cfg.log_mode);
+		data_cfg.log_mode);
 	WRITE_LOG (NULL, 0, "Governor work without LVE (%s)", data_cfg.log_mode,
-			(data_cfg.is_gpl ? "yes" : "no"));
+		(data_cfg.is_gpl ? "yes" : "no"));
 
 	init_tid_table();
 	dbgov_init();
@@ -517,8 +568,10 @@ int main(int argc, char *argv[]) {
 	//Work cycle
 	create_socket();
 
-	if (!activate_plugin(data_cfg.log_mode)) {
-		if (!data_cfg.is_gpl) {
+	if (!activate_plugin(data_cfg.log_mode))
+	{
+		if (!data_cfg.is_gpl)
+		{
 			remove_bad_users_list();
 		}
 		db_close();
@@ -555,7 +608,8 @@ int main(int argc, char *argv[]) {
 	ret = pthread_create(&thread, NULL, get_data_from_client, NULL);
 	if (ret < 0)
 	{
-		if (!data_cfg.is_gpl) {
+		if (!data_cfg.is_gpl)
+		{
 			remove_bad_users_list();
 		}
 		db_close();
@@ -577,7 +631,8 @@ int main(int argc, char *argv[]) {
 	{
 		WRITE_LOG (NULL, 0, "FAILED to create SERVICE thread - EXITING", data_cfg.log_mode);
 		pthread_cancel(thread);
-		if (!data_cfg.is_gpl) {
+		if (!data_cfg.is_gpl)
+		{
 			remove_bad_users_list();
 		}
 		db_close();
@@ -600,7 +655,8 @@ int main(int argc, char *argv[]) {
 		WRITE_LOG (NULL, 0, "FAILED to create DBTOP_SERVER thread - EXITING", data_cfg.log_mode);
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
-		if (!data_cfg.is_gpl) {
+		if (!data_cfg.is_gpl)
+		{
 			remove_bad_users_list();
 		}
 		db_close();
@@ -623,7 +679,8 @@ int main(int argc, char *argv[]) {
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
-		if (!data_cfg.is_gpl) {
+		if (!data_cfg.is_gpl)
+		{
 			remove_bad_users_list();
 		}
 		db_close();
@@ -648,7 +705,8 @@ int main(int argc, char *argv[]) {
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
 		pthread_cancel(thread_prcd);
-		if (!data_cfg.is_gpl) {
+		if (!data_cfg.is_gpl)
+		{
 			remove_bad_users_list();
 		}
 		db_close();
@@ -676,7 +734,8 @@ int main(int argc, char *argv[]) {
 			pthread_cancel(thread_dbtop);
 			pthread_cancel(thread_prcd);
 			pthread_cancel(thread_user_map);
-			if (!data_cfg.is_gpl && data_cfg.use_lve) {
+			if (!data_cfg.is_gpl && data_cfg.use_lve)
+			{
 				remove_bad_users_list();
 			}
 			db_close();
@@ -704,10 +763,12 @@ int main(int argc, char *argv[]) {
 		pthread_cancel(thread_dbtop);
 		pthread_cancel(thread_prcd);
 		pthread_cancel(thread_user_map);
-		if (data_cfg.slow_queries) {
+		if (data_cfg.slow_queries)
+		{
 			pthread_cancel(thread_slow_query);
 		}
-		if (!data_cfg.is_gpl && data_cfg.use_lve) {
+		if (!data_cfg.is_gpl && data_cfg.use_lve)
+		{
 			remove_bad_users_list();
 		}
 		db_close();
@@ -739,11 +800,13 @@ int main(int argc, char *argv[]) {
 	pthread_cancel(thread_dbtop);
 	pthread_cancel(thread_prcd);
 	pthread_cancel(thread_user_map);
-	if (data_cfg.slow_queries) {
+	if (data_cfg.slow_queries)
+	{
 		pthread_cancel(thread_slow_query);
 	}
 	pthread_cancel(therad_renew_dbusermap);
-	if (!data_cfg.is_gpl) {
+	if (!data_cfg.is_gpl)
+	{
 		remove_bad_users_list();
 	}
 

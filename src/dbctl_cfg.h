@@ -17,24 +17,24 @@
 
 typedef struct dbctl_limit_attr
 {
-  char l_name[256];
-  char l_current[256];
-  char l_short[256];
-  char l_mid[256];
-  char l_long[256];
+	char l_name[256];
+	char l_current[256];
+	char l_short[256];
+	char l_mid[256];
+	char l_long[256];
 } DbCtlLimitAttr;
 
 typedef struct dbctl_found_tag
 {
-  char tag[256];
-  GHashTable *attr;
-  GPtrArray *limit_attr;
+	char tag[256];
+	GHashTable *attr;
+	GPtrArray *limit_attr;
 } DbCtlFoundTag;
 
 typedef struct dbctl_print_list
 {
-  char *name;
-  char *data;
+	char *name;
+	char *data;
 } DbCtlPrintList;
 
 void ReadCfg (char *file_name, char *tag);
@@ -47,13 +47,13 @@ void *SearchTagByName (xml_data *cfg, char *name_tag, char *name);
 char *GetUserName (GHashTable * attr);
 char *GetAttr (GHashTable * attr, char *name_attr);
 char *GetLimitAttr (GPtrArray * limit_attr, char *name_limit,
-		    char *name_attr);
+			char *name_attr);
 
 
 char *GetLimitsForDefault(GPtrArray * tags, int flag, int json);
 char *GetLimitsForUsers(GPtrArray * tags, DbCtlLimitAttr * cpu_def,
-                        DbCtlLimitAttr * read_def, DbCtlLimitAttr * write_def,
-                        int flag, int raw, int json);
+			DbCtlLimitAttr * read_def, DbCtlLimitAttr * write_def,
+			int flag, int raw, int json);
 
 xml_data *ParseXmlCfg (char *file_name);
 

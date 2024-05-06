@@ -21,29 +21,27 @@
 #define REFRESH_TIME_SEC 1
 #define REFRESH_TIME_USEC 0
 
-
 typedef struct account_stats_average
 {
-  Stats sum_statistics;
-  long count;
+	Stats sum_statistics;
+	long count;
 } StatsAverage;
 
 typedef struct account_struct
 {
-  char *id;
-  GPtrArray *users;
-  Stats current;
-  Stats long_average;
-  Stats mid_average;
-  Stats short_average;
+	char *id;
+	GPtrArray *users;
+	Stats current;
+	Stats long_average;
+	Stats mid_average;
+	Stats short_average;
 
-  int restricted;
-  int timeout;
-  time_t start_count;
-  restrict_info info;
-  int need_dbg;
-  unsigned max_user_connections; // from mysql.user table
-
+	int restricted;
+	int timeout;
+	time_t start_count;
+	restrict_info info;
+	int need_dbg;
+	unsigned max_user_connections; // from mysql.user table
 } Account;
 
 Account *init_account (char *id);
@@ -53,13 +51,13 @@ typedef struct timeval _timeval;
 
 typedef struct user_stats_struct
 {
-  const char *id;
-  Account *account;
-  struct fifo_stats *stats;
-  Stats long_average;
-  Stats mid_average;
-  Stats short_average;
-  long long tick;
+	const char *id;
+	Account *account;
+	struct fifo_stats *stats;
+	Stats long_average;
+	Stats mid_average;
+	Stats short_average;
+	long long tick;
 } User_stats;
 
 User_stats *init_user_stats (const char *id, Account * ac);

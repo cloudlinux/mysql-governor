@@ -58,11 +58,11 @@ void print_config (void *icfg);
 void extlog_init(void);
 
 #define EXT_LOG(extlog_mode, fmt, ...) do { \
-        extlog(extlog_mode, __FILE__, __LINE__, fmt, ##__VA_ARGS__); \
+	extlog(extlog_mode, __FILE__, __LINE__, fmt, ##__VA_ARGS__); \
 } while(0)
 
 #define FREEZE_EXT_LOG(fmt, ...) do { \
-        EXT_LOG(EXTLOG_USER_FREEZE, fmt, ##__VA_ARGS__); \
+	EXT_LOG(EXTLOG_USER_FREEZE, fmt, ##__VA_ARGS__); \
 } while(0)
 
 int extlog(unsigned extlog_mode, const char *error_file, int error_line, char *fmt, ...);

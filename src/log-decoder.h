@@ -19,12 +19,12 @@ long long getShortRestrictValue (Account * ac);
 long long getCurrentRestrictValue (Account * ac);
 void
 prepareRestrictDescription (char *buffer, Account * ac,
-			    stats_limit_cfg * limit);
+			stats_limit_cfg * limit);
 const char * getPeriodName (Account * ac);
 stats_limit *getRestrictDump (Account * ac);
 void
 prepareRestrictDescriptionLimit (char *buffer, Account * ac,
-				 stats_limit_cfg * limit);
+			stats_limit_cfg * limit);
 const char *
 getParamName (Account * ac);
 

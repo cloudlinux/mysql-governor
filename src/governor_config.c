@@ -27,7 +27,8 @@ pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 struct governor_config *cfg = NULL;
 
-static void _set_val(T_LONG * limit, long *value) {
+static void _set_val(T_LONG * limit, long *value)
+{
 	if (value[0] > 0 || value[0] == -1)
 		limit->_current = value[0];
 	if (value[1] > 0 || value[1] == -1)
@@ -38,8 +39,10 @@ static void _set_val(T_LONG * limit, long *value) {
 		limit->_long = value[3];
 }
 
-static MODE_TYPE mode_type_str_to_enum(const char *mode_str) {
-	if (mode_str == NULL) {
+static MODE_TYPE mode_type_str_to_enum(const char *mode_str)
+{
+	if (mode_str == NULL)
+	{
 		fprintf(stderr, "Error: mode attribute is absent\n");
 		exit(-1);
 	}
@@ -75,42 +78,50 @@ static MODE_TYPE mode_type_str_to_enum(const char *mode_str) {
 	exit(-1);
 }
 
-static char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, int size) {
-
-	if (tp == TEST_MODE) {
+static char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, int size)
+{
+	if (tp == TEST_MODE)
+	{
 		snprintf(mode_str, size, "TEST");
 		return mode_str;
 	}
-	if (tp == PRODUCTION_MODE) {
+	if (tp == PRODUCTION_MODE)
+	{
 		snprintf(mode_str, size, "PRODUCTION");
 		return mode_str;
 	}
-	if (tp == DEBUG_MODE) {
+	if (tp == DEBUG_MODE)
+	{
 		snprintf(mode_str, size, "DEBUG");
 		return mode_str;
 	}
-	if (tp == ERROR_MODE) {
+	if (tp == ERROR_MODE)
+	{
 		snprintf(mode_str, size, "ERROR");
 		return mode_str;
 	}
-	if (tp == RESTRICT_MODE) {
+	if (tp == RESTRICT_MODE)
+	{
 		snprintf(mode_str, size, "RESTRICT");
 		return mode_str;
 	}
-	if (tp == NORESTRICT_MODE) {
+	if (tp == NORESTRICT_MODE)
+	{
 		snprintf(mode_str, size, "NORESTRICT");
 		return mode_str;
 	}
-	if (tp == IGNORE_MODE) {
+	if (tp == IGNORE_MODE)
+	{
 		snprintf(mode_str, size, "IGNORE");
 		return mode_str;
 	}
-	if (tp == OLD_RESTRICT_MODE) {
+	if (tp == OLD_RESTRICT_MODE)
+	{
 		snprintf(mode_str, size, "OLD RESTRICT MODE");
 		return mode_str;
 	}
-
-	if (tp == NEW_RESTRICT_MODE) {
+	if (tp == NEW_RESTRICT_MODE)
+	{
 		snprintf(mode_str, size, "NEW RESTRICT MODE");
 		return mode_str;
 	}
@@ -118,8 +129,10 @@ static char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, int size) {
 	return mode_str;
 }
 
-int getRestrictFormat(const char *mode) {
-	if (mode) {
+int getRestrictFormat(const char *mode)
+{
+	if (mode)
+	{
 		if (!strcasecmp(mode, "SHORT"))
 			return 0;
 		if (!strcasecmp(mode, "MEDIUM"))
@@ -134,25 +147,30 @@ int getRestrictFormat(const char *mode) {
 	return 2;
 }
 
-static char * getRestrictFormatStr(int tp, char *mode_str, int size) {
-	if (tp == 0) {
+static char * getRestrictFormatStr(int tp, char *mode_str, int size)
+{
+	if (tp == 0)
+	{
 		snprintf(mode_str, size, "SHORT");
 		return mode_str;
 	}
-	if (tp == 1) {
+	if (tp == 1)
+	{
 		snprintf(mode_str, size, "MEDIUM");
 		return mode_str;
 	}
-	if (tp == 2) {
+	if (tp == 2)
+	{
 		snprintf(mode_str, size, "LONG");
 		return mode_str;
 	}
-	if (tp == 3) {
+	if (tp == 3)
+	{
 		snprintf(mode_str, size, "VERYLONG");
 		return mode_str;
 	}
-
-	if (tp == 4) {
+	if (tp == 4)
+	{
 		snprintf(mode_str, size, "CHECKTICKS");
 		return mode_str;
 	}
@@ -160,29 +178,32 @@ static char * getRestrictFormatStr(int tp, char *mode_str, int size) {
 	return mode_str;
 }
 
-static unsigned get_seconds(const char *value, char unit) {
+static unsigned get_seconds(const char *value, char unit)
+{
 	unsigned val = 0;
 
-	if (sscanf(value, "%u", &val) != 1) {
+	if (sscanf(value, "%u", &val) != 1)
+	{
 		fprintf(stderr, "Error while parsing period\n");
 		exit(-1);
 	}
 
-	switch (unit) {
-	case 's':
-	case 'S':
-		return val;
-	case 'm':
-	case 'M':
-		return val * 60;
-	case 'h':
-	case 'H':
-		return val * 60 * 60;
-	case 'd':
-	case 'D':
-		return val * 60 * 60 * 24;
-	default:
-		return val;
+	switch (unit)
+	{
+		case 's':
+		case 'S':
+			return val;
+		case 'm':
+		case 'M':
+			return val * 60;
+		case 'h':
+		case 'H':
+			return val * 60 * 60;
+		case 'd':
+		case 'D':
+			return val * 60 * 60 * 24;
+		default:
+			return val;
 	}
 }
 
@@ -190,28 +211,34 @@ static unsigned get_seconds(const char *value, char unit) {
 
 // Function converts string like "2d10h30m45s" (where d - days, h - hours, m - minutes, s - seconds)
 // to equivalent total number of seconds
-static unsigned parse_period(const char *period) {
+static unsigned parse_period(const char *period)
+{
 	char value[MAX_VAL_LEN + 1];
 	char unit;
 	int index, pos = 0;
 	unsigned result = 0;
 
-	for (index = 0; index < strlen(period); index++) {
-		if (isdigit (period[index])) {
-			if (pos >= MAX_VAL_LEN) {
+	for (index = 0; index < strlen(period); index++)
+	{
+		if (isdigit (period[index]))
+		{
+			if (pos >= MAX_VAL_LEN)
+			{
 				fprintf(stderr, "Error: value of period is too large\n");
 				exit(-1);
 			}
 			value[pos] = period[index];
 			pos++;
-		} else {
+		} else
+		{
 			unit = period[index];
 			value[pos] = '\0';
 			pos = 0;
 			result += get_seconds(value, unit);
 		}
 	}
-	if (!result) {
+	if (!result)
+	{
 		result = atoi(period);
 	}
 
@@ -219,14 +246,16 @@ static unsigned parse_period(const char *period) {
 }
 
 static void set_stats_limit(void *inner_xml, stats_limit_cfg * st,
-		xml_data *xml) {
+		xml_data *xml)
+{
 	const char *ptr = getElemAttr(inner_xml, "name");
 	const char *ptr_periods = NULL;
 	long value[4];
 
 	ptr_periods = getElemAttr(inner_xml, "current");
 	value[0] = (ptr_periods == NULL) ? (-1) : atof(ptr_periods);
-	if (ptr_periods == NULL) {
+	if (ptr_periods == NULL)
+	{
 		releaseElemValue(ptr);
 		releaseConfigData(xml);
 		fprintf(stderr, "Error: attribute 'current' is absent\n");
@@ -260,24 +289,29 @@ static void set_stats_limit(void *inner_xml, stats_limit_cfg * st,
 	releaseElemValue(ptr);
 }
 
-static int check_liblve(void) {
+static int check_liblve(void)
+{
 	void *lve_library_handle = NULL;
 
 	lve_library_handle = dlopen("liblve.so.0", RTLD_LAZY);
-	if (lve_library_handle) {
+	if (lve_library_handle)
+	{
 		dlclose(lve_library_handle);
 		return 0;
-	} else {
+	} else
+	{
 		return 1;
 	}
 }
 
 stats_limit_cfg *
-config_get_account_limit(const char *account_id, stats_limit_cfg * cfgin) {
+config_get_account_limit(const char *account_id, stats_limit_cfg * cfgin)
+{
 	int rc = pthread_rwlock_rdlock(&rwlock);
 
 	stats_limit_cfg *ptr = g_hash_table_lookup(cfg->account_limits, account_id);
-	if (ptr) {
+	if (ptr)
+	{
 		memcpy(cfgin, ptr, sizeof(stats_limit_cfg));
 		rc = pthread_rwlock_unlock(&rwlock);
 		return cfgin;
@@ -288,8 +322,10 @@ config_get_account_limit(const char *account_id, stats_limit_cfg * cfgin) {
 	return cfgin;
 }
 
-void config_free(void) {
-	if (cfg) {
+void config_free(void)
+{
+	if (cfg)
+	{
 		if (cfg->debug_user)
 			free(cfg->debug_user);
 		if (cfg->account_limits)
@@ -310,11 +346,14 @@ void config_free(void) {
 	}
 }
 
-void config_add_work_user(const char *user_name) {
-	if (user_name && (user_name[0] != 0)) {
+void config_add_work_user(const char *user_name)
+{
+	if (user_name && (user_name[0] != 0))
+	{
 		stats_limit_cfg *ptr = g_hash_table_lookup(cfg->account_limits,
 				user_name);
-		if (!ptr) {
+		if (!ptr)
+		{
 			stats_limit_cfg *l = calloc(1, sizeof(stats_limit_cfg));
 
 			// inheritance of limits from default
@@ -327,17 +366,18 @@ void config_add_work_user(const char *user_name) {
 					(gpointer) strdup(user_name), l);
 		}
 	}
-
 }
 
 struct governor_config *
-config_init(const char *path) {
+config_init(const char *path)
+{
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	void *tmp_xml = NULL, *tmp_xml_limit = NULL;
 	const char *ptr;
 	xml_data *xml = parseConfigData(path, (char *) xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (xml == NULL) {
+	if (xml == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		exit(-1);
 	}
@@ -349,7 +389,8 @@ config_init(const char *path) {
 			(GDestroyNotify) free, (GDestroyNotify) free);
 
 	tmp_xml = FindElementWithName(xml, NULL, "log");
-	if (tmp_xml == NULL) {
+	if (tmp_xml == NULL)
+	{
 		releaseConfigData(xml);
 		fprintf(stderr, "No log path\n");
 		exit(-1);
@@ -363,7 +404,8 @@ config_init(const char *path) {
 	releaseElemValue(ptr);
 
 	tmp_xml = FindElementWithName(xml, NULL, "intervals");
-	if (tmp_xml == NULL) {
+	if (tmp_xml == NULL)
+	{
 		releaseConfigData(xml);
 		fprintf(stderr, "No 'intervals' parameter\n");
 		exit(-1);
@@ -383,17 +425,22 @@ config_init(const char *path) {
 	cfg->all_lve = 0;
 	cfg->separate_lve = 0;
 	cfg->improved_accuracy = 1;
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		ptr = getElemAttr(tmp_xml, "use");
-		if (ptr) {
-			if (!strcasecmp(ptr, "On") || !strcasecmp(ptr, "Single")) {
+		if (ptr)
+		{
+			if (!strcasecmp(ptr, "On") || !strcasecmp(ptr, "Single"))
+			{
 				cfg->use_lve = 1;
 			}
-			if (!strcasecmp(ptr, "AbUsers")) {
+			if (!strcasecmp(ptr, "AbUsers"))
+			{
 				cfg->use_lve = 1;
 				cfg->separate_lve = 1;
 			}
-			if (!strcasecmp(ptr, "All")) {
+			if (!strcasecmp(ptr, "All"))
+			{
 				cfg->use_lve = 1;
 				cfg->all_lve = 1;
 				cfg->separate_lve = 1;
@@ -401,7 +448,8 @@ config_init(const char *path) {
 		}
 		releaseElemValue(ptr);
 		ptr = getElemAttr(tmp_xml, "improved_accuracy");
-		if (ptr) {
+		if (ptr)
+		{
 			if (!strcasecmp(ptr, "Off"))
 				cfg->improved_accuracy = 0;
 		}
@@ -411,17 +459,22 @@ config_init(const char *path) {
 	tmp_xml = FindElementWithName(xml, NULL, "statistic");
 	cfg->statistic_mode = 1;
 	cfg->save_statistic_uid = 0;
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		ptr = getElemAttr(tmp_xml, "mode");
-		if (ptr) {
-			if (!strcasecmp(ptr, "Off")) {
+		if (ptr)
+		{
+			if (!strcasecmp(ptr, "Off"))
+			{
 				cfg->statistic_mode = 0;
 			}
 		}
 		releaseElemValue(ptr);
 		ptr = getElemAttr(tmp_xml, "save_uid");
-		if (ptr) {
-			if (!strcasecmp(ptr, "On")) {
+		if (ptr)
+		{
+			if (!strcasecmp(ptr, "On"))
+			{
 				cfg->save_statistic_uid = 1;
 			}
 		}
@@ -430,9 +483,11 @@ config_init(const char *path) {
 
 	tmp_xml = FindElementWithName(xml, NULL, "debug_user");
 	cfg->debug_user = NULL;
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		ptr = getElemAttr(tmp_xml, "name");
-		if (ptr) {
+		if (ptr)
+		{
 			cfg->debug_user = strdup(ptr);
 		}
 		releaseElemValue(ptr);
@@ -440,13 +495,17 @@ config_init(const char *path) {
 
 	tmp_xml = FindElementWithName(xml, NULL, "logqueries");
 	cfg->logqueries_use = 0;
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		ptr = getElemAttr(tmp_xml, "use");
-		if (ptr) {
-			if (!strcasecmp(ptr, "On")) {
+		if (ptr)
+		{
+			if (!strcasecmp(ptr, "On"))
+			{
 				cfg->logqueries_use = 1;
 			}
-			if (!strcasecmp(ptr, "Before")) {
+			if (!strcasecmp(ptr, "Before"))
+			{
 				cfg->logqueries_use = 2;
 			}
 		}
@@ -455,10 +514,13 @@ config_init(const char *path) {
 
 	tmp_xml = FindElementWithName(xml, NULL, "daemon");
 	cfg->daemon_monitor = 1;
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		ptr = getElemAttr(tmp_xml, "monitor");
-		if (ptr) {
-			if (!strcasecmp(ptr, "Off")) {
+		if (ptr)
+		{
+			if (!strcasecmp(ptr, "Off"))
+			{
 				cfg->daemon_monitor = 0;
 			}
 		}
@@ -467,18 +529,23 @@ config_init(const char *path) {
 
 	tmp_xml = FindElementWithName(xml, NULL, "slow_queries");
 	cfg->slow_queries = 0;
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		ptr = getElemAttr(tmp_xml, "run");
-		if (ptr) {
-			if (!strcasecmp(ptr, "On")) {
+		if (ptr)
+		{
+			if (!strcasecmp(ptr, "On"))
+			{
 				cfg->slow_queries = 1;
 			}
 		}
 		releaseElemValue(ptr);
 		ptr = getElemAttr(tmp_xml, "log");
-		if (ptr) {
+		if (ptr)
+		{
 			cfg->slow_queries_log = strdup(ptr);
-		} else {
+		} else
+		{
 			cfg->slow_queries_log = NULL;
 		}
 		releaseElemValue(ptr);
@@ -487,16 +554,20 @@ config_init(const char *path) {
 	tmp_xml = FindElementWithName(xml, NULL, "restrict_mode");
 	cfg->restrict_mode = 1;
 	cfg->l_unlimit = parse_period("60s");
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		ptr = getElemAttr(tmp_xml, "use");
-		if (ptr) {
-			if (!strcasecmp(ptr, "period")) {
+		if (ptr)
+		{
+			if (!strcasecmp(ptr, "period"))
+			{
 				cfg->restrict_mode = 0;
 			}
 		}
 		releaseElemValue(ptr);
 		ptr = getElemAttr(tmp_xml, "unlimit");
-		if (ptr != NULL) {
+		if (ptr != NULL)
+		{
 			cfg->l_unlimit = parse_period(ptr);
 		}
 		releaseElemValue(ptr);
@@ -506,29 +577,36 @@ config_init(const char *path) {
 	cfg->max_user_connections = 30;
 
 	tmp_xml = FindElementWithName(xml, NULL, "restrict");
-	if (tmp_xml == NULL) {
+	if (tmp_xml == NULL)
+	{
 		releaseConfigData(xml);
 		fprintf(stderr, "No 'restrict' parameter\n");
 		exit(-1);
 	}
 	ptr = getElemAttr(tmp_xml, "log");
-	if (ptr) {
+	if (ptr)
+	{
 		cfg->restrict_log = strdup(ptr);
-	} else {
+	}
+	else
+	{
 		cfg->restrict_log = NULL;
 	}
 	releaseElemValue(ptr);
 
 	ptr = getElemAttr(tmp_xml, "killuser");
-	if (ptr) {
-		if (!strcasecmp(ptr, "on")) {
+	if (ptr)
+	{
+		if (!strcasecmp(ptr, "on"))
+		{
 			cfg->killuser = 1;
 		}
 	}
 	releaseElemValue(ptr);
 
 	ptr = getElemAttr(tmp_xml, "user_max_connections");
-	if (ptr) {
+	if (ptr)
+	{
 		cfg->max_user_connections = atoi(ptr);
 		if (cfg->max_user_connections < 0)
 			cfg->max_user_connections = 30;
@@ -556,24 +634,31 @@ config_init(const char *path) {
 	releaseElemValue(ptr);
 
 	ptr = getElemAttr(tmp_xml, "script");
-	if (ptr) {
+	if (ptr)
+	{
 		cfg->exec_script = strdup(ptr);
-		if (cfg->exec_script) {
-			if (!cfg->exec_script[0]) {
+		if (cfg->exec_script)
+		{
+			if (!cfg->exec_script[0])
+			{
 				free(cfg->exec_script);
 				cfg->exec_script = NULL;
-			} else {
+			} else
+			{
 				int status_script;
 				struct stat buffer_script;
 				status_script = stat(cfg->exec_script, &buffer_script);
-				if (status_script) {
+				if (status_script)
+				{
 					fprintf(stderr,
 							"Wrong script name - %s. Work without script\n",
 							cfg->exec_script);
 					free(cfg->exec_script);
 					cfg->exec_script = NULL;
-				} else {
-					if (S_ISDIR (buffer_script.st_mode)) {
+				} else
+				{
+					if (S_ISDIR (buffer_script.st_mode))
+					{
 						fprintf(stderr, "Script is directory - %s\n",
 								cfg->exec_script);
 						free(cfg->exec_script);
@@ -582,13 +667,15 @@ config_init(const char *path) {
 				}
 			}
 		}
-	} else {
+	} else
+	{
 		cfg->exec_script = NULL;
 	}
 	releaseElemValue(ptr);
 
 	tmp_xml = FindElementWithName(xml, NULL, "connector");
-	if (tmp_xml == NULL) {
+	if (tmp_xml == NULL)
+	{
 		releaseConfigData(xml);
 		fprintf(stderr, "No connector parameter");
 		exit(-1);
@@ -607,7 +694,8 @@ config_init(const char *path) {
 	releaseElemValue(ptr);
 
 	tmp_xml = FindElementWithName(xml, NULL, "default");
-	if (tmp_xml == NULL) {
+	if (tmp_xml == NULL)
+	{
 		releaseConfigData(xml);
 		fprintf(stderr, "No default limits");
 		exit(-1);
@@ -617,24 +705,26 @@ config_init(const char *path) {
 	memset(&cfg->default_limit, 0, sizeof(cfg->default_limit));
 	cfg->default_limit.mode = RESTRICT_MODE;
 
-	for (tmp_xml_limit = getNextChild(tmp_xml, "limit", NULL); tmp_xml_limit; tmp_xml_limit
-			= getNextChild(tmp_xml, "limit", tmp_xml_limit)) {
+	for (tmp_xml_limit = getNextChild(tmp_xml, "limit", NULL); tmp_xml_limit; tmp_xml_limit = getNextChild(tmp_xml, "limit", tmp_xml_limit))
+	{
 		set_stats_limit(tmp_xml_limit, &cfg->default_limit, xml);
 	}
 	cfg->default_limit.mode = RESTRICT_MODE;
 	cfg->default_limit.account_flag = true;
 
-	for (tmp_xml = getNextChild(xml->root, "user", NULL); tmp_xml; tmp_xml
-			= getNextChild(tmp_xml, "user", tmp_xml)) {
+	for (tmp_xml = getNextChild(xml->root, "user", NULL); tmp_xml; tmp_xml = getNextChild(tmp_xml, "user", tmp_xml))
+	{
 		const char *account = getElemAttr(tmp_xml, "name");
 		const char *mysql_name = getElemAttr(tmp_xml, "mysql_name");
-		if ((account == NULL) && (mysql_name == NULL)) {
+		if ((account == NULL) && (mysql_name == NULL))
+		{
 			releaseConfigData(xml);
 			fprintf(stderr,
 					"Error: both 'name' and 'mysql_name' attributes are absent\n");
 			exit(-1);
 		}
-		if ((account != NULL) && (mysql_name != NULL)) {
+		if ((account != NULL) && (mysql_name != NULL))
+		{
 			releaseElemValue(account);
 			releaseElemValue(mysql_name);
 			releaseConfigData(xml);
@@ -651,8 +741,8 @@ config_init(const char *path) {
 		ptr = getElemAttr(tmp_xml, "mode");
 		l->mode = (ptr == NULL) ? RESTRICT_MODE : mode_type_str_to_enum(ptr);
 		releaseElemValue(ptr);
-		for (tmp_xml_limit = getNextChild(tmp_xml, "limit", NULL); tmp_xml_limit; tmp_xml_limit
-				= getNextChild(tmp_xml, "limit", tmp_xml_limit)) {
+		for (tmp_xml_limit = getNextChild(tmp_xml, "limit", NULL); tmp_xml_limit; tmp_xml_limit = getNextChild(tmp_xml, "limit", tmp_xml_limit))
+		{
 			set_stats_limit(tmp_xml_limit, l, xml);
 		}
 		g_hash_table_replace(cfg->account_limits,
@@ -661,7 +751,8 @@ config_init(const char *path) {
 		releaseElemValue(mysql_name);
 	}
 
-	if (save_duplicate_config(xml)) {
+	if (save_duplicate_config(xml))
+	{
 		fprintf(stderr, "Error save duplicate config file %s\n",
 				DUPLICATE_CONFIG_PATH);
 	}
@@ -673,16 +764,20 @@ config_init(const char *path) {
 /**
  * Save duplicate config file without connector tag
  */
-int save_duplicate_config(xml_data *xml) {
+int save_duplicate_config(xml_data *xml)
+{
 	void *tmp_xml;
 	tmp_xml = FindElementWithName(xml, NULL, "connector");
-	if (tmp_xml != NULL) {
+	if (tmp_xml != NULL)
+	{
 		removeNode(tmp_xml);
-	} else {
+	} else
+	{
 		fprintf(stderr, "No connector tag in xml struct\n");
 	}
 
-	if (saveXML(xml, DUPLICATE_CONFIG_PATH) < 0) {
+	if (saveXML(xml, DUPLICATE_CONFIG_PATH) < 0)
+	{
 		fprintf(stderr, "Error saveXML(%p) duplicate config file %s\n", xml, DUPLICATE_CONFIG_PATH);
 		return 1;
 	}
@@ -690,11 +785,13 @@ int save_duplicate_config(xml_data *xml) {
 }
 
 struct governor_config *
-get_config(void) {
+get_config(void)
+{
 	return cfg;
 }
 
-void get_config_data(struct governor_config *data) {
+void get_config_data(struct governor_config *data)
+{
 	int rc;
 
 	rc = pthread_rwlock_rdlock(&rwlock);
@@ -702,7 +799,8 @@ void get_config_data(struct governor_config *data) {
 	rc = pthread_rwlock_unlock(&rwlock);
 }
 
-MODE_TYPE get_config_log_mode(void) {
+MODE_TYPE get_config_log_mode(void)
+{
 	int rc;
 	MODE_TYPE _log_mode;
 
@@ -713,7 +811,8 @@ MODE_TYPE get_config_log_mode(void) {
 	return _log_mode;
 }
 
-void reread_config(void) {
+void reread_config(void)
+{
 	int rc;
 
 	rc = pthread_rwlock_wrlock(&rwlock);
@@ -722,13 +821,15 @@ void reread_config(void) {
 	rc = pthread_rwlock_unlock(&rwlock);
 }
 
-void config_destroy_lock(void) {
+void config_destroy_lock(void)
+{
 	pthread_rwlock_destroy(&rwlock);
 	pthread_rwlock_init(&rwlock, NULL);
 }
 
 static void print_account_configs(gpointer key, gpointer value,
-		gpointer user_data) {
+		gpointer user_data)
+{
 	char buffer[512] = { 0 };
 	stats_limit_cfg *ptr = (stats_limit_cfg *) value;
 	printf("%s_CPU_CUR %lld\n", (char *) key, ptr->cpu._current);
@@ -757,7 +858,8 @@ static void print_account_configs(gpointer key, gpointer value,
 			mode_type_enum_to_str(ptr->mode, buffer, 511));
 }
 
-void print_config_full(void) {
+void print_config_full(void)
+{
 	char buffer[512] = { 0 };
 	printf("CONFIG DUMP:\n");
 	printf("CONNECTOR_HOST %s\n", (cfg->host ? cfg->host : "NULL"));
@@ -768,13 +870,16 @@ void print_config_full(void) {
 	printf("INTERVALS_SHORT %d\n", cfg->interval_short);
 	printf("INTERVALS_MID %d\n", cfg->interval_mid);
 	printf("INTERVALS_LONG %d\n", cfg->interval_long);
-	if (cfg->use_lve && !(cfg->all_lve + cfg->separate_lve)) {
+	if (cfg->use_lve && !(cfg->all_lve + cfg->separate_lve))
+	{
 		snprintf(buffer, 511, "Single or On");
 	}
-	if (cfg->use_lve && cfg->all_lve && cfg->separate_lve) {
+	if (cfg->use_lve && cfg->all_lve && cfg->separate_lve)
+	{
 		snprintf(buffer, 511, "All");
 	}
-	if (cfg->use_lve && !cfg->all_lve && cfg->separate_lve) {
+	if (cfg->use_lve && !cfg->all_lve && cfg->separate_lve)
+	{
 		snprintf(buffer, 511, "AbUsers");
 	}
 	printf("LVE %s, USE_LVE %d, ALL_LVE %d, SEP_LVE %d IMPROVED_ACCURACY %d\n", buffer, cfg->use_lve,
@@ -834,5 +939,4 @@ void print_config_full(void) {
 			mode_type_enum_to_str(cfg->default_limit.mode, buffer, 511));
 	g_hash_table_foreach(cfg->account_limits, (GHFunc) print_account_configs,
 			"");
-
 }

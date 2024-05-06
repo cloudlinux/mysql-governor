@@ -11,11 +11,11 @@
 #define SHARED_MEMORY_H_
 
 #ifdef HAVE_MMAP64
-#define cl_mmap(a,b,c,d,e,f)    mmap64(a,b,c,d,e,f)
+#define cl_mmap(a,b,c,d,e,f)	mmap64(a,b,c,d,e,f)
 #else
-#define cl_mmap(a,b,c,d,e,f)    mmap(a,b,c,d,e,f)
+#define cl_mmap(a,b,c,d,e,f)	mmap(a,b,c,d,e,f)
 #endif
-#define cl_munmap(a,b)          munmap((a),(b))
+#define cl_munmap(a,b)			munmap((a),(b))
 
 int init_bad_users_list (void);
 void clear_bad_users_list (void);

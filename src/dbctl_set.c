@@ -21,27 +21,34 @@
 
 #include "dbctl_rest.h"
 
-void get_mb(char **s) {
+void get_mb(char **s)
+{
 	long long mb = (long long) (atoll(*s))
 			* (long long) (1024 * 1024);
-	if (mb < 0) mb = -1;
+	if (mb < 0)
+		mb = -1;
 	sprintf(*s, "%lld", mb);
 }
 
-void get_kb(char **s) {
+void get_kb(char **s)
+{
 	long long kb = (long long) (atoll(*s))
 			* (long long) (1024);
-	if (kb < 0) kb = -1;
+	if (kb < 0)
+		kb = -1;
 	sprintf(*s, "%lld", kb);
 }
 
-void get_bb(char **s) {
+void get_bb(char **s)
+{
 	long long bb = (long long) (atoll(*s));
-	if (bb < 0) bb = -1;
+	if (bb < 0)
+		bb = -1;
 	sprintf(*s, "%lld", bb);
 }
 
-int split(SplitStr ** s_s, char *str, char t) {
+int split(SplitStr ** s_s, char *str, char t)
+{
 	int j = 0, cnt = 0;
 	for (; j < strlen(str); j++)
 		if (str[j] == ',')
@@ -58,9 +65,12 @@ int split(SplitStr ** s_s, char *str, char t) {
 	int str_ind[cnt];
 
 	int i = 0, ind = 0;
-	if (cnt == 4) {
-		for (; i < strlen(str); i++) {
-			if (str[i] == t) {
+	if (cnt == 4)
+	{
+		for (; i < strlen(str); i++)
+		{
+			if (str[i] == t)
+			{
 				str_ind[ind] = i;
 				ind++;
 			}
@@ -70,7 +80,8 @@ int split(SplitStr ** s_s, char *str, char t) {
 		str_ind[ind] = strlen(str);
 
 	int ind_pre = 0;
-	for (ind = 0; ind < cnt; ind++) {
+	for (ind = 0; ind < cnt; ind++)
+	{
 		int len_m = ((str_ind[ind] - ind_pre) + 1);
 		(*s_s)[ind].str = (char *) calloc(1, (len_m + 8) * sizeof(char));
 		strncpy((*s_s)[ind].str, str + ind_pre, str_ind[ind] - ind_pre);
@@ -80,10 +91,13 @@ int split(SplitStr ** s_s, char *str, char t) {
 	return cnt;
 }
 
-void release_split(SplitStr * data, int cnt) {
-	if (cnt && data) {
+void release_split(SplitStr * data, int cnt)
+{
+	if (cnt && data)
+	{
 		int index = 0;
-		for (index = 0; index < cnt; index++) {
+		for (index = 0; index < cnt; index++)
+		{
 			if (data[index].str)
 				free(data[index].str);
 		}
@@ -91,33 +105,40 @@ void release_split(SplitStr * data, int cnt) {
 	}
 }
 
-int checkCorrectAttrs(void *child, char *s) {
+int checkCorrectAttrs(void *child, char *s)
+{
 	void *limit = NULL;
 	const char *attr = NULL, *inner_attr = NULL;
 	int cnt = 0;
 
-	for (limit = getNextChild(child, "limit", NULL); limit; limit
-			= getNextChild(child, "limit", limit)) {
+	for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+	{
 		attr = getElemAttr(limit, "name");
-		if (attr && !strcmp(attr, s)) {
+		if (attr && !strcmp(attr, s))
+		{
 			inner_attr = getElemAttr(limit, "current");
-			if (!inner_attr) {
+			if (!inner_attr)
+			{
 				cnt++;
 			}
 			releaseElemValue(inner_attr);
-			if (strcmp("slow", s) != 0) {
+			if (strcmp("slow", s) != 0)
+			{
 				inner_attr = getElemAttr(limit, "short");
-				if (!inner_attr) {
+				if (!inner_attr)
+				{
 					cnt++;
 				}
 				releaseElemValue(inner_attr);
 				inner_attr = getElemAttr(limit, "mid");
-				if (!inner_attr) {
+				if (!inner_attr)
+				{
 					cnt++;
 				}
 				releaseElemValue(inner_attr);
 				inner_attr = getElemAttr(limit, "long");
-				if (!inner_attr) {
+				if (!inner_attr)
+				{
 					cnt++;
 				}
 				releaseElemValue(inner_attr);
@@ -134,24 +155,26 @@ int checkCorrectAttrs(void *child, char *s) {
 		return 0;
 }
 
-void *removeBadLimit(void *child, char *s) {
+void *removeBadLimit(void *child, char *s)
+{
 	void *limit = NULL;
 	const char *attr = NULL;
 
-	for (limit = getNextChild(child, "limit", NULL); limit; limit
-			= getNextChild(child, "limit", limit)) {
+	for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+	{
 		attr = getElemAttr(limit, "name");
-		if (!strcmp(attr, s)) {
+		if (!strcmp(attr, s))
+		{
 			removeNode(limit);
 		}
 		releaseElemValue(attr);
-
 	}
 
 	return child;
 }
 
-void *setLimitAttr(void *limit, char *s) {
+void *setLimitAttr(void *limit, char *s)
+{
 	int cnt = 0;
 	if (!s)
 		return limit;
@@ -159,32 +182,41 @@ void *setLimitAttr(void *limit, char *s) {
 	SplitStr *data = NULL;
 	int res = 0;
 	const char *slowAttr = getElemAttr(limit, "name");
-	if (cnt = split(&data, s, ',')) {
+	if (cnt = split(&data, s, ','))
+	{
 		const char *nameAttr = slowAttr;
 
-		if (!strcmp(nameAttr, "read") || !strcmp(nameAttr, "write")) {
+		if (!strcmp(nameAttr, "read") || !strcmp(nameAttr, "write"))
+		{
 			int l = 0;
-			for (; l < 4; l++) {
+			for (; l < 4; l++)
+			{
 				int limit_l = strnlen(data[l].str, 100);
-				if (limit_l) {
+				if (limit_l)
+				{
 					char units = data[l].str[limit_l - 1];
-					if (units == 'b') {
+					if (units == 'b')
+					{
 						data[l].str[limit_l - 1] = '\0';
 						if (isprint(data[l].str[0]))
 							get_bb(&data[l].str);
-					} else if (units == 'k') {
+					} else if (units == 'k')
+					{
 						data[l].str[limit_l - 1] = '\0';
 						if (isprint(data[l].str[0]))
 							get_kb(&data[l].str);
-					} else if (units == 'm') {
+					} else if (units == 'm')
+					{
 						data[l].str[limit_l - 1] = '\0';
 						if (isprint(data[l].str[0]))
 							get_mb(&data[l].str);
-					} else {
+					} else
+					{
 						if (isprint(data[l].str[0]))
 							get_mb(&data[l].str);
 					}
-				} else {
+				} else
+				{
 					if (isprint(data[l].str[0]))
 						get_mb(&data[l].str);
 				}
@@ -200,17 +232,21 @@ void *setLimitAttr(void *limit, char *s) {
 		if (isprint(data[3].str[0]))
 			setAttr(limit, "long", data[3].str);
 		int index = 0;
-		for (index = 0; index < cnt; index++) {
+		for (index = 0; index < cnt; index++)
+		{
 			if (data[index].str)
 				free(data[index].str);
 		}
 
-	} else if (slowAttr && strcmp(slowAttr, "slow") == 0) {
-		if (cnt = split(&data, s, '\n')) {
+	} else if (slowAttr && strcmp(slowAttr, "slow") == 0)
+	{
+		if (cnt = split(&data, s, '\n'))
+		{
 			if (isprint(data[0].str[0]))
 				setAttr(limit, "current", data[0].str);
 			int index = 0;
-			for (index = 0; index < cnt; index++) {
+			for (index = 0; index < cnt; index++)
+			{
 				if (data[index].str)
 					free(data[index].str);
 			}
@@ -224,20 +260,22 @@ void *setLimitAttr(void *limit, char *s) {
 	free(data);
 
 	return limit;
-
 }
 
-void *addLimit(xml_data *xml, void *child, char *n, char *s) {
+void *addLimit(xml_data *xml, void *child, char *n, char *s)
+{
 	void *limit = setNodeWithAttr(xml, child, "limit", NULL, "name", n);
 
 	return setLimitAttr(limit, s);
 }
 
-int setDefault(char *cpu, char *read, char *write, char *slow) {
+int setDefault(char *cpu, char *read, char *write, char *slow)
+{
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	xml_data *cfg = parseConfigData((char *) CONFIG_PATH, xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (cfg == NULL) {
+	if (cfg == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		return 0;
 	}
@@ -245,7 +283,8 @@ int setDefault(char *cpu, char *read, char *write, char *slow) {
 	void * child = SearchTagByName(cfg, "default", NULL);
 	void *limit = NULL;
 
-	if (child == NULL) {
+	if (child == NULL)
+	{
 		child = setNode(cfg, NULL, "default", NULL);
 
 		if (cpu)
@@ -265,13 +304,16 @@ int setDefault(char *cpu, char *read, char *write, char *slow) {
 			limit = removeBadLimit(child, "write");
 		if (checkCorrectAttrs(child, "slow"))
 			limit = removeBadLimit(child, "slow");
-	} else {
-		if (cpu) {
+	} else
+	{
+		if (cpu)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "cpu")) {
+				if (!strcmp(nameAttr, "cpu"))
+				{
 					setLimitAttr(limit, cpu);
 					cnt_attr++;
 				}
@@ -283,12 +325,14 @@ int setDefault(char *cpu, char *read, char *write, char *slow) {
 				limit = removeBadLimit(child, "cpu");
 		}
 
-		if (read) {
+		if (read)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "read")) {
+				if (!strcmp(nameAttr, "read"))
+				{
 					setLimitAttr(limit, read);
 					cnt_attr++;
 				}
@@ -300,12 +344,14 @@ int setDefault(char *cpu, char *read, char *write, char *slow) {
 				limit = removeBadLimit(child, "read");
 		}
 
-		if (write) {
+		if (write)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "write")) {
+				if (!strcmp(nameAttr, "write"))
+				{
 					setLimitAttr(limit, write);
 					cnt_attr++;
 				}
@@ -317,12 +363,14 @@ int setDefault(char *cpu, char *read, char *write, char *slow) {
 				limit = removeBadLimit(child, "write");
 		}
 
-		if (slow) {
+		if (slow)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "slow")) {
+				if (!strcmp(nameAttr, "slow"))
+				{
 					setLimitAttr(limit, slow);
 					cnt_attr++;
 				}
@@ -342,11 +390,13 @@ int setDefault(char *cpu, char *read, char *write, char *slow) {
 	return 1;
 }
 
-int setUser(char *para, char *cpu, char *read, char *write, char *slow) {
+int setUser(char *para, char *cpu, char *read, char *write, char *slow)
+{
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	xml_data *cfg = parseConfigData((char *) CONFIG_PATH, xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (cfg == NULL) {
+	if (cfg == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		return 0;
 	}
@@ -354,7 +404,8 @@ int setUser(char *para, char *cpu, char *read, char *write, char *slow) {
 	void * child = SearchTagByName(cfg, "user", para);
 	void *limit = NULL;
 
-	if (child == NULL) {
+	if (child == NULL)
+	{
 		child = setNodeWithAttr(cfg, NULL, "user", NULL, "name", para);
 		setAttr(child, "mode", "restrict");
 
@@ -375,13 +426,16 @@ int setUser(char *para, char *cpu, char *read, char *write, char *slow) {
 			limit = removeBadLimit(child, "write");
 		if (checkCorrectAttrs(child, "slow"))
 			limit = removeBadLimit(child, "slow");
-	} else {
-		if (cpu) {
+	} else
+	{
+		if (cpu)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "cpu")) {
+				if (!strcmp(nameAttr, "cpu"))
+				{
 					setLimitAttr(limit, cpu);
 					cnt_attr++;
 				}
@@ -393,12 +447,14 @@ int setUser(char *para, char *cpu, char *read, char *write, char *slow) {
 				limit = removeBadLimit(child, "cpu");
 		}
 
-		if (read) {
+		if (read)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "read")) {
+				if (!strcmp(nameAttr, "read"))
+				{
 					setLimitAttr(limit, read);
 					cnt_attr++;
 				}
@@ -410,12 +466,14 @@ int setUser(char *para, char *cpu, char *read, char *write, char *slow) {
 				limit = removeBadLimit(child, "read");
 		}
 
-		if (write) {
+		if (write)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "write")) {
+				if (!strcmp(nameAttr, "write"))
+				{
 					setLimitAttr(limit, write);
 					cnt_attr++;
 				}
@@ -427,12 +485,14 @@ int setUser(char *para, char *cpu, char *read, char *write, char *slow) {
 				limit = removeBadLimit(child, "write");
 		}
 
-		if (slow) {
+		if (slow)
+		{
 			int cnt_attr = 0;
-			for (limit = getNextChild(child, "limit", NULL); limit; limit
-					= getNextChild(child, "limit", limit)) {
+			for (limit = getNextChild(child, "limit", NULL); limit; limit = getNextChild(child, "limit", limit))
+			{
 				const char *nameAttr = getElemAttr(limit, "name");
-				if (!strcmp(nameAttr, "slow")) {
+				if (!strcmp(nameAttr, "slow"))
+				{
 					setLimitAttr(limit, slow);
 					cnt_attr++;
 				}
@@ -452,53 +512,62 @@ int setUser(char *para, char *cpu, char *read, char *write, char *slow) {
 	return 1;
 }
 
-int deleteUser(char *user) {
+int deleteUser(char *user)
+{
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	xml_data *cfg = parseConfigData((char *) CONFIG_PATH, xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (cfg == NULL) {
+	if (cfg == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		return 0;
 	}
 
-	if (!strncmp(user, "default", sizeof(username_t) - 1)) {
+	if (!strncmp(user, "default", sizeof(username_t) - 1))
+	{
 		releaseConfigData(cfg);
 		return 1;
 	}
 
 	void *child = SearchTagByName(cfg, "user", user);
-	if (child != NULL) {
+	if (child != NULL)
+	{
 		removeNode(child);
 
 		rewrite_cfg(cfg);
 		releaseConfigData(cfg);
 		reread_cfg_cmd();
-	} else {
+	} else
+	{
 		releaseConfigData(cfg);
 	}
 
 	return 1;
 }
 
-int ignoreUser(char *user) {
+int ignoreUser(char *user)
+{
 	unrestrict(user);
 
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	xml_data *cfg = parseConfigData((char *) CONFIG_PATH, xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (cfg == NULL) {
+	if (cfg == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		return 0;
 	}
 
-	if (!strncmp(user, "default", sizeof(username_t) - 1)) {
+	if (!strncmp(user, "default", sizeof(username_t) - 1))
+	{
 		releaseConfigData(cfg);
 		return 1;
 	}
 
 	void * child = SearchTagByName(cfg, "user", user);
 
-	if (child == NULL) {
+	if (child == NULL)
+	{
 		child = setNodeWithAttr(cfg, NULL, "user", NULL, "name", user);
 	}
 
@@ -511,23 +580,27 @@ int ignoreUser(char *user) {
 	return 1;
 }
 
-int watchUser(char *user) {
+int watchUser(char *user)
+{
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	xml_data *cfg = parseConfigData((char *) CONFIG_PATH, xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (cfg == NULL) {
+	if (cfg == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		return 0;
 	}
 
-	if (!strncmp(user, "default", sizeof(username_t) - 1)) {
+	if (!strncmp(user, "default", sizeof(username_t) - 1))
+	{
 		releaseConfigData(cfg);
 		return 1;
 	}
 
 	void * child = SearchTagByName(cfg, "user", user);
 
-	if (child == NULL) {
+	if (child == NULL)
+	{
 		child = setNodeWithAttr(cfg, NULL, "user", NULL, "name", user);
 	}
 
@@ -540,16 +613,19 @@ int watchUser(char *user) {
 	return 1;
 }
 
-int setLveMode(char *mode) {
+int setLveMode(char *mode)
+{
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	xml_data *cfg = parseConfigData((char *) CONFIG_PATH, xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (cfg == NULL) {
+	if (cfg == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		return 0;
 	}
 	if (mode == NULL || (strcmp(mode, "off") && strcmp(mode, "abusers")
-	    && strcmp(mode, "all") && strcmp(mode, "single") && strcmp(mode, "on"))) {
+		&& strcmp(mode, "all") && strcmp(mode, "single") && strcmp(mode, "on")))
+	{
 		releaseConfigData(cfg);
 		fprintf(stderr, "Incorrect value mode\n");
 		return 0;
@@ -570,15 +646,18 @@ int setLveMode(char *mode) {
 	return 1;
 }
 
-int setLveAccuracy(char *mode) {
+int setLveAccuracy(char *mode)
+{
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	xml_data *cfg = parseConfigData((char *) CONFIG_PATH, xml_parse_error,
 			MAX_XML_PATH - 1);
-	if (cfg == NULL) {
+	if (cfg == NULL)
+	{
 		fprintf(stderr, "Error reading config file %s\n", xml_parse_error);
 		return 0;
 	}
-	if (mode == NULL || (strcmp(mode, "off") && strcmp(mode, "on"))) {
+	if (mode == NULL || (strcmp(mode, "off") && strcmp(mode, "on")))
+	{
 		releaseConfigData(cfg);
 		fprintf(stderr, "Incorrect value mode\n");
 		return 0;

@@ -15,39 +15,39 @@
 
 typedef struct __cnt_user_threads
 {
-  char username[USERNAMEMAXLEN];
-  int max_simultaneous_requests;
+	char username[USERNAMEMAXLEN];
+	int max_simultaneous_requests;
 } cnt_user_threads;
 
 typedef struct __tid_table
 {
-  char username[USERNAMEMAXLEN];
-  long long cpu;
-  long long read;
-  long long write;
-  time_t update_time;
-  long naoseconds;
-  pid_t pid;
-  int fd;
-  //improved accuracy
-  int type;
-  unsigned int cnt;
-  pid_t tid;
-  long long cpu_end;
-  long long read_end;
-  long long write_end;
-  time_t update_time_end;
-  long nanoseconds_end;
-  struct timeval utime_begin;
-  struct timeval stime_begin;
-  struct timeval utime_end;
-  struct timeval stime_end;
+	char username[USERNAMEMAXLEN];
+	long long cpu;
+	long long read;
+	long long write;
+	time_t update_time;
+	long naoseconds;
+	pid_t pid;
+	int fd;
+	//improved accuracy
+	int type;
+	unsigned int cnt;
+	pid_t tid;
+	long long cpu_end;
+	long long read_end;
+	long long write_end;
+	time_t update_time_end;
+	long nanoseconds_end;
+	struct timeval utime_begin;
+	struct timeval stime_begin;
+	struct timeval utime_end;
+	struct timeval stime_end;
 } tid_table;
 
 typedef struct __Stat_counters
 {
-  Stats s;
-  double tm;
+	Stats s;
+	double tm;
 } Stat_counters;
 
 void free_tid (gpointer ti);

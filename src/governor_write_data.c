@@ -46,256 +46,254 @@ pthread_mutex_t mtx_write = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct _sock_data
 {
-  int socket;
-  int status;
+	int socket;
+	int status;
 } sock_data;
 sock_data sd = { -1, 0 };
 
 static int
 try_lock2 (pthread_mutex_t * mtx)
 {
-  int trys = 0, rc = 0;
-  while (trys < 10)
-    {
-      rc = pthread_mutex_trylock (mtx);
-      if (rc == 0)
-	return 0;
-      if (rc == EBUSY)
-	trys++;
-      else
+	int trys = 0, rc = 0;
+	while (trys < 10)
+	{
+		rc = pthread_mutex_trylock (mtx);
+		if (rc == 0)
+			return 0;
+		if (rc == EBUSY)
+			trys++;
+		else
+			return -1;
+	}
 	return -1;
-    }
-  return -1;
 }
 
 static int
 try_lock (pthread_mutex_t * mtx)
 {
-  int rc = pthread_mutex_trylock (mtx);
+	int rc = pthread_mutex_trylock (mtx);
 
-  switch (rc)
-    {
-    case 0:
-      break;
-    case EBUSY:
-      {
-	struct timespec tim;
+	switch (rc)
+	{
+		case 0:
+			break;
+		case EBUSY:
+			{
+				struct timespec tim;
 
-	clock_gettime (CLOCK_REALTIME, &tim);
-	tim.tv_nsec += (double) 0.05 *(double) SEC2NANO;
+				clock_gettime (CLOCK_REALTIME, &tim);
+				tim.tv_nsec += (double) 0.05 *(double) SEC2NANO;
 
-	rc = pthread_mutex_timedlock (mtx, &tim);
-	if (rc)
-	  return -1;
-      }
-      break;
-    case EINVAL:
-    default:
-      rc = -1;
-      break;
-    }
+				rc = pthread_mutex_timedlock (mtx, &tim);
+				if (rc)
+					return -1;
+			}
+			break;
+		case EINVAL:
+		default:
+			rc = -1;
+			break;
+	}
 
-  return rc;
+	return rc;
 }
 
 static int close_sock_in ();
 
 static int
 connection_with_timeout_poll (int sk, struct sockaddr_un *sa, socklen_t len,
-			      int timeout)
+				int timeout)
 {
-  int flags = 0, error = 0, ret = 0, error_len =
-    sizeof (error), current_size = 0, index = 0;
-  int nfds = 1;
-  int ts;
+	int flags = 0, error = 0, ret = 0, error_len = sizeof (error), current_size = 0, index = 0;
+	int nfds = 1;
+	int ts;
 
-  ts = timeout * 1000;
-  struct pollfd fds[1];
+	ts = timeout * 1000;
+	struct pollfd fds[1];
 
-  memset (fds, 0, sizeof (fds));
+	memset (fds, 0, sizeof (fds));
 
-  fds[0].fd = sk;
-  fds[0].events = POLLOUT;
+	fds[0].fd = sk;
+	fds[0].events = POLLOUT;
 
-  if ((flags = fcntl (sk, F_GETFL, 0)) < 0)
-    return -1;
+	if ((flags = fcntl (sk, F_GETFL, 0)) < 0)
+		return -1;
 
-  if (fcntl (sk, F_SETFL, flags | O_NONBLOCK) < 0)
-    return -1;
+	if (fcntl (sk, F_SETFL, flags | O_NONBLOCK) < 0)
+		return -1;
 
+	if ((ret = connect (sk, (struct sockaddr *) sa, len)) < 0)
+		if ((errno != EINPROGRESS) && (errno != EINTR))
+		return -1;
 
-  if ((ret = connect (sk, (struct sockaddr *) sa, len)) < 0)
-    if ((errno != EINPROGRESS) && (errno != EINTR))
-      return -1;
-
-  int is_eintr = 0;
-  do
-    {
-      if ((ret = poll (fds, nfds, ts)) < 0)
+	int is_eintr = 0;
+	do
 	{
-	  if (errno != EINTR)
-	    {
-	      close (sk);
-	      return -1;
-	    }
-	  is_eintr = 1;
+		if ((ret = poll (fds, nfds, ts)) < 0)
+		{
+			if (errno != EINTR)
+			{
+				close (sk);
+				return -1;
+			}
+			is_eintr = 1;
+		}
+		else
+		{
+			is_eintr = 0;
+		}
 	}
-      else
+	while (is_eintr);
+
+	if (ret == 0)
 	{
-	  is_eintr = 0;
+		close (sk);
+		errno = ETIMEDOUT;
+		return -1;
 	}
-    }
-  while (is_eintr);
-  if (ret == 0)
-    {
-      close (sk);
-      errno = ETIMEDOUT;
-      return -1;
-    }
-  else if (fds[0].revents & POLLNVAL)
-    {
-      close (sk);
-      return -1;
-    }
-  else if (fds[0].revents & POLLHUP)
-    {
-      close (sk);
-      return -1;
-    }
-  else
+	else if (fds[0].revents & POLLNVAL)
+	{
+		close (sk);
+		return -1;
+	}
+	else if (fds[0].revents & POLLHUP)
+	{
+		close (sk);
+		return -1;
+	}
+	else
 #ifdef _GNU_SOURCE
-  if (fds[0].revents & POLLHUP)
-    {
-      close (sk);
-      return -1;
-    }
-  else
+	if (fds[0].revents & POLLHUP)
+	{
+		close (sk);
+		return -1;
+	}
+	else
 #endif
-  if (fds[0].revents & POLLERR)
-    {
-      close (sk);
-      return -1;
-    }
+	if (fds[0].revents & POLLERR)
+	{
+		close (sk);
+		return -1;
+	}
 
-  if (getsockopt (sk, SOL_SOCKET, SO_ERROR, &error, &error_len) < 0)
-    {
-      close (sk);
-      return -1;
-    }
-  if (error)
-    {
-      close (sk);
-      errno = error;
-      return -1;
-    }
+	if (getsockopt (sk, SOL_SOCKET, SO_ERROR, &error, &error_len) < 0)
+	{
+		close (sk);
+		return -1;
+	}
+	if (error)
+	{
+		close (sk);
+		errno = error;
+		return -1;
+	}
 
+	/*if(fcntl(sk, F_SETFL, flags) < 0) {
+		close(sk);
+		return -1;
+		} */
 
-  /*if(fcntl(sk, F_SETFL, flags) < 0) {
-     close(sk);
-     return -1;
-     } */
-
-  return 0;
+	return 0;
 }
 
 static int
 connection_with_timeout_select (int sk, struct sockaddr_un *sa, socklen_t len,
 				int timeout)
 {
-  int flags = 0, error = 0, ret = 0, error_len = sizeof (error);
-  fd_set read_set, write_set;
-  struct timeval ts;
+	int flags = 0, error = 0, ret = 0, error_len = sizeof (error);
+	fd_set read_set, write_set;
+	struct timeval ts;
 
-  ts.tv_sec = timeout;
-  ts.tv_usec = 0;
+	ts.tv_sec = timeout;
+	ts.tv_usec = 0;
 
-  FD_ZERO (&read_set);
-  FD_SET (sk, &read_set);
-  write_set = read_set;
+	FD_ZERO (&read_set);
+	FD_SET (sk, &read_set);
+	write_set = read_set;
 
-  if ((flags = fcntl (sk, F_GETFL, 0)) < 0)
-    return -1;
+	if ((flags = fcntl (sk, F_GETFL, 0)) < 0)
+		return -1;
 
-  if (fcntl (sk, F_SETFL, flags | O_NONBLOCK) < 0)
-    return -1;
+	if (fcntl (sk, F_SETFL, flags | O_NONBLOCK) < 0)
+		return -1;
 
-  if ((ret = connect (sk, (struct sockaddr *) sa, len)) < 0)
-    if (errno != EINPROGRESS)
-      return -1;
+	if ((ret = connect (sk, (struct sockaddr *) sa, len)) < 0)
+		if (errno != EINPROGRESS)
+			return -1;
 
-  if (ret != 0)
-    {
-      if ((ret = select (sk + 1, &read_set, &write_set, NULL, &ts)) < 0)
+	if (ret != 0)
 	{
-	  close (sk);
-	  return -1;
-	}
-      if (ret == 0)
-	{
-	  close (sk);
-	  errno = ETIMEDOUT;
-	  return -1;
+		if ((ret = select (sk + 1, &read_set, &write_set, NULL, &ts)) < 0)
+		{
+			close (sk);
+			return -1;
+		}
+		if (ret == 0)
+		{
+			close (sk);
+			errno = ETIMEDOUT;
+			return -1;
+		}
+
+		if (FD_ISSET (sk, &read_set) || FD_ISSET (sk, &write_set))
+		{
+			if (getsockopt (sk, SOL_SOCKET, SO_ERROR, &error, &error_len) < 0)
+			{
+				close (sk);
+				return -1;
+			}
+		}
+		else
+		{
+			close (sk);
+			return -1;
+		}
+
+		if (error)
+		{
+			close (sk);
+			errno = error;
+			return -1;
+		}
 	}
 
-      if (FD_ISSET (sk, &read_set) || FD_ISSET (sk, &write_set))
-	{
-	  if (getsockopt (sk, SOL_SOCKET, SO_ERROR, &error, &error_len) < 0)
-	    {
-	      close (sk);
-	      return -1;
-	    }
-	}
-      else
-	{
-	  close (sk);
-	  return -1;
-	}
+	/*if(fcntl(sk, F_SETFL, flags) < 0) {
+		close(sk);
+		return -1;
+		} */
 
-      if (error)
-	{
-	  close (sk);
-	  errno = error;
-	  return -1;
-	}
-    }
-
-  /*if(fcntl(sk, F_SETFL, flags) < 0) {
-     close(sk);
-     return -1;
-     } */
-
-  return 0;
+	return 0;
 }
 
 static int
 connect_to_server_in ()
 {
-  int s, len;
-  struct sockaddr_un saun;
-  sd.socket = -1;
-  sd.status = 0;
+	int s, len;
+	struct sockaddr_un saun;
+	sd.socket = -1;
+	sd.status = 0;
 
-  if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
-    {
-      return -1;
-    }
+	if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
+	{
+		return -1;
+	}
 
-  saun.sun_family = AF_UNIX;
-  strncpy (saun.sun_path, MYSQL_SOCK_ADDRESS, sizeof (saun.sun_path) - 1);
+	saun.sun_family = AF_UNIX;
+	strncpy (saun.sun_path, MYSQL_SOCK_ADDRESS, sizeof (saun.sun_path) - 1);
 
-  len = sizeof (struct sockaddr_un);
+	len = sizeof (struct sockaddr_un);
 
-  if (connection_with_timeout_poll (s, &saun, len, 5) < 0)
-    {
-      return -2;
-    }
-  /*int rt_code;
-     rt_code = fcntl(s, F_GETFL, 0);
-     fcntl(s, F_SETFL, rt_code | O_NONBLOCK); */
+	if (connection_with_timeout_poll (s, &saun, len, 5) < 0)
+	{
+		return -2;
+	}
+	/*int rt_code;
+		rt_code = fcntl(s, F_GETFL, 0);
+		fcntl(s, F_SETFL, rt_code | O_NONBLOCK); */
 
-  sd.socket = s;
-  sd.status = 1;
-  return 0;
+	sd.socket = s;
+	sd.status = 1;
+	return 0;
 }
 
 static int not_first_connect = 0;
@@ -303,143 +301,143 @@ static int not_first_connect = 0;
 int
 connect_to_server ()
 {
-  int ret = 0;
-  pthread_mutex_lock (&mtx_write);
-  ret = connect_to_server_in ();
-  pthread_mutex_unlock (&mtx_write);
-  if (!ret) return ret;
+	int ret = 0;
+	pthread_mutex_lock (&mtx_write);
+	ret = connect_to_server_in ();
+	pthread_mutex_unlock (&mtx_write);
+	if (!ret)
+		return ret;
 
-  // special processing for the first unsuccesful connect
-  if (not_first_connect)
-  {
-    return ret;
-  } else
-  {
-    not_first_connect = 1;
-    return 0;
-  }
+	// special processing for the first unsuccesful connect
+	if (not_first_connect)
+	{
+		return ret;
+	} else
+	{
+		not_first_connect = 1;
+		return 0;
+	}
 }
 
 int
 connect_to_server_ex ()
 {
-  int ret = 0;
-  pthread_mutex_lock (&mtx_write);
-  ret = connect_to_server_in ();
-  pthread_mutex_unlock (&mtx_write);
-  if (!ret) return ret;
+	int ret = 0;
+	pthread_mutex_lock (&mtx_write);
+	ret = connect_to_server_in ();
+	pthread_mutex_unlock (&mtx_write);
+	if (!ret)
+		return ret;
 
-  // special processing for the first unsuccesful connect
-  if (not_first_connect)
-  {
-    return ret;
-  } else
-  {
-    not_first_connect = 1;
-    return 1;
-  }
+	// special processing for the first unsuccesful connect
+	if (not_first_connect)
+	{
+		return ret;
+	} else
+	{
+		not_first_connect = 1;
+		return 1;
+	}
 }
 
 int
 send_info (char *username, int type)
 {
+	if (sd.socket < 0)
+		return 0;
+	pid_t current_pid = getpid ();
+	pid_t current_tid = gettid_p ();
 
-  if (sd.socket < 0)
-    return 0;
-  pid_t current_pid = getpid ();
-  pid_t current_tid = gettid_p ();
+	dbgov_proc_time item1;
+	dbgov_iostat item2;
 
-  dbgov_proc_time item1;
-  dbgov_iostat item2;
-
-  get_proc_time (&item1, current_pid, current_tid);
-  get_io_stat (&item2, current_pid, current_tid);
-  struct rusage usage;
-  if (-1 == getrusage(RUSAGE_THREAD, &usage))
-    memset(&usage, 0, sizeof(usage));
+	get_proc_time (&item1, current_pid, current_tid);
+	get_io_stat (&item2, current_pid, current_tid);
+	struct rusage usage;
+	if (-1 == getrusage(RUSAGE_THREAD, &usage))
+		memset(&usage, 0, sizeof(usage));
 
 #ifdef TEST
-  //printf("Prepare info PID %d TID %d CPU %lld R+W %lld\n", current_pid, current_tid, item1.stime + item1.utime, item2.read_bytes+item2.write_bytes);
+	//printf("Prepare info PID %d TID %d CPU %lld R+W %lld\n", current_pid, current_tid, item1.stime + item1.utime, item2.read_bytes+item2.write_bytes);
 #endif
-  struct timespec tim;
+	struct timespec tim;
 
-  clock_gettime (CLOCK_REALTIME, &tim);
+	clock_gettime (CLOCK_REALTIME, &tim);
 
-  client_data snd;
-  snd.magic = CD_MAGIC;
-  snd.type = type;
-  strlcpy (snd.username, username, sizeof (snd.username));
-  snd.pid = current_pid;
-  snd.tid = current_tid;
-  snd.read = item2.read_bytes;
-  snd.write = item2.write_bytes;
-  snd.cpu = item1.stime + item1.utime;
-  snd.update_time = tim.tv_sec;
-  snd.naoseconds = tim.tv_nsec;
-  snd.utime = usage.ru_utime;
-  snd.stime = usage.ru_stime;
+	client_data snd;
+	snd.magic = CD_MAGIC;
+	snd.type = type;
+	strlcpy (snd.username, username, sizeof (snd.username));
+	snd.pid = current_pid;
+	snd.tid = current_tid;
+	snd.read = item2.read_bytes;
+	snd.write = item2.write_bytes;
+	snd.cpu = item1.stime + item1.utime;
+	snd.update_time = tim.tv_sec;
+	snd.naoseconds = tim.tv_nsec;
+	snd.utime = usage.ru_utime;
+	snd.stime = usage.ru_stime;
 
-  if (try_lock (&mtx_write))
-    return -1;
-  /*if (!sd.status) {
-     close(sd.socket);
-     if (connect_to_server_in() < 0) {
-     pthread_mutex_unlock(&mtx_write);
-     return -1;
-     }
-     } */
-  //pthread_mutex_unlock(&mtx_write);
+	if (try_lock (&mtx_write))
+		return -1;
+	/*if (!sd.status) {
+		close(sd.socket);
+		if (connect_to_server_in() < 0) {
+		pthread_mutex_unlock(&mtx_write);
+		return -1;
+		}
+		} */
+	//pthread_mutex_unlock(&mtx_write);
 
-  //if (try_lock(&mtx_write)) return -1;
-  if (send (sd.socket, &snd, sizeof (client_data), 0) != sizeof (client_data))
-    {
-      //close_sock_in();
-      pthread_mutex_unlock (&mtx_write);
-      return -1;
-    }
-  pthread_mutex_unlock (&mtx_write);
+	//if (try_lock(&mtx_write)) return -1;
+	if (send (sd.socket, &snd, sizeof (client_data), 0) != sizeof (client_data))
+	{
+		//close_sock_in();
+		pthread_mutex_unlock (&mtx_write);
+		return -1;
+	}
+	pthread_mutex_unlock (&mtx_write);
 
-  return 0;
-
+	return 0;
 }
 
 int
 send_info_begin (char *username)
 {
 #ifdef TEST
-  //printf("Send begin info %s, %d, %d\n", username, sd.socket, sd.status);
+	//printf("Send begin info %s, %d, %d\n", username, sd.socket, sd.status);
 #endif
-  return send_info (username, 0);
+	return send_info (username, 0);
 }
 
 int
 send_info_end (char *username)
 {
 #ifdef TEST
-  //printf("Send end info %s, %d, %d\n", username, sd.socket, sd.status);
+	//printf("Send end info %s, %d, %d\n", username, sd.socket, sd.status);
 #endif
-  return send_info (username, 1);
+	return send_info (username, 1);
 }
 
 static int
 close_sock_in ()
 {
-  if (sd.status)
-    {
-      close (sd.socket);
-      sd.status = 0;
-    }
-  return 0;
+	if (sd.status)
+	{
+		close (sd.socket);
+		sd.status = 0;
+	}
+	return 0;
 }
 
 int
 close_sock ()
 {
-  int rc = 0;
-  pthread_mutex_lock (&mtx_write);
-  rc = close_sock_in ();
-  pthread_mutex_unlock (&mtx_write);
-  return rc;
+	int rc = 0;
+	pthread_mutex_lock (&mtx_write);
+	rc = close_sock_in ();
+	pthread_mutex_unlock (&mtx_write);
+	return rc;
 }
 
 typedef int (*pthread_mutex_func_t)(pthread_mutex_t *);
@@ -456,8 +454,8 @@ static int void_pthread_mutex_func(pthread_mutex_t *mutex)
 
 void init_libgovernor(void)
 {
-	if (!orig_pthread_mutex_lock_ptr && !orig_pthread_mutex_trylock_ptr && !orig_pthread_mutex_unlock_ptr) {
-
+	if (!orig_pthread_mutex_lock_ptr && !orig_pthread_mutex_trylock_ptr && !orig_pthread_mutex_unlock_ptr)
+	{
 		pthread_mutex_func_t orig_lock_ptr = NULL;
 		pthread_mutex_func_t orig_trylock_ptr = NULL;
 		pthread_mutex_func_t orig_unlock_ptr = NULL;
@@ -470,8 +468,8 @@ void init_libgovernor(void)
 		orig_trylock_ptr = (pthread_mutex_func_t)(intptr_t)dlsym(RTLD_NEXT, "pthread_mutex_trylock");
 		orig_unlock_ptr = (pthread_mutex_func_t)(intptr_t)dlsym(RTLD_NEXT, "pthread_mutex_unlock");
 
-		if (!orig_lock_ptr || !orig_trylock_ptr || !orig_unlock_ptr) {
-
+		if (!orig_lock_ptr || !orig_trylock_ptr || !orig_unlock_ptr)
+		{
 			fprintf(stderr, "%s dlerror:%s\n", __func__, dlerror());
 			abort();
 		}
@@ -487,8 +485,8 @@ static int orig_pthread_mutex_lock(pthread_mutex_t *mutex)
 	if (orig_pthread_mutex_lock_ptr == NULL)
 		init_libgovernor();
 
-	if (orig_pthread_mutex_lock_ptr == NULL) {
-
+	if (orig_pthread_mutex_lock_ptr == NULL)
+	{
 		fprintf(stderr, "%s(%p) mutex:%p\n", __func__, orig_pthread_mutex_lock_ptr, (void *)mutex);
 		return EINVAL;
 	}
@@ -501,8 +499,8 @@ static int orig_pthread_mutex_trylock(pthread_mutex_t *mutex)
 	if (orig_pthread_mutex_trylock_ptr == NULL)
 		init_libgovernor();
 
-	if (orig_pthread_mutex_trylock_ptr == NULL) {
-
+	if (orig_pthread_mutex_trylock_ptr == NULL)
+	{
 		fprintf(stderr, "%s(%p) mutex:%p\n", __func__, orig_pthread_mutex_trylock_ptr, (void *)mutex);
 		return EINVAL;
 	}
@@ -515,8 +513,8 @@ static int orig_pthread_mutex_unlock(pthread_mutex_t *mutex)
 	if (orig_pthread_mutex_unlock_ptr == NULL)
 		init_libgovernor();
 
-	if (orig_pthread_mutex_unlock_ptr == NULL) {
-
+	if (orig_pthread_mutex_unlock_ptr == NULL)
+	{
 		fprintf(stderr, "%s(%p) mutex:%p\n", __func__, orig_pthread_mutex_unlock_ptr, (void *)mutex);
 		return EINVAL;
 	}
@@ -858,7 +856,8 @@ static void governor_remove_mysql_thread_info(void)
 
 static void governor_destroy_mysql_thread_info(void)
 {
-	if (gv_hash) {
+	if (gv_hash)
+	{
 		orig_pthread_mutex_lock(&gv_hash_mutex);
 		tdestroy(gv_hash, free);
 		gv_hash = NULL;
@@ -871,8 +870,10 @@ __attribute__((noinline)) int governor_put_in_lve(char *user)
 	if (governor_add_mysql_thread_info() < 0)
 		return -1;
 
-	if (mysql_mutex_ptr) {
-		if (!governor_enter_lve(&lve_cookie, user)) {
+	if (mysql_mutex_ptr)
+	{
+		if (!governor_enter_lve(&lve_cookie, user))
+		{
 			mysql_mutex_ptr->is_in_lve = 1;
 		}
 		mysql_mutex_ptr->is_in_mutex = 0;
@@ -883,7 +884,8 @@ __attribute__((noinline)) int governor_put_in_lve(char *user)
 
 __attribute__((noinline)) void governor_lve_thr_exit(void)
 {
-	if (mysql_mutex_ptr && mysql_mutex_ptr->is_in_lve == 1) {
+	if (mysql_mutex_ptr && mysql_mutex_ptr->is_in_lve == 1)
+	{
 		governor_lve_exit(&lve_cookie);
 		mysql_mutex_ptr->is_in_lve = 0;
 	}
@@ -904,7 +906,8 @@ __attribute__((noinline)) int pthread_mutex_lock(pthread_mutex_t *mp)
 {
 	//printf("%s mutex:%p\n", __func__, (void *)mp);
 	lock_cnt++;
-	if (mysql_mutex_ptr) {
+	if (mysql_mutex_ptr)
+	{
 		if (mysql_mutex_ptr->is_in_lve == 1)
 		{
 			if (!mysql_mutex_ptr->critical)
@@ -927,14 +930,19 @@ __attribute__((noinline)) int pthread_mutex_unlock(pthread_mutex_t *mutex)
 	unlock_cnt++;
 	int ret = orig_pthread_mutex_unlock(mutex);
 
-	if (mysql_mutex_ptr) {
-		if (mysql_mutex_ptr->is_in_lve == 2) {
-			if(mysql_mutex_ptr->critical) {
+	if (mysql_mutex_ptr)
+	{
+		if (mysql_mutex_ptr->is_in_lve == 2)
+		{
+			if(mysql_mutex_ptr->critical)
+			{
 				mysql_mutex_ptr->is_in_lve = 1;
-			} else if (!governor_enter_lve_light(&lve_cookie)) {
+			} else if (!governor_enter_lve_light(&lve_cookie))
+			{
 				mysql_mutex_ptr->is_in_lve = 1;
 			}
-		} else if (mysql_mutex_ptr->is_in_lve > 2) {
+		} else if (mysql_mutex_ptr->is_in_lve > 2)
+		{
 			mysql_mutex_ptr->is_in_lve--;
 		}
 		mysql_mutex_ptr->is_in_mutex--;
@@ -948,8 +956,10 @@ __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 	//printf("%s mutex:%p\n", __func__, (void *)mutex);
 	trylock_cnt++;
 	int ret = 0;
-	if (mysql_mutex_ptr) {
-		if (mysql_mutex_ptr->is_in_lve == 1) {
+	if (mysql_mutex_ptr)
+	{
+		if (mysql_mutex_ptr->is_in_lve == 1)
+		{
 			if(!mysql_mutex_ptr->critical)
 				governor_lve_exit(&lve_cookie);
 		}
@@ -957,21 +967,30 @@ __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 	ret = orig_pthread_mutex_trylock(mutex);
 
-	if (mysql_mutex_ptr) {
-		if (ret != EBUSY){
-			if (mysql_mutex_ptr->is_in_lve == 1) {
+	if (mysql_mutex_ptr)
+	{
+		if (ret != EBUSY)
+		{
+			if (mysql_mutex_ptr->is_in_lve == 1)
+			{
 				mysql_mutex_ptr->is_in_lve = 2;
-			} else if (mysql_mutex_ptr->is_in_lve > 1) {
+			} else if (mysql_mutex_ptr->is_in_lve > 1)
+			{
 				mysql_mutex_ptr->is_in_lve++;
 			}
 			mysql_mutex_ptr->is_in_mutex++;
-		} else {
-			if (mysql_mutex_ptr->is_in_lve == 1){
-				if(mysql_mutex_ptr->critical){
+		} else
+		{
+			if (mysql_mutex_ptr->is_in_lve == 1)
+			{
+				if(mysql_mutex_ptr->critical)
+				{
 					mysql_mutex_ptr->is_in_lve = 1;
-				} else if (!governor_enter_lve_light(&lve_cookie)) {
+				} else if (!governor_enter_lve_light(&lve_cookie))
+				{
 					mysql_mutex_ptr->is_in_lve = 1;
-				} else {
+				} else
+				{
 					mysql_mutex_ptr->is_in_lve = 0;
 				}
 			}
@@ -983,12 +1002,15 @@ __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 __attribute__((noinline)) void governor_reserve_slot(void)
 {
-	if (mysql_mutex_ptr) {
-		if (mysql_mutex_ptr->is_in_lve == 1) {
+	if (mysql_mutex_ptr)
+	{
+		if (mysql_mutex_ptr->is_in_lve == 1)
+		{
 			if (!mysql_mutex_ptr->critical)
 				governor_lve_exit(&lve_cookie);
 			mysql_mutex_ptr->is_in_lve = 2;
-		} else if (mysql_mutex_ptr->is_in_lve > 1) {
+		} else if (mysql_mutex_ptr->is_in_lve > 1)
+		{
 			mysql_mutex_ptr->is_in_lve++;
 		}
 		mysql_mutex_ptr->is_in_mutex++;
@@ -997,14 +1019,19 @@ __attribute__((noinline)) void governor_reserve_slot(void)
 
 __attribute__((noinline)) void governor_release_slot(void)
 {
-	if (mysql_mutex_ptr) {
-		if (mysql_mutex_ptr->is_in_lve == 2) {
-			if (mysql_mutex_ptr->critical) {
+	if (mysql_mutex_ptr)
+	{
+		if (mysql_mutex_ptr->is_in_lve == 2)
+		{
+			if (mysql_mutex_ptr->critical)
+			{
 				mysql_mutex_ptr->is_in_lve = 1;
-			} else if (!governor_enter_lve_light(&lve_cookie)) {
+			} else if (!governor_enter_lve_light(&lve_cookie))
+			{
 				mysql_mutex_ptr->is_in_lve = 1;
 			}
-		} else if (mysql_mutex_ptr->is_in_lve > 2) {
+		} else if (mysql_mutex_ptr->is_in_lve > 2)
+		{
 			mysql_mutex_ptr->is_in_lve--;
 		}
 		mysql_mutex_ptr->is_in_mutex--;
@@ -1013,7 +1040,8 @@ __attribute__((noinline)) void governor_release_slot(void)
 
 __attribute__((noinline)) void governor_critical_section_begin(void)
 {
-	if (mysql_mutex_ptr) {
+	if (mysql_mutex_ptr)
+	{
 		if (!mysql_mutex_ptr->critical)
 			mysql_mutex_ptr->was_in_lve = mysql_mutex_ptr->is_in_lve;
 		mysql_mutex_ptr->critical++;
@@ -1022,12 +1050,15 @@ __attribute__((noinline)) void governor_critical_section_begin(void)
 
 __attribute__((noinline)) void governor_critical_section_end(void)
 {
-	if (mysql_mutex_ptr) {
+	if (mysql_mutex_ptr)
+	{
 		mysql_mutex_ptr->critical--;
 		if (mysql_mutex_ptr->critical < 0)
 			mysql_mutex_ptr->critical = 0;
-		if (!mysql_mutex_ptr->critical && (mysql_mutex_ptr->was_in_lve > 1) && (mysql_mutex_ptr->is_in_lve == 1)) {
-			if (!governor_enter_lve_light(&lve_cookie)) {
+		if (!mysql_mutex_ptr->critical && (mysql_mutex_ptr->was_in_lve > 1) && (mysql_mutex_ptr->is_in_lve == 1))
+		{
+			if (!governor_enter_lve_light(&lve_cookie))
+			{
 				mysql_mutex_ptr->is_in_lve = 1;
 			}
 		}

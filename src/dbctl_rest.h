@@ -12,10 +12,10 @@
 
 typedef struct rest_levels
 {
-  char level1;
-  char level2;
-  char level3;
-  char level4;
+	char level1;
+	char level2;
+	char level3;
+	char level4;
 } DbCtlRestLevels;
 
 int restrict_user (char *user, char *level);

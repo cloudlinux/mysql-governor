@@ -12,7 +12,7 @@
 
 typedef struct split_str
 {
-  char *str;
+	char *str;
 } SplitStr;
 
 

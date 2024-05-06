@@ -30,64 +30,64 @@
 int
 connect_to_server_dbctl (void)
 {
-  int s, len;
-  struct sockaddr_un saun;
+	int s, len;
+	struct sockaddr_un saun;
 
-  if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
-    {
-      return -1;
-    }
+	if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
+	{
+		return -1;
+	}
 
-  saun.sun_family = AF_UNIX;
-  strcpy (saun.sun_path, SOCK_ADDRESS);
+	saun.sun_family = AF_UNIX;
+	strcpy (saun.sun_path, SOCK_ADDRESS);
 
-  len = sizeof (saun.sun_family) + strlen (saun.sun_path);
-  if (connect (s, (struct sockaddr *) &saun, len) < 0)
-    {
-      close (s);
-      return -2;
-    }
+	len = sizeof (saun.sun_family) + strlen (saun.sun_path);
+	if (connect (s, (struct sockaddr *) &saun, len) < 0)
+	{
+		close (s);
+		return -2;
+	}
 
-  return s;
+	return s;
 }
 
 int
 opensock (int *_socket, FILE ** in, FILE ** out)
 {
-  *_socket = connect_to_server_dbctl ();
-  if (*_socket >= 0)
-    {
-      *in = fdopen (*_socket, "r+");
-      *out = fdopen (*_socket, "w");
-    }
+	*_socket = connect_to_server_dbctl ();
+	if (*_socket >= 0)
+	{
+		*in = fdopen (*_socket, "r+");
+		*out = fdopen (*_socket, "w");
+	}
 
-  if (!*in || !*out)
-    {
-      printf
-	("Configuration saved. Unable to apply to live instance - can't connect to socket. Maybe governor is not started\n");
-      return 0;
-    }
+	if (!*in || !*out)
+	{
+		printf
+			("Configuration saved. Unable to apply to live instance - can't connect to socket. Maybe governor is not started\n");
+		return 0;
+	}
 
-  return 1;
+	return 1;
 }
 
 void
 closesock (int _socket, FILE * in, FILE * out)
 {
-  if (in)
-    {
-      fclose (in);
-      //in = NULL;
-    }
+	if (in)
+	{
+		fclose (in);
+		//in = NULL;
+	}
 
-  if (out)
-    {
-      fclose (out);
-      //out = NULL;
-    }
+	if (out)
+	{
+		fclose (out);
+		//out = NULL;
+	}
 
-  if (_socket > 0)
-    {
-      close (_socket);
-    }
+	if (_socket > 0)
+	{
+		close (_socket);
+	}
 }
