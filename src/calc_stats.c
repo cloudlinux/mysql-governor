@@ -812,7 +812,7 @@ dbstat_print_table (gpointer key, dbgov_statitrics * dbgov_statitrics__,
 			if (pwdusers == NULL)
 				pwdusers = pwdload();
 
-			if (pwdusers && g_hash_table_lookup_extended(pwdusers, dbgov_statitrics__->username, &pwdkey, &pwdval)) 
+			if (pwdusers && g_hash_table_lookup_extended(pwdusers, dbgov_statitrics__->username, &pwdkey, &pwdval))
 				need_uid = *((uid_t *)pwdval);
 
 			fprintf (dbgov_stats,
@@ -1080,7 +1080,7 @@ clac_stats_difference_inner (long long cpu, long long read,
 {
 	struct timespec cur_tm;
 	clock_gettime (CLOCK_REALTIME, &cur_tm);
-	double old_tm = old->update_time + (double) old->naoseconds
+	double old_tm = old->update_time + (double) old->nanoseconds
 		/ (double) SEC2NANO;
 	double new_tm = cur_tm.tv_sec + (double) cur_tm.tv_nsec / (double) SEC2NANO;
 	if (new_tm > old_tm)
@@ -1204,7 +1204,7 @@ clac_stats_difference_inner_add_to_counters (double cpu, long long read,
 	pthread_mutex_lock (&mtx_counters);
 	struct timespec cur_tm;
 	clock_gettime (CLOCK_REALTIME, &cur_tm);
-	double old_tm = old->update_time + (double) old->naoseconds	/ (double) SEC2NANO;
+	double old_tm = old->update_time + (double) old->nanoseconds	/ (double) SEC2NANO;
 	double new_tm = cur_tm.tv_sec + (double) cur_tm.tv_nsec		/ (double) SEC2NANO;
 #ifdef TEST
 	//printf("add_to-counters %s - dt - %f c %f, w %ld, r %ld, old c %ld, w %ld, r %ld\n", old->username, new_tm - old_tm, cpu, read, write, old->cpu, old->write, old->read);

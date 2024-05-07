@@ -54,14 +54,14 @@ sock_data sd = { -1, 0 };
 static int
 try_lock2 (pthread_mutex_t * mtx)
 {
-	int trys = 0, rc = 0;
-	while (trys < 10)
+	int tries = 0, rc = 0;
+	while (tries < 10)
 	{
 		rc = pthread_mutex_trylock (mtx);
 		if (rc == 0)
 			return 0;
 		if (rc == EBUSY)
-			trys++;
+			tries++;
 		else
 			return -1;
 	}
@@ -308,7 +308,7 @@ connect_to_server ()
 	if (!ret)
 		return ret;
 
-	// special processing for the first unsuccesful connect
+	// special processing for the first unsuccessful connect
 	if (not_first_connect)
 	{
 		return ret;
@@ -329,7 +329,7 @@ connect_to_server_ex ()
 	if (!ret)
 		return ret;
 
-	// special processing for the first unsuccesful connect
+	// special processing for the first unsuccessful connect
 	if (not_first_connect)
 	{
 		return ret;
@@ -374,7 +374,7 @@ send_info (char *username, int type)
 	snd.write = item2.write_bytes;
 	snd.cpu = item1.stime + item1.utime;
 	snd.update_time = tim.tv_sec;
-	snd.naoseconds = tim.tv_nsec;
+	snd.nanoseconds = tim.tv_nsec;
 	snd.utime = usage.ru_utime;
 	snd.stime = usage.ru_stime;
 

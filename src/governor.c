@@ -553,8 +553,8 @@ int main(int argc, char *argv[])
 		creat("/usr/share/lve/dbgovernor/cll_lve_installed", 0600);
 	}
 
-	//unfreaze_all(data_cfg.log_mode);
-	//unfreaze_lve(data_cfg.log_mode);
+	//unfreeze_all(data_cfg.log_mode);
+	//unfreeze_lve(data_cfg.log_mode);
 	config_add_work_user(get_work_user());
 
 	WRITE_LOG (NULL, 0, "Started",

@@ -137,7 +137,7 @@ get_soket (void)
 ssize_t
 recv_wrapper (int __fd, void *__buf, size_t __n, int __flags)
 {
-	int retval, trys = 0;
+	int retval, tries = 0;
 	while (1)
 	{
 		retval = recv (__fd, __buf, __n, __flags);
@@ -147,8 +147,8 @@ recv_wrapper (int __fd, void *__buf, size_t __n, int __flags)
 			{
 				break;
 			}
-			trys++;
-			if (trys == 100)
+			tries++;
+			if (tries == 100)
 			{
 				break;
 			}
@@ -487,7 +487,7 @@ get_data_from_client (void *data)
 							message.read);
 					}
 #ifdef TEST
-					//printf("Get cpu %ld, tid %d, tm %f, type %d\n", message.cpu, message.tid, (double)message.update_time + (double)message.naoseconds /(double) SEC2NANO, message.type);
+					//printf("Get cpu %ld, tid %d, tm %f, type %d\n", message.cpu, message.tid, (double)message.update_time + (double)message.nanoseconds /(double) SEC2NANO, message.type);
 #endif
 					if (message.type == 0)
 					{
@@ -545,7 +545,7 @@ chek_user_perf (gpointer key, tid_table * item, gpointer user_data)
 		return;
 	pid_t kkey = GPOINTER_TO_INT (key);
 	double old_tm = item->update_time
-		+ (double) item->naoseconds / (double) SEC2NANO;
+		+ (double) item->nanoseconds / (double) SEC2NANO;
 	struct timespec cur_tm;
 	cur_tm.tv_sec = ((struct timespec *) user_data)->tv_sec;
 	cur_tm.tv_nsec = ((struct timespec *) user_data)->tv_nsec;
@@ -627,7 +627,7 @@ chek_user_perf (gpointer key, tid_table * item, gpointer user_data)
 		//coverity[missing_lock]
 		item->update_time = cur_tm.tv_sec;
 		//coverity[missing_lock]
-		item->naoseconds = cur_tm.tv_nsec;
+		item->nanoseconds = cur_tm.tv_nsec;
 		//mark begin info as invalid
 		item->utime_begin.tv_sec = -1;
 		item->stime_begin.tv_sec = -1;

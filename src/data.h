@@ -145,7 +145,7 @@ typedef struct _client_data
 	long long write;
 	long long read;
 	time_t update_time;
-	long naoseconds;
+	long nanoseconds;
 	struct timeval utime;
 	struct timeval stime;
 } client_data;

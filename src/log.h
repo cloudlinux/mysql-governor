@@ -48,7 +48,7 @@ void print_config (void *icfg);
 
 
 /*
-    Extended logging sectiom
+    Extended logging section
 */
 
 // Set of extended logging flags

@@ -26,7 +26,7 @@ typedef struct __tid_table
 	long long read;
 	long long write;
 	time_t update_time;
-	long naoseconds;
+	long nanoseconds;
 	pid_t pid;
 	int fd;
 	//improved accuracy

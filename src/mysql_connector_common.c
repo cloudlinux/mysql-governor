@@ -381,9 +381,9 @@ db_close (void)
 	return 0;
 }
 
-//Unfreaze all accounts.
+//Unfreeze all accounts.
 void
-unfreaze_all (MODE_TYPE debug_mode)
+unfreeze_all (MODE_TYPE debug_mode)
 {
 	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
 	if (is_mariadb_104plus)
@@ -401,9 +401,9 @@ unfreaze_all (MODE_TYPE debug_mode)
 	flush_user_priv (debug_mode);
 }
 
-//Unfreaze all accounts.
+//Unfreeze all accounts.
 void
-unfreaze_lve (MODE_TYPE debug_mode)
+unfreeze_lve (MODE_TYPE debug_mode)
 {
 	if (is_mariadb_104plus)
 	{
@@ -420,9 +420,9 @@ unfreaze_lve (MODE_TYPE debug_mode)
 	flush_user_priv (debug_mode);
 }
 
-//Unfreaze daily
+//Unfreeze daily
 void
-unfreaze_daily (MODE_TYPE debug_mode)
+unfreeze_daily (MODE_TYPE debug_mode)
 {
 	char buffer[_DBGOVERNOR_BUFFER_2048];
 	if (mysql_do_command == NULL)
@@ -1137,7 +1137,7 @@ activate_plugin (MODE_TYPE debug_mode)
 {
 	if (is_plugin_version)
 	{
-		int is_founf_plg = 0;
+		int is_found_plg = 0;
 		MYSQL_RES *res;
 		MYSQL_ROW row;
 		unsigned long *lengths;
@@ -1162,11 +1162,11 @@ activate_plugin (MODE_TYPE debug_mode)
 						_DBGOVERNOR_BUFFER_2048);
 				if (!strncasecmp (buffer, "GOVERNOR", _DBGOVERNOR_BUFFER_2048))
 				{
-					is_founf_plg = 1;
+					is_found_plg = 1;
 				}
 			}
 			(*_mysql_free_result) (res);
-			if (!is_founf_plg)
+			if (!is_found_plg)
 			{
 				if (db_mysql_exec_query (QUERY_SET_PLUGIN_INFO,
 							&mysql_send_governor, debug_mode))

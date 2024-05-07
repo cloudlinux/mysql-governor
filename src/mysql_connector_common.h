@@ -146,9 +146,9 @@ check_mysql_version (MODE_TYPE debug_mode);
 
 //Закрыть ВСЕ соединения к БД
 int db_close (void);
-//Разблокировать все пользоватлей (соединение должно быть открыто)
-void unfreaze_all (MODE_TYPE debug_mode);
-void unfreaze_daily (MODE_TYPE debug_mode);
+//Разблокировать всех пользоватлей (соединение должно быть открыто)
+void unfreeze_all (MODE_TYPE debug_mode);
+void unfreeze_daily (MODE_TYPE debug_mode);
 //Из формата БД в long
 long db_mysql_get_integer (char *result, unsigned long length);
 //Из формата БД в float

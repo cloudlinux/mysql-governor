@@ -154,9 +154,9 @@ add_new_tid_data (client_data * tbl, int fd)
 			//struct timespec cur_tm;
 			//clock_gettime(CLOCK_REALTIME, &cur_tm);
 			new_data->update_time = tbl->update_time;
-			new_data->naoseconds = tbl->naoseconds;
+			new_data->nanoseconds = tbl->nanoseconds;
 #ifdef TEST
-			//printf("save %d time %f\n", tbl->tid, tbl->update_time + (double) tbl->naoseconds / (double) SEC2NANO);
+			//printf("save %d time %f\n", tbl->tid, tbl->update_time + (double) tbl->nanoseconds / (double) SEC2NANO);
 #endif
 			g_hash_table_insert (threads_list, GINT_TO_POINTER (tbl->tid),
 					new_data);
@@ -175,9 +175,9 @@ add_new_tid_data (client_data * tbl, int fd)
 		//struct timespec cur_tm;
 		//clock_gettime(CLOCK_REALTIME, &cur_tm);
 		new_data->update_time = tbl->update_time;
-		new_data->naoseconds = tbl->naoseconds;
+		new_data->nanoseconds = tbl->nanoseconds;
 #ifdef TEST
-		//printf("save %d time %f\n", tbl->tid, tbl->update_time + (double) tbl->naoseconds / (double) SEC2NANO);
+		//printf("save %d time %f\n", tbl->tid, tbl->update_time + (double) tbl->nanoseconds / (double) SEC2NANO);
 #endif
 		//g_hash_table_replace(threads_list, tmp_key, new_data);
 	}
@@ -202,7 +202,7 @@ add_new_tid_data2 (pid_t tid, tid_table * tbl)
 			struct timespec cur_tm;
 			clock_gettime (CLOCK_REALTIME, &cur_tm);
 			new_data->update_time = cur_tm.tv_sec;
-			new_data->naoseconds = cur_tm.tv_nsec;
+			new_data->nanoseconds = cur_tm.tv_nsec;
 			new_data->fd = tbl->fd;
 			g_hash_table_insert (threads_list, GINT_TO_POINTER (tid), new_data);
 		}
@@ -218,7 +218,7 @@ add_new_tid_data2 (pid_t tid, tid_table * tbl)
 		struct timespec cur_tm;
 		clock_gettime (CLOCK_REALTIME, &cur_tm);
 		new_data->update_time = cur_tm.tv_sec;
-		new_data->naoseconds = cur_tm.tv_nsec;
+		new_data->nanoseconds = cur_tm.tv_nsec;
 		new_data->fd = tbl->fd;
 		//g_hash_table_replace(threads_list, tmp_key, new_data);
 	}
@@ -275,7 +275,7 @@ add_new_begin_tid_data (client_data * tbl, int fd)
 	new_data->write = tbl->write;
 	new_data->pid = tbl->pid;
 	new_data->update_time = tbl->update_time;
-	new_data->naoseconds = tbl->naoseconds;
+	new_data->nanoseconds = tbl->nanoseconds;
 
 	//improved accuracy
 	new_data->type = tbl->type;
@@ -285,7 +285,7 @@ add_new_begin_tid_data (client_data * tbl, int fd)
 	new_data->read_end = tbl->read;
 	new_data->write_end = tbl->write;
 	new_data->update_time_end = tbl->update_time;
-	new_data->nanoseconds_end = tbl->naoseconds;
+	new_data->nanoseconds_end = tbl->nanoseconds;
 	new_data->utime_begin = tbl->utime;
 	new_data->stime_begin = tbl->stime;
 	new_data->utime_end = tbl->utime;
@@ -315,7 +315,7 @@ add_new_end_tid_data (client_data * tbl)
 	new_data->read_end = LOAD_NEW_END_TID_STATS (read);
 	new_data->write_end = LOAD_NEW_END_TID_STATS (write);
 	new_data->update_time_end = tbl->update_time;
-	new_data->nanoseconds_end = tbl->naoseconds;
+	new_data->nanoseconds_end = tbl->nanoseconds;
 	new_data->utime_end = tbl->utime;
 	new_data->stime_end = tbl->stime;
 

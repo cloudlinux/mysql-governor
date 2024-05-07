@@ -86,7 +86,7 @@ main (int argc, char *argv[])
 					data_cfg.db_password, "information_schema", argc,
 					argv, data_cfg.log_mode) < 0)
 				exit (-1);
-			//unfreaze_lve (data_cfg.log_mode);
+			//unfreeze_lve (data_cfg.log_mode);
 			if (init_bad_users_list_utility () >= 0)
 			{
 				WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
@@ -111,8 +111,8 @@ main (int argc, char *argv[])
 					data_cfg.db_password, "information_schema", argc,
 					argv, data_cfg.log_mode) < 0)
 				exit (-1);
-			//unfreaze_all(data_cfg.log_mode);
-			//unfreaze_lve (data_cfg.log_mode);
+			//unfreeze_all(data_cfg.log_mode);
+			//unfreeze_lve (data_cfg.log_mode);
 			WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
 			db_close ();
 		}

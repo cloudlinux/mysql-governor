@@ -19,14 +19,14 @@ extern "C" {
 
 /*
     return 0 on success
-    return 0 on first unsuccesful connect
+    return 0 on first unsuccessful connect
     return <0 on not-first unsuccessful connects
 */
 int connect_to_server(void);
 
 /*
     return 0 on success
-    return 1 on first unsuccesful connect
+    return 1 on first unsuccessful connect
     return <0 on not-first unsuccessful connects
 */
 int connect_to_server_ex(void);

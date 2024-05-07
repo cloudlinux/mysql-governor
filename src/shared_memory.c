@@ -443,8 +443,8 @@ int32_t is_user_in_bad_list_cleint(char *username)
 
 	if (bad_list_clents)
 	{
-		int trys = 1;
-		while (trys)
+		int tries = 1;
+		while (tries)
 		{
 			if (sem_trywait(&bad_list_clents->sem) == 0)
 			{
@@ -459,20 +459,20 @@ int32_t is_user_in_bad_list_cleint(char *username)
 						break;
 					}
 				}
-				trys = 0;
+				tries = 0;
 				sem_post(&bad_list_clents->sem);
 			} else
 			{
 				if (errno == EAGAIN)
 				{
-					trys++;
-					if (trys == 400)
+					tries++;
+					if (tries == 400)
 					{
 						break;
 					}
 				} else
 				{
-					trys = 0;
+					tries = 0;
 				}
 			}
 		}
@@ -506,11 +506,11 @@ int user_in_bad_list_cleint_show(void)
 	}
 
 	umask(old_umask);
-	int trys = 1;
+	int tries = 1;
 
 	if (bad_list_clents)
 	{
-		while (trys)
+		while (tries)
 		{
 			if (sem_trywait(&bad_list_clents->sem) == 0)
 			{
@@ -519,18 +519,18 @@ int user_in_bad_list_cleint_show(void)
 				{
 					printf("%s\n", bad_list_clents->items[index].username);
 				}
-				trys = 0;
+				tries = 0;
 				sem_post(&bad_list_clents->sem);
 			} else
 			{
 				if (errno == EAGAIN)
 				{
-					trys++;
-					if (trys == 400)
+					tries++;
+					if (tries == 400)
 						break;
 				} else
 				{
-					trys = 0;
+					tries = 0;
 				}
 			}
 		}
@@ -660,8 +660,8 @@ int32_t is_user_in_bad_list_cleint_persistent(char *username)
 	}
 
 	print_message_log("%s(%s): before search from %ld num", __FUNCTION__, username, bad_list_clents_global->numbers);
-	int trys = 1;
-	while (trys)
+	int tries = 1;
+	while (tries)
 	{
 		if (sem_trywait(&bad_list_clents_global->sem) == 0)
 		{
@@ -681,7 +681,7 @@ int32_t is_user_in_bad_list_cleint_persistent(char *username)
 					break;
 				}
 			}
-			trys = 0;
+			tries = 0;
 			sem_post(&bad_list_clents_global->sem);
 			if (!found)
 			{
@@ -693,16 +693,16 @@ int32_t is_user_in_bad_list_cleint_persistent(char *username)
 		{
 			if (errno == EAGAIN)
 			{
-				trys++;
-				if (trys == 400)
+				tries++;
+				if (tries == 400)
 				{
-					print_message_log("%s(%s): FAILED - %d failures to acquire semaphore", __FUNCTION__, username, trys);
+					print_message_log("%s(%s): FAILED - %d failures to acquire semaphore", __FUNCTION__, username, tries);
 					break;
 				}
 			} else
 			{
 				print_message_log("%s(%s): FAILED - sem_trywait failed with errno %d", __FUNCTION__, username, errno);
-				trys = 0;
+				tries = 0;
 			}
 		}
 	}
@@ -715,8 +715,8 @@ void printf_bad_list_cleint_persistent(void)
 
 	if (bad_list_clents_global && (bad_list_clents_global != MAP_FAILED))
 	{
-		int trys = 1;
-		while (trys)
+		int tries = 1;
+		while (tries)
 		{
 			if (sem_trywait(&bad_list_clents_global->sem) == 0)
 			{
@@ -727,20 +727,20 @@ void printf_bad_list_cleint_persistent(void)
 							bad_list_clents_global->items[index].username,
 							index);
 				}
-				trys = 0;
+				tries = 0;
 				sem_post(&bad_list_clents_global->sem);
 			} else
 			{
 				if (errno == EAGAIN)
 				{
-					trys++;
-					if (trys == 400)
+					tries++;
+					if (tries == 400)
 					{
 						break;
 					}
 				} else
 				{
-					trys = 0;
+					tries = 0;
 				}
 			}
 		}
