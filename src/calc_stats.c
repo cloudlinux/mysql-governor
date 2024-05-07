@@ -229,16 +229,12 @@ get_timeout (int *restrict_level, int penalty)
 	{
 		case 0:
 			return data_cfg.level1;
-			break;
 		case 1:
 			return data_cfg.level2;
-			break;
 		case 2:
 			return data_cfg.level3;
-			break;
 		case 3:
 			return data_cfg.level4;
-			break;
 		default:
 			return data_cfg.level4;
 	}
@@ -280,16 +276,12 @@ get_cause_of_restrict (GOVERNORS_FIELD_NAME _cur)
 	{
 		case CPU_PARAM:
 			return RESTRICT_BY_CPU;
-			break;
 		case READ_PARAM:
 			return RESTRICT_BY_READ;
-			break;
 		case WRITE_PARAM:
 			return RESTRICT_BY_WRITE;
-			break;
 		default:
 			return 0;
-			break;
 	}
 }
 

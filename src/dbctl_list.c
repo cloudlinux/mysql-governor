@@ -292,16 +292,12 @@ read_restrict_reriod (Account * ac)
 		{
 			case CURRENT_PERIOD:
 				return "current";
-				break;
 			case SHORT_PERIOD:
 				return "short";
-				break;
 			case MID_PERIOD:
 				return "mid";
-				break;
 			case LONG_PERIOD:
 				return "long";
-				break;
 		}
 	}
 	return "";
@@ -321,23 +317,20 @@ read_restrict_reason (Account * ac)
 		{
 			case CPU_PARAM:
 				return "cpu";
-				break;
 			case READ_PARAM:
 				return "read";
-				break;
 			case WRITE_PARAM:
 				return "write";
-				break;
 		}
 	}
 	return "";
 }
 
 int
-get_time_to_end (Account * ac)
+get_time_to_end (const Account * ac)
 {
-	return (((ac->start_count + ac->timeout) - time (NULL)) < 0) ? 0
-		  : ((ac->start_count + ac->timeout) - time (NULL));
+	int t = (ac->start_count + ac->timeout) - time(NULL);
+	return t < 0 ? 0 : t;
 }
 
 void

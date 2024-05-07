@@ -176,59 +176,46 @@ GINT_COMPARE_FUNCTION (write)
 
 gint gint_compare_by_restrict (gconstpointer ptr_a, gconstpointer ptr_b)
 {
-	Account *a, *b;
-	a = (Account *) ptr_a;
-	b = (Account *) ptr_b;
+	const Account *a = (const Account *) ptr_a;
+	const Account *b = (const Account *) ptr_b;
 	if (a->timeout > b->timeout)
-	{
-		return (-1);
-	}
+		return -1;
 	if (a->timeout == b->timeout)
-	{
 		return 0;
-	}
-	return (1);
+	return 1;
 }
 
-;
-
 static int
-getTimeToEnd (Account * ac)
+getTimeToEnd (const Account * ac)
 {
-	return (((ac->start_count + ac->timeout) - time (NULL)) < 0) ? 0
-		: ((ac->start_count + ac->timeout) - time (NULL));
+	int t = (ac->start_count + ac->timeout) - time(NULL);
+	return t < 0 ? 0 : t;
 }
 
 gint
 gint_compare_by_tte (gconstpointer ptr_a, gconstpointer ptr_b)
 {
-	Account *a, *b;
-	a = (Account *) ptr_a;
-	b = (Account *) ptr_b;
+	const Account *a = (const Account *) ptr_a;
+	const Account *b = (const Account *) ptr_b;
 	int tte_a = getTimeToEnd (a);
 	int tte_b = getTimeToEnd (b);
 	if (tte_a > tte_b)
-	{
-		return (-1);
-	}
+		return -1;
 	if (tte_a == tte_b)
-	{
 		return 0;
-	}
-	return (1);
+	return 1;
 }
 
 gint
 gint_compare_by_username (gconstpointer ptr_a, gconstpointer ptr_b)
 {
-	Account *a, *b;
-	a = (Account *) ptr_a;
-	b = (Account *) ptr_b;
+	const Account *a = (const Account *) ptr_a;
+	const Account *b = (const Account *) ptr_b;
 	return strncmp (a->id, b->id, USERNAMEMAXLEN);
 }
 
 char *
-getRestrictInfo (Account * ac, char *buffer)
+getRestrictInfo (const Account * ac, char *buffer)
 {
 	char ch;
 	if (ac->info.field_restrict == NO_PERIOD)
@@ -381,7 +368,7 @@ printString (char *str, int attr, int len, int endline)
 			}
 			x_counter++;
 		}
-		}
+	}
 	if (endline && !isend)
 	{
 		printw ("\n");
@@ -404,26 +391,15 @@ formatIntNumber (long long int number, char *formatString, int len)
 		tmpNumber /= 10;
 	}
 	if (needChars < len)
-	{
 		sprintf (formatString, "%lld", number);
-	}
 	else if ((needChars - 3) < (len - 1))
-	{
 		sprintf (formatString, "%lldK", (number + 500) / 1000);
-	}
 	else if ((needChars - 6) < (len - 1))
-	{
 		sprintf (formatString, "%lldM", (number + 500000) / 1000000);
-	}
 	else if ((needChars - 9) < (len - 1))
-	{
 		sprintf (formatString, "%lldG", (number + 500000000) / 1000000000);
-	}
 	else
-	{
 		sprintf (formatString, "Ovf");
-	}
-	return;
 }
 
 void
@@ -448,7 +424,6 @@ formatIntString (char *buffer, int amount, char *delim, ...)
 		}
 	}
 	va_end (vl);
-	return;
 }
 
 void
@@ -503,7 +478,7 @@ getRestrictChar (GOVERNORS_PERIOD_NAME restrict_level)
 }
 
 void
-print_account_screen1 (Account * ac)
+print_account_screen1 (const Account * ac)
 {
 	int x, y;
 	char buf[1024];
@@ -524,15 +499,13 @@ print_account_screen1 (Account * ac)
 
 	memset (buf, 0, sizeof (buf));
 	memset (stringBuf, 0, sizeof (stringBuf));
-	formatIntString (stringBuf, 3, "/", ac->current.read, ac->mid_average.read,
-			ac->long_average.read);
+	formatIntString (stringBuf, 3, "/", ac->current.read, ac->mid_average.read, ac->long_average.read);
 	sprintf (buf, "%-19s ", stringBuf);
 	printString (buf, A_NORMAL, 19, NONEWLINE);
 
 	memset (buf, 0, sizeof (buf));
 	memset (stringBuf, 0, sizeof (stringBuf));
-	formatIntString (stringBuf, 3, "/", ac->current.write,
-			ac->mid_average.write, ac->long_average.write);
+	formatIntString (stringBuf, 3, "/", ac->current.write, ac->mid_average.write, ac->long_average.write);
 	sprintf (buf, "%-17s ", stringBuf);
 	printString (buf, A_NORMAL, 17, NONEWLINE);
 
@@ -540,14 +513,9 @@ print_account_screen1 (Account * ac)
 	memset (stringBuf, 0, sizeof (stringBuf));
 	getRestrictInfo (ac, stringBuf);
 	if (ac->info.field_restrict != NO_PERIOD)
-	{
-		sprintf (buf, "%c/%s%d", getRestrictChar (ac->restricted), stringBuf,
-			getTimeToEnd (ac));
-	}
+		sprintf (buf, "%c/%s%d", getRestrictChar (ac->restricted), stringBuf, getTimeToEnd (ac));
 	else
-	{
 		strcpy (buf, "-");
-	}
 	printString (buf, A_NORMAL, 24, NEWLINE);
 }
 
@@ -644,8 +612,7 @@ read_info (void)
 		{
 			reset_accounts ();
 			if (recv_accounts != NULL)
-				g_list_foreach (recv_accounts, (GFunc) _copy_to_showed_accounts,
-						NULL);
+				g_list_foreach (recv_accounts, (GFunc) _copy_to_showed_accounts, NULL);
 			sort_accounts ();
 		}
 	}
@@ -664,8 +631,8 @@ colorize (void)
 void
 printOneScreen (void)
 {
-	GList *l;
-	Account *tmp;
+	const GList *l;
+	const Account *tmp;
 	int i, j;
 	int screen_height, screen_weight, counter;
 	//char header_buf[512];
@@ -689,17 +656,17 @@ printOneScreen (void)
 
 		for (l = accounts; l; l = l->next)
 		{
-			tmp = (Account *) l->data;
+			tmp = (const Account *) l->data;
 			if ((tmp->info.field_level_restrict == NORESTRICT_PARAM)
 				&& (tmp->info.field_restrict == NO_PERIOD))
 			{
 				if (is_colorize)
-				attron (COLOR_PAIR (2));
+					attron (COLOR_PAIR (2));
 			}
 			else if (tmp->info.field_restrict != NO_PERIOD)
 			{
 				if (is_colorize)
-				attron (COLOR_PAIR (3));
+					attron (COLOR_PAIR (3));
 			}
 
 			print_account_screen1 (tmp);
@@ -708,12 +675,12 @@ printOneScreen (void)
 				&& (tmp->info.field_restrict == NO_PERIOD))
 			{
 				if (is_colorize)
-				attroff (COLOR_PAIR (2));
+					attroff (COLOR_PAIR (2));
 			}
 			else if (tmp->info.field_restrict != NO_PERIOD)
 			{
 				if (is_colorize)
-				attroff (COLOR_PAIR (3));
+					attroff (COLOR_PAIR (3));
 			}
 			if (counter >= (screen_height - 3))
 				break;
@@ -750,17 +717,15 @@ char *
 print_formatted_user_name (char *name, char *buf)
 {
 	strlcpy (buf, name, USERNAMEMAXLEN);
-	int i = 0;
+	int i;
 	for (i = 0; i < USERNAMEMAXLEN; i++)
-	{
-		if ((buf[i] < 32) && (buf[i] > 0))
+		if (buf[i] > 0 && buf[i] < 32)
 			buf[i] = '*';
-	}
 	return buf;
 }
 
 void
-print_account_screen1_no_curses (Account * ac)
+print_account_screen1_no_curses (const Account * ac)
 {
 	char buf[1024];
 	char stringBuf[1024];
@@ -779,22 +744,17 @@ print_account_screen1_no_curses (Account * ac)
 	printf ("%-18s ", stringBuf);
 	getRestrictInfo (ac, stringBuf);
 	if (ac->info.field_restrict != NO_PERIOD)
-	{
-		sprintf (buf, "%c/%s%d", getRestrictChar (ac->restricted), stringBuf,
-			getTimeToEnd (ac));
-	}
+		sprintf (buf, "%c/%s%d", getRestrictChar (ac->restricted), stringBuf, getTimeToEnd (ac));
 	else
-	{
 		strcpy (buf, "-");
-	}
 	printf ("%s\n", buf);
 }
 
 void
 printOneScreenNoCurses (void)
 {
-	GList *l;
-	Account *tmp;
+	const GList *l;
+	const Account *tmp;
 	char header_buf[512];
 
 	printf
@@ -804,7 +764,7 @@ printOneScreenNoCurses (void)
 	sort_accounts ();
 	for (l = accounts; l; l = l->next)
 	{
-		tmp = (Account *) l->data;
+		tmp = (const Account *) l->data;
 
 		print_account_screen1_no_curses (tmp);
 	}

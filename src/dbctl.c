@@ -222,11 +222,9 @@ GetOptList (int argc, char **argv, int *ret)
 			case ':':
 				*ret = 1;
 				return opts;
-				break;
 			case '?':
 				*ret = 1;
 				return opts;
-				break;
 		}
 	}
 
@@ -397,7 +395,7 @@ GetCmd (int argc, char **argv)
 				if (!strcmp(argv[2], "--kb")) kb_flag = 1;
 				if (!strcmp(argv[2], "--mb")) kb_flag = 3;
 			}
-			if (!list_all_json(kb_flag) != 0)
+			if (!list_all_json(kb_flag))
 				return 2;
 			break;
 

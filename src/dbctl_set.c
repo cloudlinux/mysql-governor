@@ -47,7 +47,7 @@ void get_bb(char **s)
 	sprintf(*s, "%lld", bb);
 }
 
-int split(SplitStr ** s_s, char *str, char t)
+int split(SplitStr ** s_s, const char *str, char t)
 {
 	int j = 0, cnt = 0;
 	for (; j < strlen(str); j++)
@@ -93,19 +93,17 @@ int split(SplitStr ** s_s, char *str, char t)
 
 void release_split(SplitStr * data, int cnt)
 {
-	if (cnt && data)
+	if (data)
 	{
-		int index = 0;
+		int index;
 		for (index = 0; index < cnt; index++)
-		{
 			if (data[index].str)
 				free(data[index].str);
-		}
 		free(data);
 	}
 }
 
-int checkCorrectAttrs(void *child, char *s)
+int checkCorrectAttrs(void *child, const char *s)
 {
 	void *limit = NULL;
 	const char *attr = NULL, *inner_attr = NULL;
@@ -155,7 +153,7 @@ int checkCorrectAttrs(void *child, char *s)
 		return 0;
 }
 
-void *removeBadLimit(void *child, char *s)
+void *removeBadLimit(void *child, const char *s)
 {
 	void *limit = NULL;
 	const char *attr = NULL;
@@ -173,7 +171,7 @@ void *removeBadLimit(void *child, char *s)
 	return child;
 }
 
-void *setLimitAttr(void *limit, char *s)
+void *setLimitAttr(void *limit, const char *s)
 {
 	int cnt = 0;
 	if (!s)

@@ -972,27 +972,20 @@ __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 		if (ret != EBUSY)
 		{
 			if (mysql_mutex_ptr->is_in_lve == 1)
-			{
 				mysql_mutex_ptr->is_in_lve = 2;
-			} else if (mysql_mutex_ptr->is_in_lve > 1)
-			{
+			else if (mysql_mutex_ptr->is_in_lve > 1)
 				mysql_mutex_ptr->is_in_lve++;
-			}
 			mysql_mutex_ptr->is_in_mutex++;
 		} else
 		{
 			if (mysql_mutex_ptr->is_in_lve == 1)
 			{
-				if(mysql_mutex_ptr->critical)
-				{
+				if (mysql_mutex_ptr->critical)
 					mysql_mutex_ptr->is_in_lve = 1;
-				} else if (!governor_enter_lve_light(&lve_cookie))
-				{
+				else if (!governor_enter_lve_light(&lve_cookie))
 					mysql_mutex_ptr->is_in_lve = 1;
-				} else
-				{
+				else
 					mysql_mutex_ptr->is_in_lve = 0;
-				}
 			}
 		}
 	}

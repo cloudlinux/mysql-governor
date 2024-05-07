@@ -832,25 +832,25 @@ static void print_account_configs(gpointer key, gpointer value,
 {
 	char buffer[512] = { 0 };
 	stats_limit_cfg *ptr = (stats_limit_cfg *) value;
-	printf("%s_CPU_CUR %lld\n", (char *) key, ptr->cpu._current);
-	printf("%s_CPU_SHORT %lld\n", (char *) key, ptr->cpu._short);
-	printf("%s_CPU_MID %lld\n", (char *) key, ptr->cpu._mid);
-	printf("%s_CPU_LONG %lld\n", (char *) key, ptr->cpu._long);
+	printf("%s_CPU_CUR %ld\n", (char *) key, ptr->cpu._current);
+	printf("%s_CPU_SHORT %ld\n", (char *) key, ptr->cpu._short);
+	printf("%s_CPU_MID %ld\n", (char *) key, ptr->cpu._mid);
+	printf("%s_CPU_LONG %ld\n", (char *) key, ptr->cpu._long);
 
-	printf("%s_READ_CUR %lld\n", (char *) key, ptr->read._current);
-	printf("%s_READ_SHORT %lld\n", (char *) key, ptr->read._short);
-	printf("%s_READ_MID %lld\n", (char *) key, ptr->read._mid);
-	printf("%s_READ_LONG %lld\n", (char *) key, ptr->read._long);
+	printf("%s_READ_CUR %ld\n", (char *) key, ptr->read._current);
+	printf("%s_READ_SHORT %ld\n", (char *) key, ptr->read._short);
+	printf("%s_READ_MID %ld\n", (char *) key, ptr->read._mid);
+	printf("%s_READ_LONG %ld\n", (char *) key, ptr->read._long);
 
-	printf("%s_WRITE_CUR %lld\n", (char *) key, ptr->write._current);
-	printf("%s_WRITE_SHORT %lld\n", (char *) key, ptr->write._short);
-	printf("%s_WRITE_MID %lld\n", (char *) key, ptr->write._mid);
-	printf("%s_WRITE_LONG %lld\n", (char *) key, ptr->write._long);
+	printf("%s_WRITE_CUR %ld\n", (char *) key, ptr->write._current);
+	printf("%s_WRITE_SHORT %ld\n", (char *) key, ptr->write._short);
+	printf("%s_WRITE_MID %ld\n", (char *) key, ptr->write._mid);
+	printf("%s_WRITE_LONG %ld\n", (char *) key, ptr->write._long);
 
-	printf("%s_SLOW_CUR %lld\n", (char *) key, ptr->slow._current);
-	printf("%s_SLOW_SHORT %lld\n", (char *) key, ptr->slow._short);
-	printf("%s_SLOW_MID %lld\n", (char *) key, ptr->slow._mid);
-	printf("%s_SLOW_LONG %lld\n", (char *) key, ptr->slow._long);
+	printf("%s_SLOW_CUR %ld\n", (char *) key, ptr->slow._current);
+	printf("%s_SLOW_SHORT %ld\n", (char *) key, ptr->slow._short);
+	printf("%s_SLOW_MID %ld\n", (char *) key, ptr->slow._mid);
+	printf("%s_SLOW_LONG %ld\n", (char *) key, ptr->slow._long);
 
 	printf("%s_ACC_TP %s\n", (char *) key,
 			(ptr->account_flag ? "ACCOUNT" : "MYSQL_USER"));
@@ -913,25 +913,25 @@ void print_config_full(void)
 	printf("DAEMON_MONITOR %s\n", (cfg->daemon_monitor ? "ON" : "OFF"));
 	printf("IS_GPL %d\n", cfg->is_gpl);
 
-	printf("DEFAULT_CPU_CUR %lld\n", cfg->default_limit.cpu._current);
-	printf("DEFAULT_CPU_SHORT %lld\n", cfg->default_limit.cpu._short);
-	printf("DEFAULT_CPU_MID %lld\n", cfg->default_limit.cpu._mid);
-	printf("DEFAULT_CPU_LONG %lld\n", cfg->default_limit.cpu._long);
+	printf("DEFAULT_CPU_CUR %ld\n", cfg->default_limit.cpu._current);
+	printf("DEFAULT_CPU_SHORT %ld\n", cfg->default_limit.cpu._short);
+	printf("DEFAULT_CPU_MID %ld\n", cfg->default_limit.cpu._mid);
+	printf("DEFAULT_CPU_LONG %ld\n", cfg->default_limit.cpu._long);
 
-	printf("DEFAULT_READ_CUR %lld\n", cfg->default_limit.read._current);
-	printf("DEFAULT_READ_SHORT %lld\n", cfg->default_limit.read._short);
-	printf("DEFAULT_READ_MID %lld\n", cfg->default_limit.read._mid);
-	printf("DEFAULT_READ_LONG %lld\n", cfg->default_limit.read._long);
+	printf("DEFAULT_READ_CUR %ld\n", cfg->default_limit.read._current);
+	printf("DEFAULT_READ_SHORT %ld\n", cfg->default_limit.read._short);
+	printf("DEFAULT_READ_MID %ld\n", cfg->default_limit.read._mid);
+	printf("DEFAULT_READ_LONG %ld\n", cfg->default_limit.read._long);
 
-	printf("DEFAULT_WRITE_CUR %lld\n", cfg->default_limit.write._current);
-	printf("DEFAULT_WRITE_SHORT %lld\n", cfg->default_limit.write._short);
-	printf("DEFAULT_WRITE_MID %lld\n", cfg->default_limit.write._mid);
-	printf("DEFAULT_WRITE_LONG %lld\n", cfg->default_limit.write._long);
+	printf("DEFAULT_WRITE_CUR %ld\n", cfg->default_limit.write._current);
+	printf("DEFAULT_WRITE_SHORT %ld\n", cfg->default_limit.write._short);
+	printf("DEFAULT_WRITE_MID %ld\n", cfg->default_limit.write._mid);
+	printf("DEFAULT_WRITE_LONG %ld\n", cfg->default_limit.write._long);
 
-	printf("DEFAULT_SLOW_CUR %lld\n", cfg->default_limit.slow._current);
-	printf("DEFAULT_SLOW_SHORT %lld\n", cfg->default_limit.slow._short);
-	printf("DEFAULT_SLOW_MID %lld\n", cfg->default_limit.slow._mid);
-	printf("DEFAULT_SLOW_LONG %lld\n", cfg->default_limit.slow._long);
+	printf("DEFAULT_SLOW_CUR %ld\n", cfg->default_limit.slow._current);
+	printf("DEFAULT_SLOW_SHORT %ld\n", cfg->default_limit.slow._short);
+	printf("DEFAULT_SLOW_MID %ld\n", cfg->default_limit.slow._mid);
+	printf("DEFAULT_SLOW_LONG %ld\n", cfg->default_limit.slow._long);
 
 	printf("DEFAULT_ACC_TP %s\n",
 			(cfg->default_limit.account_flag ? "ACCOUNT" : "MYSQL_USER"));
