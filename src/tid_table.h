@@ -59,7 +59,7 @@ void add_new_begin_tid_data (client_data * tbl, int fd);
 void add_new_end_tid_data (client_data * tbl);
 tid_table *get_tid_data (pid_t tid, tid_table * buf);
 void remove_tid_data (pid_t tid);
-void proceed_tid_data (GHFunc func, gpointer user_data);
+void process_tid_data (GHFunc func, gpointer user_data);
 void add_new_tid_data2 (pid_t tid, tid_table * tbl);
 void remove_tid_data_by_fd (int fd);
 void reset_counters (char *username);

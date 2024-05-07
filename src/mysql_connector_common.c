@@ -298,6 +298,8 @@ int
 db_mysql_exec_query (const char *query, MYSQL ** mysql_internal,
 		MODE_TYPE debug_mode)
 {
+	EXTLOG(EL_MYSQLCMD, 1, "executing '%s'", query);
+
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 
@@ -306,8 +308,10 @@ db_mysql_exec_query (const char *query, MYSQL ** mysql_internal,
 	{
 		//База действительно ушла прочь, что даже реконнект не помог
 
+		EXTLOG(EL_MYSQLCMD, 1, "ping failed, trying local_reconnect()");
 		if (local_reconnect (mysql_internal, debug_mode) < 0)
 		{
+			EXTLOG(EL_MYSQLCMD, 1, "local_reconnect() failed");
 			return -1;
 		}
 	}
@@ -334,7 +338,6 @@ db_mysql_exec_query (const char *query, MYSQL ** mysql_internal,
 					data_cfg.log_mode, db_getlasterror (*mysql_internal),
 					query);
 			}
-
 			return -1;
 		}
 	}
@@ -675,12 +678,14 @@ governor_enable (MODE_TYPE debug_mode)
 
 	if (is_plugin_version)
 	{
+		EXTLOG(EL_SERVICE|EL_MYSQLCMD, 1, "db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE_PLG)");
 		if (db_mysql_exec_query (QUERY_GOVERNOR_MODE_ENABLE_PLG,
 					&mysql_send_governor, debug_mode))
 		{
 			WRITE_LOG (NULL, 0, "Can't execute sql request. ENABLE_GOVERNOR_PLG",
 				data_cfg.log_mode);
 		}
+		EXTLOG(EL_SERVICE|EL_MYSQLCMD, 1, "db_mysql_exec_query(QUERY_GOVERNOR_RECON_LVE_PLG2)");
 		if (db_mysql_exec_query (QUERY_GOVERNOR_RECON_LVE_PLG2,
 					&mysql_send_governor, debug_mode))
 		{
@@ -690,6 +695,7 @@ governor_enable (MODE_TYPE debug_mode)
 	}
 	else
 	{
+		EXTLOG(EL_SERVICE|EL_MYSQLCMD, 1, "db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE)");
 		if (db_mysql_exec_query (QUERY_GOVERNOR_MODE_ENABLE,
 					&mysql_send_governor, debug_mode))
 		{
@@ -751,12 +757,14 @@ governor_enable_lve (MODE_TYPE debug_mode)
 
 	if (is_plugin_version)
 	{
+		EXTLOG(EL_SERVICE|EL_MYSQLCMD, 1, "db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE_LVE_PLG)");
 		if (db_mysql_exec_query (QUERY_GOVERNOR_MODE_ENABLE_LVE_PLG,
 					&mysql_send_governor, debug_mode))
 		{
 			WRITE_LOG (NULL, 0, "Can't execute sql request. ENABLE_GOVERNOR",
 				data_cfg.log_mode);
 		}
+		EXTLOG(EL_SERVICE|EL_MYSQLCMD, 1, "db_mysql_exec_query(QUERY_GOVERNOR_RECON_LVE_PLG2)");
 		if (db_mysql_exec_query (QUERY_GOVERNOR_RECON_LVE_PLG2,
 					&mysql_send_governor, debug_mode))
 		{
@@ -766,6 +774,7 @@ governor_enable_lve (MODE_TYPE debug_mode)
 	}
 	else
 	{
+		EXTLOG(EL_SERVICE|EL_MYSQLCMD, 1, "db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE_LVE)");
 		if (db_mysql_exec_query (QUERY_GOVERNOR_MODE_ENABLE_LVE,
 					&mysql_send_governor, debug_mode))
 		{

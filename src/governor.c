@@ -672,7 +672,7 @@ int main(int argc, char *argv[])
 		WRITE_LOG (NULL, 0, "DBTOP_SERVER thread created", data_cfg.log_mode);
 	}
 
-	ret = pthread_create(&thread_prcd, NULL, proceed_data_every_second, NULL);
+	ret = pthread_create(&thread_prcd, NULL, process_data_every_second, NULL);
 	if (ret < 0)
 	{
 		WRITE_LOG (NULL, 0, "FAILED to create MONITOR thread - EXITING", data_cfg.log_mode);

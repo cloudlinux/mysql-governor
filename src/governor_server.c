@@ -162,7 +162,7 @@ recv_wrapper (int __fd, void *__buf, size_t __n, int __flags)
 }
 
 void *
-proceed_data_every_second (void *data)
+process_data_every_second (void *data)
 {
 	char buffer[_DBGOVERNOR_BUFFER_2048];
 	double old_tm = 0.0, new_tm = 0.0;
@@ -183,10 +183,10 @@ proceed_data_every_second (void *data)
 		if (old_tm == 0.0)
 			old_tm = new_tm;
 
-		//Calculate average and all exists non proceeded accounts
+		//Calculate average and all exists non processed accounts
 		if (new_tm - old_tm >= 1.0)
 		{
-			proceed_accounts (new_tm);
+			process_accounts (new_tm);
 			old_tm = new_tm;
 		}
 
@@ -520,7 +520,7 @@ get_data_from_client (void *data)
 							if (tbl)
 							{
 								//Stats st;
-								clac_stats_difference_add_to_counters (&message,
+								calc_stats_difference_add_to_counters (&message,
 													&tbl_buff);
 								//add_new_stats(tbl->username, &st, get_current_tick());
 								remove_tid_data (message.tid);
@@ -576,7 +576,7 @@ chek_user_perf (gpointer key, tid_table * item, gpointer user_data)
 				cpu = calc_cpu_from_rusage(item);
 				item->cpu = 0;
 			}
-			clac_stats_difference_inner_add_to_counters (cpu, item->read_end, item->write_end, item);
+			calc_stats_difference_inner_add_to_counters (cpu, item->read_end, item->write_end, item);
 
 			//remove tid from threads list
 			add_tid_to_bad_list (kkey);
@@ -614,7 +614,7 @@ chek_user_perf (gpointer key, tid_table * item, gpointer user_data)
 		// printf("Get cpu1 %ld, tid %d, tm %f\n", item1.utime + item1.stime, kkey, new_tm);
 #endif
 
-		clac_stats_difference_inner_add_to_counters (item1.utime + item1.stime,
+		calc_stats_difference_inner_add_to_counters (item1.utime + item1.stime,
 							item2.read_bytes,
 							item2.write_bytes, item);
 		//add_new_stats(item->username, &st, get_current_tick());
@@ -653,7 +653,7 @@ monitor_data_from_client (void *data)
 	{
 		tm->tv_sec = cur_tm.tv_sec;
 		tm->tv_nsec = cur_tm.tv_nsec;
-		proceed_tid_data ((GHFunc) chek_user_perf, (gpointer) tm);
+		process_tid_data ((GHFunc) chek_user_perf, (gpointer) tm);
 	}
 	free (tm);
 }

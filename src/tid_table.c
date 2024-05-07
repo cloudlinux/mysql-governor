@@ -247,7 +247,7 @@ add_new_begin_tid_data (client_data * tbl, int fd)
 				cpu = calc_cpu_from_rusage(item);
 				item->cpu = 0;
 			}
-			clac_stats_difference_inner_add_to_counters (cpu, item->read_end, item->write_end, item);
+			calc_stats_difference_inner_add_to_counters (cpu, item->read_end, item->write_end, item);
 			g_hash_table_remove (threads_list, GINT_TO_POINTER (tbl->tid));
 		}
 		//update begin info
@@ -369,7 +369,7 @@ remove_tid_data_by_fd (int fd)
 }
 
 void
-proceed_tid_data (GHFunc func, gpointer user_data)
+process_tid_data (GHFunc func, gpointer user_data)
 {
 	pthread_mutex_lock (&mtx_tid);
 	g_hash_table_foreach (threads_list, func, user_data);

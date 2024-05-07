@@ -107,10 +107,12 @@ run_dbtop_command (void *data)
 	if (!out)
 	{
 		//Try to open second time
+		EXTLOG(EL_DBTOP, 1, "first fdopen() failed");
 		out = fdopen ((int) ns, "w+");
 		//If null, then cancel command
 		if (!out)
 		{
+			EXTLOG(EL_DBTOP, 1, "second fdopen() failed");
 			close (ns);
 			return NULL;
 		}
@@ -120,6 +122,7 @@ run_dbtop_command (void *data)
 	resp = fwrite_wrapper (&new_record, sizeof (int), 1, out);
 	if (!resp)
 	{
+		EXTLOG(EL_DBTOP, 1, "write failed");
 		fflush (out);
 		fclose (out);
 		return NULL;
@@ -127,6 +130,7 @@ run_dbtop_command (void *data)
 	resp = fread_wrapper (&get_response, sizeof (int), 1, out);
 	if (!resp)
 	{
+		EXTLOG(EL_DBTOP, 1, "no response");
 		fflush (out);
 		fclose (out);
 		return NULL;
@@ -206,7 +210,7 @@ accept_connections (int s)
 				WRITE_LOG (NULL, 0, "Can't server accept(DBTOP)", data_cfg.log_mode);
 				close_log ();
 				close_restrict_log ();
-				exit (EXIT_FAILURE);
+				return;
 			}
 		}
 		intptr_t accept_socket = (intptr_t) ns;

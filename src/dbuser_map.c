@@ -169,12 +169,7 @@ get_map_file (struct governor_config *data_cfg)
 						sizeof (UserMap_->account_name) - 1);
 					int tmp_uid = data_cfg->separate_lve ? atoi (uid) : BAD_LVE;
 
-					if (data_cfg->log_mode == DEBUG_MODE)
-					{
-						WRITE_LOG (NULL, 0, "Added user %s account %s with uid %d",
-							data_cfg->log_mode, UserMap_->username,
-							UserMap_->account_name, tmp_uid);
-					}
+					EXTLOG(EL_USERMAP, 1, "Added user %s account %s with uid %d", UserMap_->username, UserMap_->account_name, tmp_uid);
 
 					if (tmp_uid >= 1)
 					{
@@ -234,6 +229,7 @@ parse_map_file_every_hour (void *data)
 		last_mod = last_modify_map ();
 		if (curr < last_mod)
 		{
+			EXTLOG(EL_USERMAP, 1, "reading dbuser-map file");
 			if (lock_write_map () == 0)
 			{
 				if (!get_map_file (&data_cfg))

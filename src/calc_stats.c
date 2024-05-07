@@ -184,7 +184,7 @@ calc_acc_stats (gpointer key, Account * ac, gpointer data)
 		{
 			WRITE_LOG (NULL,
 				1,
-				" step 2-%d: proceed user stats %s, c %f, r %llu, w %llu",
+				" step 2-%d: process user stats %s, c %f, r %llu, w %llu",
 				internal_info->log_mode,
 				i, us->id ? us->id : "Unk", fifo_stats_get (us->stats,
 									0)->cpu,
@@ -718,7 +718,7 @@ add_user_stats_from_counter (gpointer key, Stat_counters * item,
 	Stats st;
 	send_to_glib_info *internal_info = (send_to_glib_info *) user_data;
 	double *in_tm = (double *) &internal_info->tm;
-	clac_stats_difference_inner_from_counter ((long long) item->s.cpu,
+	calc_stats_difference_inner_from_counter ((long long) item->s.cpu,
 							item->s.read, item->s.write,
 							item->tm, &st, *in_tm);
 	if (internal_info->dbg)
@@ -1032,7 +1032,7 @@ AddDbGovStatitrics (double old_tm)
 }
 
 void
-proceed_accounts (double tm)
+process_accounts (double tm)
 {
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
@@ -1061,13 +1061,13 @@ proceed_accounts (double tm)
 }
 
 void
-clac_stats_difference (client_data * new, tid_table * old, Stats * st)
+calc_stats_difference (client_data * new, tid_table * old, Stats * st)
 {
-	clac_stats_difference_inner (new->cpu, new->read, new->write, old, st);
+	calc_stats_difference_inner (new->cpu, new->read, new->write, old, st);
 }
 
 void
-clac_stats_difference_inner (long long cpu, long long read,
+calc_stats_difference_inner (long long cpu, long long read,
 				long long write, tid_table * old, Stats * st)
 {
 	struct timespec cur_tm;
@@ -1119,7 +1119,7 @@ clac_stats_difference_inner (long long cpu, long long read,
 }
 
 void
-clac_stats_difference_inner_from_counter (long long cpu, long long read,
+calc_stats_difference_inner_from_counter (long long cpu, long long read,
 					long long write, double tm_in,
 					Stats * st, double new_tm)
 {
@@ -1129,7 +1129,7 @@ clac_stats_difference_inner_from_counter (long long cpu, long long read,
 		//st->cpu = ((double) (cpu - old->cpu) / (new_tm - old_tm))
 		//              / ((double) sysconf(_SC_CLK_TCK)*(double)get_cpu_num ());
 		if (tm < 1.0)
-		tm = 1.0;
+			tm = 1.0;
 		if (cpu > 0)
 		{
 			//if((tm)<((1.0/(double)sysconf(_SC_CLK_TCK))*5))
@@ -1143,7 +1143,7 @@ clac_stats_difference_inner_from_counter (long long cpu, long long read,
 			st->cpu = 0.0;
 		}
 #ifdef TEST
-		//printf("CPU %f  COUUNTER cpu %ld, time %f, tm_i %f\n", st->cpu, cpu, tm, tm_in);
+		EXTLOG(EL_MONITOR, 1, "CPU %f  COUNTER cpu %lld, time %f, tm_i %f", st->cpu, cpu, tm, tm_in);
 #endif
 		if (read >= 0)
 		{
@@ -1177,20 +1177,20 @@ double calc_cpu_from_rusage(tid_table * item)
 	int hz = sysconf (_SC_CLK_TCK);
 	cpu = cpu_us/(1000000.0/hz);
 #ifdef TEST
-	//printf("calc %s c:%ld(%f), r:%ld, w:%ld\n", item->username, item->cpu_end - item->cpu, cpu, item->read_end - item->read, item->write_end - item->write);
+	EXTLOG(EL_MONITOR, 1, "calc %s c:%lld(%f), r:%lld, w:%lld\n", item->username, item->cpu_end - item->cpu, cpu, item->read_end - item->read, item->write_end - item->write);
 #endif
 	return cpu;
 }
 
 void
-clac_stats_difference_add_to_counters (client_data * new, tid_table * old)
+calc_stats_difference_add_to_counters (client_data * new, tid_table * old)
 {
-	clac_stats_difference_inner_add_to_counters (new->cpu, new->read,
+	calc_stats_difference_inner_add_to_counters (new->cpu, new->read,
 					new->write, old);
 }
 
 void
-clac_stats_difference_inner_add_to_counters (double cpu, long long read,
+calc_stats_difference_inner_add_to_counters (double cpu, long long read,
 					long long write, tid_table * old)
 {
 	pthread_mutex_lock (&mtx_counters);
@@ -1199,7 +1199,8 @@ clac_stats_difference_inner_add_to_counters (double cpu, long long read,
 	double old_tm = old->update_time + (double) old->nanoseconds	/ (double) SEC2NANO;
 	double new_tm = cur_tm.tv_sec + (double) cur_tm.tv_nsec		/ (double) SEC2NANO;
 #ifdef TEST
-	//printf("add_to-counters %s - dt - %f c %f, w %ld, r %ld, old c %ld, w %ld, r %ld\n", old->username, new_tm - old_tm, cpu, read, write, old->cpu, old->write, old->read);
+	EXTLOG(EL_MONITOR, 1, "add_to-counters %s - dt - %f c %f, w %lld, r %lld, old c %lld, w %lld, r %lld",
+		old->username, new_tm - old_tm, cpu, write, read, old->cpu, old->write, old->read);
 #endif
 	if (new_tm > old_tm)
 	{
@@ -1525,9 +1526,7 @@ void reinit_users_list(void)
 	if (lock_write_map () == 0)
 	{
 		if (!get_map_file (&data_cfg))
-		{
 			WRITE_LOG(NULL, 0, "Failed read dbuser-map file", data_cfg.log_mode);
-		}
 		unlock_rdwr_map ();
 	}
 
@@ -1548,14 +1547,9 @@ void reinit_users_list(void)
 	delete_allusers_from_list ();
 
 	if (data_cfg.all_lve)
-	{
 		g_hash_table_foreach(ac, (GHFunc)add_all_users_to_list, NULL);
-	}
 
-	if (data_cfg.log_mode == DEBUG_MODE)
-	{
-		WRITE_LOG(NULL, 0, "Reinit users list completed", data_cfg.log_mode);
-	}
+	EXTLOG(EL_MONITOR, 1, "Reinit users list completed");
 }
 
 gboolean

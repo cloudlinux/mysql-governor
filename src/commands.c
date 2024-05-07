@@ -127,11 +127,20 @@ account_unrestrict (Account * ac)
 
 	get_config_data (&data_cfg);
 	if (data_cfg.is_gpl)
+	{
+		EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "exiting due to is_gpl");
 		return;
+	}
 	if (data_cfg.all_lve)
+	{
+		EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "exiting due to all_lve=%d", data_cfg.all_lve);
 		return;			//lve use=all
+	}
 	if (!data_cfg.use_lve && !data_cfg.separate_lve)
+	{
+		EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "exiting due to all_lve=%d and separate_lve=%d", data_cfg.use_lve, data_cfg.separate_lve);
 		return;			//lve use=off
+	}
 
 	for (i = 0; i < ac->users->len; i++)
 	{
@@ -144,7 +153,11 @@ account_unrestrict (Account * ac)
 				strlcpy (cmd->username, us->id, USERNAMEMAXLEN);
 				cmd->command = UNFREEZE;
 				pthread_mutex_lock (&mtx_commands);
+				EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "%d/%d: before appending %s:%d to command_list with len %d",
+					i, ac->users->len, cmd->username, cmd->command, g_list_length(command_list) );
 				command_list = g_list_append (command_list, cmd);
+				EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "%d/%d: after appending command_list len %d",
+					i, ac->users->len, g_list_length(command_list) );
 				pthread_mutex_unlock (&mtx_commands);
 			}
 		}
@@ -225,8 +238,7 @@ account_restrict (Account * ac, stats_limit_cfg * limit)
 		trigger_pid = fork ();
 		if (trigger_pid < 0)
 		{
-			WRITE_LOG (NULL, 0, "(%d)Fork error (trigger). Path %s", data_cfg.log_mode,
-				errno, data_cfg.exec_script);
+			WRITE_LOG (NULL, 0, "(%d)Fork error (trigger). Path %s", data_cfg.log_mode, errno, data_cfg.exec_script);
 		}
 		else
 		{
@@ -235,8 +247,7 @@ account_restrict (Account * ac, stats_limit_cfg * limit)
 				execl (data_cfg.exec_script, data_cfg.exec_script,
 					ac->id, getPeriodName(ac), getParamName(ac), varValue, limValue,
 					penValue, loadAvg, vmStat, dump, NULL);
-				WRITE_LOG (NULL, 0, "(%d)Exec error (trigger). Path %s",
-					data_cfg.log_mode, errno, data_cfg.exec_script);
+				WRITE_LOG (NULL, 0, "(%d)Exec error (trigger). Path %s", data_cfg.log_mode, errno, data_cfg.exec_script);
 				exit (0);
 			}
 		}
@@ -294,9 +305,7 @@ send_commands (Command * cmd, void *data)
 		unsigned max_user_conn = 0;
 
 		if (max_user_conn_table == NULL)
-		{
 			max_user_conn_table = g_hash_table_new_full (g_str_hash, g_str_equal, destroy_key, NULL);
-		}
 
 		switch (cmd->command)
 		{
@@ -306,40 +315,27 @@ send_commands (Command * cmd, void *data)
 				g_hash_table_insert (max_user_conn_table, strdup (cmd->username), GUINT_TO_POINTER (max_user_conn));
 				if (data_cfg.use_lve)
 				{
-					EXTLOG(EL_MONITOR|EL_FREEZE, 1, "before add_user_to_list(%s, %d) due to use_lve!=0",
-						cmd->username, data_cfg.all_lve);
+					EXTLOG(EL_MONITOR|EL_FREEZE, 1, "before add_user_to_list(%s, %d) due to use_lve!=0", cmd->username, data_cfg.all_lve);
 					if (add_user_to_list (cmd->username, data_cfg.all_lve) < 0)
-					{
-						if (data_cfg.log_mode == DEBUG_MODE)
-						{
-							WRITE_LOG (NULL, 0, "Can't add user to BAD list %s", data_cfg.log_mode, cmd->username);
-						}
-					}
+						EXTLOG(EL_MONITOR|EL_FREEZE, 1, "add_user_to_list(%s, %d) FAILED", cmd->username, data_cfg.all_lve);
 					else
 					{
-						EXTLOG(EL_MONITOR|EL_FREEZE, 1, "add_user_to_list(%s, %d) SUCCESS",
-								cmd->username, data_cfg.all_lve);
+						EXTLOG(EL_MONITOR|EL_FREEZE, 1, "add_user_to_list(%s, %d) SUCCESS", cmd->username, data_cfg.all_lve);
 						if (data_cfg.max_user_connections &&
 							(data_cfg.max_user_connections < max_user_conn || max_user_conn == 0))
 						{
-							update_user_limit_no_flush (cmd->username,
-											(unsigned int) data_cfg.max_user_connections,
-											data_cfg.log_mode);
+							update_user_limit_no_flush (cmd->username, (unsigned int) data_cfg.max_user_connections, data_cfg.log_mode);
 							is_any_flush = 1;
 						}
 					}
 				}
 				else
 				{
-					EXTLOG(EL_MONITOR|EL_FREEZE, 1, "no add_user_to_list(%s, %d) due to use_lve==off",
-							cmd->username, data_cfg.all_lve);
-
+					EXTLOG(EL_MONITOR|EL_FREEZE, 1, "no add_user_to_list(%s, %d) due to use_lve==off", cmd->username, data_cfg.all_lve);
 					if (data_cfg.max_user_connections &&
 						(data_cfg.max_user_connections < max_user_conn || max_user_conn == 0))
 					{
-						update_user_limit_no_flush (cmd->username,
-										(unsigned int) data_cfg.max_user_connections,
-										data_cfg.log_mode);
+						update_user_limit_no_flush (cmd->username, (unsigned int) data_cfg.max_user_connections, data_cfg.log_mode);
 						is_any_flush = 1;
 					}
 				}
@@ -355,28 +351,24 @@ send_commands (Command * cmd, void *data)
 				g_hash_table_remove (max_user_conn_table, cmd->username);
 				if (data_cfg.use_lve)
 				{
+					EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "before delete_user_from_list(%s) due to use_lve!=0", cmd->username);
 					if (delete_user_from_list (cmd->username) < 0)
-					{
-						if (data_cfg.log_mode == DEBUG_MODE)
-						{
-							WRITE_LOG (NULL, 0, "Can't delete user form BAD list %s",
-								data_cfg.log_mode, cmd->username);
-						}
-					}
+						EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "delete_user_from_list(%s) FAILED", cmd->username);
+					else
+						EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "delete_user_from_list(%s) SUCCESS", cmd->username);
 					if (data_cfg.max_user_connections)
 					{
-						update_user_limit_no_flush (cmd->username, max_user_conn,
-									data_cfg.log_mode);
+						update_user_limit_no_flush (cmd->username, max_user_conn, data_cfg.log_mode);
 						is_any_flush = 1;
 					}
 					//kill_connection(cmd->username, data_cfg.log_mode);
 				}
 				else
 				{
+					EXTLOG(EL_MONITOR|EL_UNFREEZE, 1, "no delete_user_from_list(%s) due to use_lve==off", cmd->username);
 					if (data_cfg.max_user_connections)
 					{
-						update_user_limit_no_flush (cmd->username, max_user_conn,
-									data_cfg.log_mode);
+						update_user_limit_no_flush (cmd->username, max_user_conn, data_cfg.log_mode);
 						is_any_flush = 1;
 					}
 				}
@@ -393,11 +385,9 @@ send_commands_cycle_in (void *data)
 	get_config_data (&data_cfg);
 	is_any_flush = 0;
 	EXTLOG(EL_MONITOR, 1, "before send_commands() for command_list_send %p with len %d",
-			command_list_send, command_list_send ? g_list_length (command_list_send) : -666);
+			command_list_send, command_list_send ? g_list_length (command_list_send) : -1);
 	if (command_list_send)
-	{
 		g_list_foreach (command_list_send, (GFunc) send_commands, NULL);
-	}
 	if (data_cfg.max_user_connections && is_any_flush)
 		flush_user_priv (data_cfg.log_mode);
 	is_any_flush = 0;
@@ -409,9 +399,7 @@ void
 copy_commands (Command * cmd, void *data)
 {
 	if (!cmd)
-	{
 		return;
-	}
 
 	if (!command_list_send)
 	{
