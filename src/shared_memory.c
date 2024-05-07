@@ -144,6 +144,8 @@ static void init_mysql_uidgid(struct governor_config *cfg_ptr)
 	}
 }
 
+#ifndef LIBGOVERNOR
+
 int init_bad_users_list(void)
 {
 	//if(shared_memory_name) shm_unlink(shared_memory_name);
@@ -248,6 +250,9 @@ int init_bad_users_list_if_not_exitst(void)
 	return 0;
 }
 
+#endif // LIBGOVERNOR
+
+
 void clear_bad_users_list(void)
 {
 	if (!bad_list || (bad_list == MAP_FAILED))
@@ -271,30 +276,31 @@ int remove_bad_users_list(void)
 	return 0;
 }
 
+#ifndef LIBGOVERNOR
+
 static int is_user_in_list(const char *username, struct governor_config *cfgptr)
 {
 	if (!bad_list || (bad_list == MAP_FAILED))
 	{
-		FREEZE_EXT_LOG("%s(%s): EXIT as bad_list is NOT INITED %p", __FUNCTION__, username, bad_list);
+		EXTLOG(EL_FREEZE, 1, "(%s): EXIT as bad_list is NOT INITED %p", username, bad_list);
 		return -1;
 	}
 	long index;
 	for (index = 0; index < bad_list->numbers; index++)
 	{
-		FREEZE_EXT_LOG("%s(%s): %ld/%ld: before check against(%s)", __FUNCTION__, username,
-				index, bad_list->numbers, bad_list->items[index].username);
+		EXTLOG(EL_FREEZE, 1, "(%s): %ld/%ld: before check against(%s)", username,
+			index, bad_list->numbers, bad_list->items[index].username);
 		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN-1))
 		{
-			FREEZE_EXT_LOG("%s(%s): %ld/%ld: FOUND(%s)", __FUNCTION__, username,
-					index, bad_list->numbers, bad_list->items[index].username);
+			EXTLOG(EL_FREEZE, 1, "(%s): %ld/%ld: FOUND(%s)", username,
+				index, bad_list->numbers, bad_list->items[index].username);
 			return 1;
 		}
 	}
-	FREEZE_EXT_LOG("%s(%s): NOT FOUND from %ld", __FUNCTION__, username, bad_list->numbers);
+	EXTLOG(EL_FREEZE, 1, "(%s): NOT FOUND from %ld", username, bad_list->numbers);
 	return 0;
 }
 
-#ifndef LIBGOVERNOR
 int add_user_to_list(const char *username, int is_all)
 {
 	struct governor_config data_cfg;
@@ -302,7 +308,7 @@ int add_user_to_list(const char *username, int is_all)
 
 	if (!bad_list || (bad_list == MAP_FAILED))
 	{
-		FREEZE_EXT_LOG("%s(%s, %d): FAILED as bad_list is NOT INITED %p", __FUNCTION__, username, is_all, bad_list);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): FAILED as bad_list is NOT INITED %p", username, is_all, bad_list);
 		return -1;
 	}
 
@@ -310,7 +316,7 @@ int add_user_to_list(const char *username, int is_all)
 	// before any locks and heavy operation on the map
 	if (is_user_in_list(username, &data_cfg))
 	{
-		FREEZE_EXT_LOG("%s(%s, %d): EXIT as is_user_in_list FOUND it", __FUNCTION__, username, is_all);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): EXIT as is_user_in_list FOUND it", username, is_all);
 		return 0;
 	}
 
@@ -319,40 +325,40 @@ int add_user_to_list(const char *username, int is_all)
 	{
 		uid = get_uid(username);
 		unlock_rdwr_map();
-		FREEZE_EXT_LOG("%s(%s, %d): get_uid ret %d", __FUNCTION__, username, is_all, uid);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): get_uid ret %d", username, is_all, uid);
 	}
 	else
 	{
-		FREEZE_EXT_LOG("%s(%s, %d): lock_read_map failed so NO CALL to get_uid and uid left BAD_LVE %d", __FUNCTION__, username, is_all, uid);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): lock_read_map failed so NO CALL to get_uid and uid left BAD_LVE %d", username, is_all, uid);
 	}
 	if (is_all && uid == BAD_LVE)
 	{
-		FREEZE_EXT_LOG("%s(%s, %d): set uid to 0 due to is_all!=0 and uid==BAD_LVE", __FUNCTION__, username, is_all);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): set uid to 0 due to is_all!=0 and uid==BAD_LVE", username, is_all);
 		uid = 0;
 	}
 
 	if ((bad_list->numbers + 1) == MAX_ITEMS_IN_TABLE)
 	{
-		FREEZE_EXT_LOG("%s(%s, %d): FAILED as must add it but NO SPACE", __FUNCTION__, username, is_all);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): FAILED as must add it but NO SPACE", username, is_all);
 		return -2;
 	}
 
 	if (sem_wait(&bad_list->sem) == 0)
 	{
-		FREEZE_EXT_LOG("%s(%s, %d): adding it with uid %d to %ld pos", __FUNCTION__, username, is_all, uid, bad_list->numbers);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): adding it with uid %d to %ld pos", username, is_all, uid, bad_list->numbers);
 		strlcpy(bad_list->items[bad_list->numbers].username, username, USERNAMEMAXLEN);
 		bad_list->items[bad_list->numbers++].uid = uid;
 		sem_post(&bad_list->sem);
 	}
 	else
 	{
-		FREEZE_EXT_LOG("%s(%s, %d): FAILED as must add it but sem_wait FAILED %d", __FUNCTION__, username, is_all, errno);
+		EXTLOG(EL_FREEZE, 1, "(%s, %d): FAILED as must add it but sem_wait FAILED %d", username, is_all, errno);
 		return -3;
 	}
 
 	return 0;
 }
-#endif
+#endif // LIBGOVERNOR
 
 int delete_user_from_list(char *username)
 {

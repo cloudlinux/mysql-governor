@@ -1,5 +1,5 @@
 %define g_version   1.2
-%define g_release   111
+%define g_release   112
 %define g_key_library 13
 
 %if %{undefined _unitdir}
@@ -504,6 +504,9 @@ fi
 %{_includedir}/libgovernor.h
 
 %changelog
+* Thu May 13 2024 Timur Averianov <taverianov@cloudlinux.com> 1.2-112
+- CLOS-2593, CLOS-2613: Added extended logging
+
 * Thu May 02 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> 1.2-111
 - CLOS-2385: Added watchdog monitoring utility to governor package
 

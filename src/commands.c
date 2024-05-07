@@ -161,35 +161,36 @@ account_restrict (Account * ac, stats_limit_cfg * limit)
 	get_config_data (&data_cfg);
 	if (data_cfg.is_gpl)
 	{
-		FREEZE_EXT_LOG("%s: exiting due to is_gpl", __FUNCTION__);
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "exiting due to is_gpl");
 		return;
 	}
 	if (data_cfg.all_lve || !data_cfg.use_lve)
 	{
-		FREEZE_EXT_LOG("%s: exiting due to all_lve=%d and use_lve=%d", __FUNCTION__, data_cfg.all_lve, data_cfg.use_lve);
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "exiting due to all_lve=%d and use_lve=%d", data_cfg.all_lve, data_cfg.use_lve);
 		return;			//lve use=all or off
 	}
 
 	if (!command_list)
 	{
-		FREEZE_EXT_LOG("%s: exiting due to command_list is NULL", __FUNCTION__);
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "exiting due to command_list is NULL");
 		return;
 	}
 
 	for (i = 0; i < ac->users->len; i++)
 	{
 		us = g_ptr_array_index (ac->users, i);
-		FREEZE_EXT_LOG("%s: %d/%d", __FUNCTION__,  i, ac->users->len );
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "%d/%d", i, ac->users->len);
 		Command *cmd = g_malloc (sizeof (Command));
 		if (cmd)
 		{
 			strlcpy (cmd->username, us->id, USERNAMEMAXLEN);
 			cmd->command = FREEZE;
 			pthread_mutex_lock (&mtx_commands);
-			FREEZE_EXT_LOG("%s: %d/%d: before appending %s:%d(FREEZE) into command_list with len %d",
-					__FUNCTION__, i, ac->users->len, cmd->username, cmd->command, g_list_length(command_list) );
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "%d/%d: before appending %s:%d to command_list with len %d",
+				i, ac->users->len, cmd->username, cmd->command, g_list_length(command_list) );
 			command_list = g_list_append (command_list, cmd);
-			FREEZE_EXT_LOG("%s: %d/%d: after appending command_list len %d", __FUNCTION__, g_list_length(command_list) );
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "%d/%d: after appending command_list len %d",
+				i, ac->users->len, g_list_length(command_list) );
 			pthread_mutex_unlock (&mtx_commands);
 			if (data_cfg.logqueries_use == 2)
 			{
@@ -198,7 +199,7 @@ account_restrict (Account * ac, stats_limit_cfg * limit)
 		}
 		else
 		{
-			FREEZE_EXT_LOG("%s: skipped %d due to g_malloc(%u) failure", __FUNCTION__, i, sizeof (Command) );
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "skipped %d due to g_malloc(%u) failure", i, sizeof (Command));
 		}
 	}
 
@@ -305,7 +306,7 @@ send_commands (Command * cmd, void *data)
 				g_hash_table_insert (max_user_conn_table, strdup (cmd->username), GUINT_TO_POINTER (max_user_conn));
 				if (data_cfg.use_lve)
 				{
-					FREEZE_EXT_LOG("%s(FREEZE): before call of add_user_to_list(%s, %d) due to use_lve!=0", __FUNCTION__,
+					EXTLOG(EL_MONITOR|EL_FREEZE, 1, "before add_user_to_list(%s, %d) due to use_lve!=0",
 						cmd->username, data_cfg.all_lve);
 					if (add_user_to_list (cmd->username, data_cfg.all_lve) < 0)
 					{
@@ -316,7 +317,7 @@ send_commands (Command * cmd, void *data)
 					}
 					else
 					{
-						FREEZE_EXT_LOG("%s(FREEZE): call of add_user_to_list(%s, %d) SUCCESS", __FUNCTION__,
+						EXTLOG(EL_MONITOR|EL_FREEZE, 1, "add_user_to_list(%s, %d) SUCCESS",
 								cmd->username, data_cfg.all_lve);
 						if (data_cfg.max_user_connections &&
 							(data_cfg.max_user_connections < max_user_conn || max_user_conn == 0))
@@ -330,7 +331,7 @@ send_commands (Command * cmd, void *data)
 				}
 				else
 				{
-					FREEZE_EXT_LOG("%s(FREEZE): no call of add_user_to_list(%s, %d) due to use_lve==off", __FUNCTION__,
+					EXTLOG(EL_MONITOR|EL_FREEZE, 1, "no add_user_to_list(%s, %d) due to use_lve==off",
 							cmd->username, data_cfg.all_lve);
 
 					if (data_cfg.max_user_connections &&
@@ -391,7 +392,7 @@ send_commands_cycle_in (void *data)
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 	is_any_flush = 0;
-	FREEZE_EXT_LOG("%s: before calling send_commands for command_list_send %p its len %d", __FUNCTION__,
+	EXTLOG(EL_MONITOR, 1, "before send_commands() for command_list_send %p with len %d",
 			command_list_send, command_list_send ? g_list_length (command_list_send) : -666);
 	if (command_list_send)
 	{
@@ -414,20 +415,20 @@ copy_commands (Command * cmd, void *data)
 
 	if (!command_list_send)
 	{
-		FREEZE_EXT_LOG("%s: command_list_send is NULL", __FUNCTION__);
+		EXTLOG(EL_MONITOR, 1, "command_list_send is NULL");
 		return;
 	}
 
 	Command *cmd_in = g_malloc (sizeof (Command));
 	if (!cmd_in)
 	{
-		FREEZE_EXT_LOG("%s: g_malloc(%u) failed", __FUNCTION__, sizeof(Command));
+		EXTLOG(EL_MONITOR, 1, "g_malloc(%u) failed", sizeof(Command));
 		return;
 	}
 
 	strlcpy (cmd_in->username, cmd->username, USERNAMEMAXLEN);
 	cmd_in->command = cmd->command;
-	FREEZE_EXT_LOG("%s: before append(%s, %d) into command_list_send", __FUNCTION__, cmd_in->username, cmd_in->command );
+	EXTLOG(EL_MONITOR, 1, "before append(%s, %d) to command_list_send", cmd_in->username, cmd_in->command );
 	command_list_send = g_list_append (command_list_send, cmd_in);
 }
 
@@ -450,7 +451,7 @@ send_commands_cycle (void)
 
 	if (data_cfg.is_gpl)
 	{
-		FREEZE_EXT_LOG("%s: exiting due to is_gpl", __FUNCTION__);
+		EXTLOG(EL_MONITOR, 1, "exiting due to is_gpl");
 		return;
 	}
 
@@ -462,8 +463,8 @@ send_commands_cycle (void)
 		send_command_copy_list ();
 		if (g_list_length (command_list_send) > 1) // for now list starts with empty element, so no work if length==1
 		{
-			FREEZE_EXT_LOG("%s: after call send_command_copy_list list_len==%d>1, so create a thread to send",
-					__FUNCTION__, g_list_length (command_list_send));
+			EXTLOG(EL_MONITOR, 1, "after send_command_copy_list() list_len==%d>1, so create a thread to send",
+				g_list_length (command_list_send));
 			pthread_create (&thread, NULL, send_commands_cycle_in, NULL);
 			pthread_detach (thread);
 		}
@@ -474,7 +475,7 @@ send_commands_cycle (void)
 	}
 	else
 	{
-		FREEZE_EXT_LOG("%s: exiting due to is_send_command_cycle", __FUNCTION__);
+		EXTLOG(EL_MONITOR, 1, "exiting due to is_send_command_cycle");
 	}
 }
 

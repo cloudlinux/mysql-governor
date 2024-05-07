@@ -462,17 +462,17 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = CURRENT_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		FREEZE_EXT_LOG("%s(cur): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
-			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period,
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(cur): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			FREEZE_EXT_LOG("%s(cur): Before account_restrict call", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(cur): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			FREEZE_EXT_LOG("%s(cur): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(cur): account_restrict() OMITTED due to old_restricted");
 		}
 		if (data_cfg.restrict_log)
 		{
@@ -497,17 +497,17 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = SHORT_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		FREEZE_EXT_LOG("%s(short): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
-			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period, 
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(short): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			FREEZE_EXT_LOG("%s(short): Before account_restrict call", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(short): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			FREEZE_EXT_LOG("%s(short): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(short): account_restrict() OMITTED due to old_restricted");
 		}
 		if (data_cfg.restrict_log)
 		{
@@ -532,17 +532,17 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = MID_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		FREEZE_EXT_LOG("%s(mid): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
-			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period, 
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(mid): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			FREEZE_EXT_LOG("%s(mid): Before account_restrict call", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(mid): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			FREEZE_EXT_LOG("%s(mid): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(mid): account_restrict() OMITTED due to old_restricted");
 		}
 		if (data_cfg.restrict_log)
 		{
@@ -567,17 +567,17 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = LONG_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		FREEZE_EXT_LOG("%s(long): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
-			__FUNCTION__, (int)ol_field, old_restricted, ac->restricted, restrict_period, 
+		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(long): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			FREEZE_EXT_LOG("%s(long): Before account_restrict call", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(long): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			FREEZE_EXT_LOG("%s(long): account_restrict call OMITTED due to old_restricted", __FUNCTION__);
+			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(long): account_restrict() OMITTED due to old_restricted");
 		}
 		if (data_cfg.restrict_log)
 		{
