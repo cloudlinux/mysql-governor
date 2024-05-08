@@ -78,6 +78,27 @@ static MODE_TYPE mode_type_str_to_enum(const char *mode_str)
 	exit(-1);
 }
 
+static SENTRY_MODE sentry_mode_str_to_enum(const char *mode_str)
+{
+	if (mode_str == NULL)
+	{
+		fprintf(stderr, "Error: mode attribute is absent\n");
+		exit(-1);
+	}
+
+	if (!strcasecmp(mode_str, "DISABLED"))
+		return SENTRY_MODE_DISABLED;
+
+	if (!strcasecmp(mode_str, "NATIVE"))
+		return SENTRY_MODE_NATIVE;
+
+	if (!strcasecmp(mode_str, "EXTERNAL"))
+		return SENTRY_MODE_EXTERNAL;
+
+	fprintf(stderr, "Error: invalid sentry_mode %s\n", mode_str);
+	exit(-1);
+}
+
 static char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, int size)
 {
 	if (tp == TEST_MODE)
@@ -126,6 +147,28 @@ static char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, int size)
 		return mode_str;
 	}
 	snprintf(mode_str, size, "WOW!!!");
+	return mode_str;
+}
+
+static char * sentry_mode_enum_to_str(SENTRY_MODE tp, char *mode_str, int size)
+{
+	if (tp == SENTRY_MODE_DISABLED)
+	{
+		snprintf(mode_str, size, "DISABLED");
+		return mode_str;
+	}
+	if (tp == SENTRY_MODE_NATIVE)
+	{
+		snprintf(mode_str, size, "NATIVE");
+		return mode_str;
+	}
+	if (tp == SENTRY_MODE_EXTERNAL)
+	{
+		snprintf(mode_str, size, "EXTERNAL");
+		return mode_str;
+	}
+
+	snprintf(mode_str, size, "INVALID");
 	return mode_str;
 }
 
@@ -342,6 +385,10 @@ void config_free(void)
 			free(cfg->restrict_log);
 		if (cfg->slow_queries_log)
 			free(cfg->slow_queries_log);
+		if (cfg->sentry_dsn)
+			free(cfg->sentry_dsn);
+		if (cfg->sentry_sock)
+			free(cfg->sentry_sock);
 		free(cfg);
 	}
 }
@@ -401,6 +448,28 @@ config_init(const char *path)
 
 	ptr = getElemAttr(tmp_xml, "mode");
 	cfg->log_mode = (ptr == NULL) ? ERROR_MODE : mode_type_str_to_enum(ptr);
+	releaseElemValue(ptr);
+
+	tmp_xml = FindElementWithName(xml, NULL, "sentry");
+	if (tmp_xml == NULL)
+	{
+		releaseConfigData(xml);
+		fprintf(stderr, "No sentry path\n");
+		exit(-1);
+	}
+
+	cfg->sentry_pid = -1;
+
+	ptr = getElemAttr(tmp_xml, "mode");
+	cfg->sentry_mode = (ptr == NULL) ? SENTRY_MODE_DISABLED : sentry_mode_str_to_enum(ptr);
+	releaseElemValue(ptr);
+
+	ptr = getElemAttr(tmp_xml, "dsn");
+	cfg->sentry_dsn = strdup(ptr ? ptr : "");
+	releaseElemValue(ptr);
+
+	ptr = getElemAttr(tmp_xml, "sock");
+	cfg->sentry_sock = strdup(ptr ? ptr : "");
 	releaseElemValue(ptr);
 
 	tmp_xml = FindElementWithName(xml, NULL, "intervals");
@@ -799,6 +868,34 @@ void get_config_data(struct governor_config *data)
 	rc = pthread_rwlock_unlock(&rwlock);
 }
 
+void config_reset_sentry()
+{
+	int rc = pthread_rwlock_rdlock(&rwlock);
+	cfg->sentry_mode = SENTRY_MODE_DISABLED;
+	cfg->sentry_pid = -1;
+
+	if (cfg->sentry_dsn)
+	{
+		free(cfg->sentry_dsn);
+		cfg->sentry_dsn = NULL;
+	}
+
+	if (cfg->sentry_sock)
+	{
+		free(cfg->sentry_sock);
+		cfg->sentry_sock = NULL;
+	}
+
+	rc = pthread_rwlock_unlock(&rwlock);
+}
+
+void config_set_sentry_pid(pid_t pid)
+{
+	int rc = pthread_rwlock_rdlock(&rwlock);
+	cfg->sentry_pid = pid;
+	rc = pthread_rwlock_unlock(&rwlock);
+}
+
 MODE_TYPE get_config_log_mode(void)
 {
 	int rc;
@@ -937,6 +1034,11 @@ void print_config_full(void)
 			(cfg->default_limit.account_flag ? "ACCOUNT" : "MYSQL_USER"));
 	printf("DEFAULTMODE %s\n",
 			mode_type_enum_to_str(cfg->default_limit.mode, buffer, 511));
+
+	printf("SENTRY_MODE %s\n", sentry_mode_enum_to_str(cfg->sentry_mode, buffer, 511));
+	printf("SENTRY_SOCK %s\n", cfg->sentry_sock ? cfg->sentry_sock : "NULL");
+	printf("SENTRY_DSN %s\n", cfg->sentry_dsn ? cfg->sentry_dsn : "NULL");
+
 	g_hash_table_foreach(cfg->account_limits, (GHFunc) print_account_configs,
 			"");
 }

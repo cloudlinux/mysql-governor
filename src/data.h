@@ -78,6 +78,13 @@ typedef enum
 	EXTLOG_MODE
 } MODE_TYPE;
 
+typedef enum
+{
+	SENTRY_MODE_DISABLED = 0,
+	SENTRY_MODE_NATIVE = 1,
+	SENTRY_MODE_EXTERNAL = 2
+} SENTRY_MODE;
+
 typedef struct
 {
 	long _current, _short, _mid, _long;

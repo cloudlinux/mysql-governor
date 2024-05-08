@@ -29,6 +29,7 @@ Requires: wget
 Requires: libxml2
 Requires: alt-python27-cllib >= 3.3.3-1
 Requires: cloudlinux-venv
+# Requires: sentry-native
 Requires(preun): /sbin/chkconfig
 BuildRequires: cmake
 BuildRequires: ncurses-devel
@@ -40,6 +41,7 @@ BuildRequires: pcre-devel
 BuildRequires: patch
 BuildRequires: alt-python27-cllib >= 3.3.3-1
 BuildRequires: cloudlinux-venv
+# BuildRequires: sentry-native-devel
 %if 0%{?fedora} >= 15 || 0%{?rhel} >= 7
 BuildRequires: systemd
 BuildRequires: systemd-devel
@@ -187,6 +189,7 @@ install -D -m 755 install/scripts/cpanel_map_rebuilder $RPM_BUILD_ROOT/usr/share
 install -D -m 755 install/scripts/dbgovernor_map $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map
 install -D -m 755 install/scripts/dbgovernor_map.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map.py
 install -D -m 755 install/scripts/dbgovernor_map_plesk.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map_plesk.py
+install -D -m 755 install/scripts/sentry_daemon.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sentry_daemon.py
 install -D -m 755 install/scripts/detect-cpanel-mysql-version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 install -D -m 755 install/scripts/cpanel-mysql-url-detect.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
 install -D -m 755 install/scripts/set_cpanel_mysql_version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm
@@ -508,6 +511,7 @@ fi
 - CLOS-2645: Corrected MariaDB version detection logic for DA config
 - CLOS-2593, CLOS-2613: Added extended logging
 - CLOS-2385: Added watchdog monitoring utility to governor package
+- CLOS-2386: Implemented Sentry logging mechanism with switchable approach)
 
 * Tue Apr 30 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-110
 - CLOS-2322: Fixed issue with not applying limits after Governor service restart

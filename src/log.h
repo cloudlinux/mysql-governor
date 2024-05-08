@@ -13,6 +13,11 @@
 #include "data.h"
 
 #include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/un.h>
+#include <sys/socket.h>
+//#include <cl-sentry.h> // S.K. >> Will be uncommented after Sentry native release for all platforms
 
 // All the functions return 0 on success and errno otherwise
 
@@ -80,6 +85,11 @@ enum
 	#undef DEFINE_EXTLOG_TAG
 };
 
+typedef enum {
+	CL_SENTRY_INFO,
+	CL_SENTRY_ERROR
+} cl_sentry_level_t;
+
 extern unsigned extlog_enabled_tags;
 extern unsigned extlog_verbosity_level;
 
@@ -87,6 +97,9 @@ extern unsigned extlog_verbosity_level;
 void extlog_init(void);
 
 int extlog(unsigned tags, unsigned level, const char *src_file, int src_line, const char *src_func, char *fmt, ...);
+
+// Sentry logging
+void sentry_log(cl_sentry_level_t level, const char *message, size_t len);
 
 // Usage: EXTLOG(EL_MONITOR|EL_FREEZE, 1, "blabla %d", 235)
 #ifdef LIBGOVERNOR

@@ -14,7 +14,6 @@
 #include "xml.h"
 #include "data.h"
 
-
 struct governor_config
 {
 	char *db_login;
@@ -51,6 +50,11 @@ struct governor_config
 	char *debug_user;
 	int save_statistic_uid;
 	int improved_accuracy;
+
+	pid_t sentry_pid;	   // PID of external sentry daemon
+	char *sentry_dsn;	   // DSN for Sentry
+	char *sentry_sock;	   // path to unix socket for external sentry daemon
+	SENTRY_MODE sentry_mode;
 };
 
 stats_limit_cfg *config_get_account_limit (const char *account_id,
@@ -66,5 +70,7 @@ void get_config_data (struct governor_config *data);
 MODE_TYPE get_config_log_mode (void);
 struct governor_config *get_config (void);
 void print_config_full(void);
+void config_reset_sentry();
+void config_set_sentry_pid(pid_t pid);
 
 #endif

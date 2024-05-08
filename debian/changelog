@@ -3,6 +3,7 @@ governor-mysql (1.2-111) stable; urgency=medium
   * CLOS-2645: Corrected MariaDB version detection logic for DA config
   * CLOS-2593, CLOS-2613: Added extended logging
   * CLOS-2385: Added watchdog monitoring utility to governor package
+  * CLOS-2386: Implemented Sentry logging mechanism with switchable approach
 
  -- Timur Averianov <taverianov@cloudlinux.com>  Thu, 13 May 2024 10:00:00 +0000
 

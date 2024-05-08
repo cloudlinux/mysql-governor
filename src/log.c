@@ -26,12 +26,100 @@ static char *mode_type_enum_to_str[] = { "TEST_MODE", "PRODUCTION_MODE",
 	"IGNORE_MODE"
 };
 
+#define SENTRY_LOG_TAG "governor"
+
+#ifndef GOVERNOR_SENTRY_TIMEOUT
+#define GOVERNOR_SENTRY_TIMEOUT 5
+#endif
+
+#ifndef GOVERNOR_SENTRY_MESSAGE_MAX
+#define GOVERNOR_SENTRY_MESSAGE_MAX 1024
+#endif
+
 static FILE *log = NULL, *restrict_log = NULL, *slow_queries_log = NULL;
 
 void print_stats_cfg (FILE * f, stats_limit_cfg * s);
 void print_stats_easy (FILE * f, stats_limit * s);
 
 // All the functions return 0 on success and errno otherwise
+
+static int
+external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, const char* socket_path)
+{
+	if (message == NULL || socket_path == NULL) return -1;
+	size_t message_len = len ? len : strnlen(message, GOVERNOR_SENTRY_MESSAGE_MAX);
+	if (!message_len) return -1;
+
+	int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0) return -1;
+
+	// Set socket timeout
+	struct timeval timeout;
+	timeout.tv_sec = GOVERNOR_SENTRY_TIMEOUT;
+	timeout.tv_usec = 0;
+
+	if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
+	{
+		close(sock);
+		return -1;
+	}
+
+	struct sockaddr_un server_address;
+	memset(&server_address, 0, sizeof(server_address));
+	server_address.sun_family = AF_UNIX;
+
+	strncpy(server_address.sun_path, socket_path, sizeof(server_address.sun_path) - 1);
+	server_address.sun_path[sizeof(server_address.sun_path) - 1] = '\0';
+
+	if (connect(sock, (struct sockaddr*)&server_address, sizeof(server_address)) < 0)
+	{
+		close(sock);
+		return -1;
+	}
+
+	const char *level_prefix = level == CL_SENTRY_ERROR ? "ERROR:" : "INFO:";
+	size_t message_size = message_len + strlen(level_prefix) + 1;
+	char *message_with_level = malloc(message_size);
+
+	if (message_with_level == NULL)
+	{
+		shutdown(sock, SHUT_RDWR);
+		close(sock);
+		return -1;
+	}
+
+	int bytes = snprintf(message_with_level, message_size, "%s%s", level_prefix, message);
+	if (bytes > 0) bytes = send(sock, message_with_level, bytes, 0);
+
+	shutdown(sock, SHUT_RDWR);
+	close(sock);
+
+	return bytes;
+}
+
+void
+sentry_log(cl_sentry_level_t level, const char *message, size_t len)
+{
+	struct governor_config data_cfg;
+	get_config_data(&data_cfg);
+
+	if (data_cfg.sentry_mode == SENTRY_MODE_NATIVE)
+	{
+		/*
+		// S.K. >> Will be uncommented after Sentry native release for all platforms
+		sentry_level_t log_level = (level == CL_SENTRY_ERROR) ?
+						SENTRY_LEVEL_ERROR : SENTRY_LEVEL_INFO;
+
+		if (data_cfg.sentry_dsn != NULL) // Chech if DSN is set
+			cl_sentry_message(log_level, SENTRY_LOG_TAG, message);
+		*/
+	}
+	else if (data_cfg.sentry_mode == SENTRY_MODE_EXTERNAL)
+	{
+		if (data_cfg.sentry_sock != NULL) // Chech if daemon socket is set
+			external_sentry_log(level, message, len, data_cfg.sentry_sock);
+	}
+}
 
 int
 open_log (const char *log_file)
