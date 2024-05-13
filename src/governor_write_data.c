@@ -684,19 +684,19 @@ int governor_enter_lve(uint32_t * cookie, char *username)
 		// silently to suppress excessive logs
 		return 1;
 	}
-	int container_lve = is_user_in_bad_list_cleint_persistent(username);
+	int container_lve = is_user_in_bad_list_client_persistent(username);
 	if (container_lve < 0)
 	{
-		print_message_log("%s(%s) FAILED - is_user_in_bad_list_cleint_persistent FAILED", __FUNCTION__, username);
+		print_message_log("%s(%s) FAILED - is_user_in_bad_list_client_persistent FAILED", __FUNCTION__, username);
 		return -1;
 	}
 	if (container_lve == 0)
 	{
-		print_message_log("%s(%s) NO NEED as is_user_in_bad_list_cleint_persistent cannot find it", __FUNCTION__, username);
+		print_message_log("%s(%s) NO NEED as is_user_in_bad_list_client_persistent cannot find it", __FUNCTION__, username);
 		return 1;
 	}
 
-	print_message_log("%s(%s) is_user_in_bad_list_cleint_persistent FOUND it - %d - before lve_enter_flags call", __FUNCTION__, username, container_lve);
+	print_message_log("%s(%s) is_user_in_bad_list_client_persistent FOUND it - %d - before lve_enter_flags call", __FUNCTION__, username, container_lve);
 	errno = 0;
 	int rc = lve_enter_flags(lve, container_lve, cookie, lve_flags);
 	int keep_errno = errno;

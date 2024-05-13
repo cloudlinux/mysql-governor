@@ -28,7 +28,7 @@ FILE *get_slow_queries_log (void);
 	// Symbols implementing WRITE_LOG() are undefined in "libgovernor.so".
 	// Thus, we prohibit WRITE_LOG() use to avoid run-time failures
 	// deep inside calls to functions of "libgovernor.so" (loaded via dlopen(..., RTLD_LAZY) from the patched mysql),
-	// due by unresolved symbols.
+	// due to unresolved symbols.
 	#define WRITE_LOG(stats, type, fmt, mode, ...)  error: WRITE_LOG() not supported for libgovernor.so
 #else // LIBGOVERNOR
 	#define WRITE_LOG(stats, type, fmt, mode, ...) do { \

@@ -100,7 +100,7 @@ main (int argc, char *argv[])
 		}
 		else
 		{
-			user_in_bad_list_cleint_show ();
+			user_in_bad_list_client_show ();
 		}
 	}
 	else

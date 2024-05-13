@@ -485,6 +485,6 @@ list_restricted_shm (void)
 	}
 	else
 	{
-		printf_bad_list_cleint_persistent ();
+		printf_bad_list_client_persistent ();
 	}
 }
