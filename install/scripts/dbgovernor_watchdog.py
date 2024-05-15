@@ -24,7 +24,6 @@ BAD_USER_LIST_FILE = "/var/lve/dbgovernor-shm/governor_bad_users_list"
 WATCHDOG_LOG_FILE = "/var/log/governor-watchdog.log"
 SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry_dsn"
 DBCTL_BIN = '/usr/share/lve/dbgovernor/utils/dbctl_orig'
-LVEPS_BIN = '/usr/sbin/lveps'
 
 def sizeof_sem_t():
     """
@@ -38,18 +37,31 @@ def sizeof_sem_t():
 
     # Check if the system is 64-bit or 32-bit
     if struct.calcsize("P") * 8 == 64:
-        sizeof_sem_t = 32
+        sem_t_size = 32
     else:
-        sizeof_sem_t = 16
+        sem_t_size = 16
 
-    # Define sem_t using ctypes
-    class SemT(Union):
-        _fields_ = [
-            ("__size", c_char * sizeof_sem_t),
-            ("__align", c_long)
-        ]
+    return sem_t_size
 
-    return sizeof(SemT)
+
+class SemT(Union):
+    _fields_ = [
+        ("__size", c_char * sizeof_sem_t()),
+        ("__align", c_long)
+    ]
+
+class ItemStructure(Structure):
+    _fields_ = [
+        ('username', c_char * USERNAMEMAXLEN),
+        ('uid', c_int32)
+    ]
+
+class ShmStructure(Structure):
+    _fields_ = [
+        ('sem', SemT),  # Placeholder for the semaphore
+        ('numbers', c_long),
+        ('items', ItemStructure * MAX_ITEMS_IN_TABLE)
+    ]
 
 
 def read_sentry_dsn_from_file(path=SENTRY_DSN_FILE):
@@ -64,20 +76,6 @@ def read_sentry_dsn_from_file(path=SENTRY_DSN_FILE):
             return f.read().strip()
     except Exception as e:
         return
-
-
-class ItemStructure(Structure):
-    _fields_ = [
-        ('username', c_char * USERNAMEMAXLEN),
-        ('uid', c_int32)
-    ]
-
-class ShmStructure(Structure):
-    _fields_ = [
-        ('sem', c_byte * sizeof_sem_t()),  # Placeholder for the semaphore
-        ('numbers', c_int32),
-        ('items', ItemStructure * MAX_ITEMS_IN_TABLE)
-    ]
 
 
 sentry_sdk.init(
@@ -96,7 +94,7 @@ def sentry_log(message, level="info"):
     sentry_sdk.capture_message(message, level)
 
 
-def log_message(message, level="info", log_to_file=False):
+def log_message(level="info", message="", log_to_file=False):
     """
     Logs a message to stdout and Sentry (if it's an error). Optionally, logs to a file.
     Args:
@@ -127,22 +125,23 @@ def log_message(message, level="info", log_to_file=False):
             print(f"Unexpected error while opening file {WATCHDOG_LOG_FILE}: {e}")
 
 
-def get_lve_user_list(log_to_file=False):
+def get_restricted_user_list(log_to_file=False):
     """
-    Retrieves LVE users by running lveps command.
+    Retrieves restricted users by running dbctl list-restricted command.
     Args:
         log_to_file (bool): If True, logs messages to a file.
     Returns:
-        List of users in LVE.
+        List of restricted users.
     """
-    if not os.path.exists(LVEPS_BIN):
+    if not os.path.exists(DBCTL_BIN):
+        log_message("error", f"{DBCTL_BIN} does not exist", log_to_file)
         return []
 
-    # Run the lveps command and capture its output
+    # Run the dbctl command and capture its output
     try:
-        result = subprocess.run([LVEPS_BIN, '-n'], text=True, check=True, capture_output=True)
+        result = subprocess.run([DBCTL_BIN, 'list-restricted'], text=True, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
-        log_message(f"Error running lveps: {e}", "error", log_to_file)
+        log_message("error", f"Error running dbctl: {e}", log_to_file)
         return []
 
     # Parse the output
@@ -177,44 +176,49 @@ def get_bad_user_list(log_to_file=False):
         try:
             shm_structure = ShmStructure.from_buffer_copy(buf)
             user_list = []
+
             for i in range(shm_structure.numbers):
                 user = shm_structure.items[i]
-                username = bytes(user.username).decode('utf-8').rstrip('\x00')
-                user_list.append((username, user.uid))
+                username =  user.username.decode('utf-8').strip('\x00')
+                user_list.append(username)
+
         except Exception as e:
-            print(f"An error occurred while processing the shared memory: {str(e)}",
-                  "error", log_to_file)
+            log_message("error", f"An error occurred while processing the shared memory: {str(e)}", log_to_file)
             user_list = []
+
         finally:
             buf.close()
             os.close(fd)
+
         return user_list
+
     except OSError as e:
-        print(f"Error opening or mapping the shared memory file: {str(e)}", "error", log_to_file)
+        log_message("error", f"Error opening or mapping the shared memory file: {str(e)}", log_to_file)
         return []
+
     except Exception as e:
-        log_message(f"Unexpected error while reading shared memory: {str(e)}", "error", log_to_file)
+        log_message("error", f"Unexpected error while reading shared memory: {str(e)}", log_to_file)
         return []
 
 
 def check_bad_user_list(log_to_file=False):
     """
-    Checks for restricted users not in LVE and logs them.
+    Checks for bad users not in restricted list and logs them.
     Args:
         log_to_file (bool): If True, logs messages to a file.
     """
     bad_user_list = get_bad_user_list(log_to_file)
-    lve_user_list = get_lve_user_list(log_to_file)
+    restricted_list = get_restricted_user_list(log_to_file)
 
-    for uid in bad_user_list:
-        log_message(f"BAD user: {uid}", "debug", log_to_file)
+    for user in bad_user_list:
+        log_message("debug", f"BAD user: {user}", log_to_file)
 
-    for uid in lve_user_list:
-        log_message(f"LVE user: {uid}", "debug", log_to_file)
+    for user in restricted_list:
+        log_message("debug", f"Restricted user: {user}", log_to_file)
 
-    for username, uid in bad_user_list:
-        if uid not in lve_user_list:
-            log_message(f"Unrestricted user: {username}, UID={uid}", "error", log_to_file)
+    for username in bad_user_list:
+        if username not in restricted_list:
+            log_message("error", f"Unrestricted user: {username}", log_to_file)
 
 
 def dbctl_check_governor(log_to_file=False):
@@ -224,28 +228,27 @@ def dbctl_check_governor(log_to_file=False):
         log_to_file (bool): If True, logs messages to a file.
     """
     if not os.path.exists(DBCTL_BIN):
-        log_message(f"dbctl binary not found at {DBCTL_BIN}", "warn", log_to_file)
+        log_message("warn", f"dbctl binary not found at {DBCTL_BIN}", log_to_file)
         return
 
     try:
         result = subprocess.run([DBCTL_BIN, 'list'], text=True, check=True, capture_output=True)
         if result.returncode != 0:
-            log_message(f"dbctl exit with non-zero value: {result.returncode}, "
-                        f"stderr: {result.stderr}, stdout: {result.stdout}",
-                        "error", log_to_file)
+            log_message("error",
+                        f"dbctl exit with non-zero value: {result.returncode}, "
+                        f"stderr: {result.stderr}, stdout: {result.stdout}", log_to_file)
     except subprocess.CalledProcessError as e:
-        log_message(f"Governor is not responsive: exit code={e.returncode}, "
+        log_message("error",
+                    f"Governor is not responsive: exit code={e.returncode}, "
                     f"stderr={e.stderr if e.stderr else 'none'}, "
-                    f"stdout={e.stdout if e.stdout else 'none'}",
-                    "error", log_to_file)
+                    f"stdout={e.stdout if e.stdout else 'none'}", log_to_file)
     except Exception as e:
-        log_message(f"Failed to call dbctl command: {str(e)}",
-                    "error", log_to_file)
+        log_message("error", f"Failed to call dbctl command: {str(e)}", log_to_file)
 
 
 def main(argv):
     """
-    Main function that checks if the Governor is responsive and checks for restricted users are in LVE.
+    Main function that checks if the Governor is responsive and checks for bad users are in the restricted list.
     Args:
         argv (list): List of command line arguments.
     """
