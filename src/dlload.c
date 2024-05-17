@@ -69,8 +69,7 @@ static const char *mysqlclient_libs[] =
 	_##x = dlsym(lib_handle, #x);\
 	if ((error = dlerror()) != NULL) {\
 		get_config_data(&data_cfg);\
-		WRITE_LOG (NULL, 0, "cannot find (%s) sym in (%s) library: %s",\
-				data_cfg.log_mode, #x, mysqlclient_lib, error);\
+		LOG(L_ERR, "cannot find (%s) sym in (%s) library: %s", #x, mysqlclient_lib, error);\
 		delete_mysql_function();\
 		return -1; }\
 } while(0)
@@ -100,7 +99,7 @@ init_mysql_function (void)
 	if (!lib_handle)
 	{
 		get_config_data(&data_cfg);
-		WRITE_LOG (NULL, 0, "cannot find any mysqlclient library", data_cfg.log_mode);
+		LOG(L_ERR, "cannot find any mysqlclient library");
 		return -1;
 	}
 	//assert(mysqlclient_lib != NULL);

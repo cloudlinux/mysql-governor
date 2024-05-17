@@ -22,15 +22,15 @@ SET(LIBS ${GLIB2_LIBRARIES} ${LIBXML2_LIBRARIES} pthread m rt dl ncurses)
 # TODO: Add cl-sentry and sentry to the list of libraries when sentry-native package will be available for all platforms
 
 IF (${SYSTEMD_FLAG})
-    add_definitions(-DSYSTEMD_FLAG=1)
+	add_definitions(-DSYSTEMD_FLAG=1)
 	SET(LIBS ${LIBS} systemd)
 ENDIF(${SYSTEMD_FLAG})
 
 IF (${TEST})
-    add_definitions(-DTEST=1)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
-    set(CMAKE_CXX_FLAGS_DEBUG "-g")
+	add_definitions(-DTEST=1)
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
+	set(CMAKE_CXX_FLAGS_DEBUG "-g")
 ENDIF(${TEST})
 
 SET(EXECUTABLE_OUTPUT_PATH "bin")
@@ -38,78 +38,78 @@ SET(LIBRARY_OUTPUT_PATH "lib")
 
 SET(SRC "${CMAKE_SOURCE_DIR}/src/")
 SET(config_SRC ${SRC}/governor_config.c ${SRC}/xml.c)
-SET(db_governor_SRC ${SRC}/governor.c 
-                    ${config_SRC} 
-                    ${SRC}/fifo_stats.c 
-                    ${SRC}/stats.c 
-                    ${SRC}/user_account.c 
-                    ${SRC}/dbgovernor_string_functions.c 
-                    ${SRC}/log.c 
-                    ${SRC}/wrappers.c 
-                    ${SRC}/dlload.c
-                    ${SRC}/calc_stats.c
-                    ${SRC}/governor_server.c
-                    ${SRC}/parce_proc_fs.c
-                    ${SRC}/tick_generator.c 
-                    ${SRC}/tid_table.c
-                    ${SRC}/mysql_connector_common.c
-                    ${SRC}/log-decoder.c
-                    ${SRC}/getsysinfo.c
-                    ${SRC}/commands.c
-                    ${SRC}/dbtop_server.c
-                    ${SRC}/shared_memory.c
-                    ${SRC}/dbuser_map.c
-                    ${SRC}/slow_queries.c
+SET(db_governor_SRC ${SRC}/governor.c
+					${config_SRC}
+					${SRC}/fifo_stats.c
+					${SRC}/stats.c
+					${SRC}/user_account.c
+					${SRC}/dbgovernor_string_functions.c
+					${SRC}/log.c
+					${SRC}/wrappers.c
+					${SRC}/dlload.c
+					${SRC}/calc_stats.c
+					${SRC}/governor_server.c
+					${SRC}/parce_proc_fs.c
+					${SRC}/tick_generator.c
+					${SRC}/tid_table.c
+					${SRC}/mysql_connector_common.c
+					${SRC}/log-decoder.c
+					${SRC}/getsysinfo.c
+					${SRC}/commands.c
+					${SRC}/dbtop_server.c
+					${SRC}/shared_memory.c
+					${SRC}/dbuser_map.c
+					${SRC}/slow_queries.c
 )
 SET(dbtop_SRC ${SRC}/dbtop.c ${SRC}/dbgovernor_string_functions.c ${SRC}/wrappers.c)
-SET(mysql_unfreeze_SRC ${SRC}/mysql_unfreeze.c 
-						${SRC}/wrappers.c ${SRC}/mysql_connector_common.c 
-						${SRC}/dbgovernor_string_functions.c 
-						${SRC}/dlload.c 
-						${SRC}/log.c 
-						${config_SRC}
-						${SRC}/shared_memory.c
-                    ${SRC}/calc_stats.c
-                    ${SRC}/user_account.c 
-                    ${SRC}/stats.c 
-                    ${SRC}/fifo_stats.c 
-                    ${SRC}/tick_generator.c 
-                    ${SRC}/tid_table.c
-                    ${SRC}/log-decoder.c
-                    ${SRC}/getsysinfo.c
-                    ${SRC}/commands.c
-                    ${SRC}/dbuser_map.c
-						)
-                    
-SET(dbctl_SRC ${SRC}/dbctl.c 
-                    ${SRC}/dbctl_set.c 
-                    ${SRC}/dbctl_list.c 
-                    ${SRC}/dbctl_rest.c
-                    ${SRC}/dbctl_conn.c
-                    ${SRC}/dbctl_cfg.c
-                    
-                    ${SRC}/shared_memory.c
-                    ${SRC}/log.c
-                    ${SRC}/dlload.c
-                    ${SRC}/wrappers.c
-                    ${SRC}/dbgovernor_string_functions.c 
-                    ${SRC}/calc_stats.c
-                    ${SRC}/user_account.c 
-                    ${SRC}/stats.c 
-                    ${SRC}/fifo_stats.c 
-                    ${SRC}/tick_generator.c 
-                    ${SRC}/tid_table.c
-                    ${SRC}/log-decoder.c
-                    ${SRC}/getsysinfo.c
-                    ${SRC}/commands.c
-                    ${SRC}/dbuser_map.c
-                    ${SRC}/mysql_connector_common.c
+SET(mysql_unfreeze_SRC ${SRC}/mysql_unfreeze.c
+					${SRC}/wrappers.c ${SRC}/mysql_connector_common.c
+					${SRC}/dbgovernor_string_functions.c
+					${SRC}/dlload.c
+					${SRC}/log.c
 					${config_SRC}
-                    )
+					${SRC}/shared_memory.c
+					${SRC}/calc_stats.c
+					${SRC}/user_account.c
+					${SRC}/stats.c
+					${SRC}/fifo_stats.c
+					${SRC}/tick_generator.c
+					${SRC}/tid_table.c
+					${SRC}/log-decoder.c
+					${SRC}/getsysinfo.c
+					${SRC}/commands.c
+					${SRC}/dbuser_map.c
+)
+SET(dbctl_SRC ${SRC}/dbctl.c
+					${SRC}/dbctl_set.c
+					${SRC}/dbctl_list.c
+					${SRC}/dbctl_rest.c
+					${SRC}/dbctl_conn.c
+					${SRC}/dbctl_cfg.c
+					
+					${SRC}/shared_memory.c
+					${SRC}/log.c
+					${SRC}/dlload.c
+					${SRC}/wrappers.c
+					${SRC}/dbgovernor_string_functions.c
+					${SRC}/calc_stats.c
+					${SRC}/user_account.c
+					${SRC}/stats.c
+					${SRC}/fifo_stats.c
+					${SRC}/tick_generator.c
+					${SRC}/tid_table.c
+					${SRC}/log-decoder.c
+					${SRC}/getsysinfo.c
+					${SRC}/commands.c
+					${SRC}/dbuser_map.c
+					${SRC}/mysql_connector_common.c
+					${config_SRC}
+)
 SET(governor_lib_src ${SRC}/dbgovernor_string_functions.c
-                    ${SRC}/governor_write_data.c
-                    ${SRC}/parce_proc_fs.c
-                    ${SRC}/shared_memory.c
+					${SRC}/governor_write_data.c
+					${SRC}/parce_proc_fs.c
+					${SRC}/shared_memory.c
+					${SRC}/log.c
 )
 SET_SOURCE_FILES_PROPERTIES(${db_governor_SRC} ${dbtop_SRC} ${governor_lib_src} ${mysql_unfreeze_SRC} ${dbctl_SRC} PROPERTIES COMPILE_FLAGS "-DOK -ggdb -fstack-protector-all")
 
@@ -130,7 +130,7 @@ TARGET_LINK_LIBRARIES(governor pthread rt dl -Wl,-init,init_libgovernor -Wl,-fin
 INSTALL(TARGETS db_governor dbtop mysql_unfreeze dbctl
   DESTINATION bin
   COMPONENT Runtime)
-  
+
 INSTALL(TARGETS governor
         DESTINATION lib
         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
@@ -148,7 +148,7 @@ set(tar_args cfz
              ../${GOVERNOR_PATH}/script/
              ../${GOVERNOR_PATH}/src/
              ../${GOVERNOR_PATH}/tests/
-             ../${GOVERNOR_PATH}/CMakeLists.txt 
+             ../${GOVERNOR_PATH}/CMakeLists.txt
              ../${GOVERNOR_PATH}/db-governor.xml
              ../${GOVERNOR_PATH}/db-governor.xml.example
              ../${GOVERNOR_PATH}/db-governor.xml.test

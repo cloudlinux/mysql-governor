@@ -10,22 +10,17 @@
 #ifndef LOG_DECODER_H_
 #define LOG_DECODER_H_
 
-long getLimitValuePeriod (Account * ac, T_LONG lm);
-long long getRestrictValue (Account * ac);
-long getLimitValue (Account * ac, stats_limit_cfg * lm);
-long long getLongRestrictValue (Account * ac);
-long long getMidRestrictValue (Account * ac);
-long long getShortRestrictValue (Account * ac);
-long long getCurrentRestrictValue (Account * ac);
-void
-prepareRestrictDescription (char *buffer, Account * ac,
-			stats_limit_cfg * limit);
-const char * getPeriodName (Account * ac);
-stats_limit *getRestrictDump (Account * ac);
-void
-prepareRestrictDescriptionLimit (char *buffer, Account * ac,
-			stats_limit_cfg * limit);
-const char *
-getParamName (Account * ac);
+long getLimitValuePeriod(const Account * ac, T_LONG lm);
+long long getRestrictValue(const Account * ac);
+long getLimitValue(const Account * ac, const stats_limit_cfg * lm);
+long long getLongRestrictValue(const Account * ac);
+long long getMidRestrictValue(const Account * ac);
+long long getShortRestrictValue(const Account * ac);
+long long getCurrentRestrictValue(const Account * ac);
+const char *prepareRestrictDescription(char *buffer, const Account * ac, const stats_limit_cfg * limit);
+const char * getPeriodName(const Account * ac);
+const stats_limit *getRestrictDump(const Account * ac);
+const char *prepareRestrictDescriptionLimit(char *buffer, const Account * ac, const stats_limit_cfg * limit);
+const char *getParamName(const Account * ac);
 
 #endif /* LOG_DECODER_H_ */

@@ -67,9 +67,9 @@ void config_destroy_lock (void);
 void config_add_work_user (const char *user_name);
 //struct governor_config * get_config();
 void get_config_data (struct governor_config *data);
-MODE_TYPE get_config_log_mode (void);
 struct governor_config *get_config (void);
 void print_config_full(void);
+const char *mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, size_t size);
 void config_reset_sentry();
 void config_set_sentry_pid(pid_t pid);
 

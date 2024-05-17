@@ -66,7 +66,7 @@ reset_stats (Stats * dest)
 }
 
 void
-sum_stats (Stats * dest, Stats * nr)
+sum_stats (Stats * dest, const Stats * nr)
 {
 	dest->cpu += nr->cpu;
 	dest->read += nr->read;
@@ -87,7 +87,7 @@ save_stats (Stats * dst, Stats * st)
 }
 
 Stats *
-push_stats (Stats * st, User_stats * us)
+push_stats(const Stats * st, User_stats * us)
 {
 	int size, i;
 	Stats *old;

@@ -120,31 +120,35 @@ int remove_bad_users_list_utility(void)
 	return 0;
 }
 
+#ifndef LIBGOVERNOR
+
 /*
    uid/gid will not be changed by chown function with -1 value
    But POSIX says that their types are integer, no mention of signed or unsigned
    And on the Linux they are unsigned in fact
 */
-#define UNINITED_UID ((uid_t)-1)
-#define UNINITED_GID ((gid_t)-1)
 static uid_t mysql_uid = UNINITED_UID;
 static gid_t mysql_gid = UNINITED_GID;
 
-static void init_mysql_uidgid(struct governor_config *cfg_ptr)
+void init_mysql_uidgid()
 {
-	struct passwd *passwd = getpwnam("mysql");
+	const struct passwd *passwd = getpwnam("mysql");
 	if (passwd)
-	{
 		mysql_uid = passwd->pw_uid;
-	}
-	struct group *group = getgrnam("mysql");
+	const struct group *group = getgrnam("mysql");
 	if (group)
-	{
 		mysql_gid = group->gr_gid;
-	}
 }
 
-#ifndef LIBGOVERNOR
+uid_t get_mysql_uid()
+{
+	return mysql_uid;
+}
+
+gid_t get_mysql_gid()
+{
+	return mysql_gid;
+}
 
 int init_bad_users_list(void)
 {
@@ -157,7 +161,7 @@ int init_bad_users_list(void)
 
 	if (mysql_uid == UNINITED_UID || mysql_gid == UNINITED_GID)
 	{
-		init_mysql_uidgid(&data_cfg);
+		init_mysql_uidgid();
 	}
 	int first = 0;
 	if ((shm_fd = cl_shm_open((O_CREAT | O_EXCL | O_RDWR), 0600)) > 0)
@@ -167,8 +171,7 @@ int init_bad_users_list(void)
 	else if ((shm_fd = cl_shm_open(O_RDWR, 0600)) < 0)
 	{
 		umask(old_umask);
-		WRITE_LOG (NULL, 0, "cl_shm_open(%s) failed with %d code - EXITING",
-				data_cfg.log_mode, shared_memory_name, errno);
+		LOG(L_ERR, "cl_shm_open(%s) failed with %d code - EXITING", shared_memory_name, errno);
 		return -1;
 	}
 	else
@@ -183,33 +186,23 @@ int init_bad_users_list(void)
 	/* Make chown even if file existed before open - to fix possible previous errors */
 	rc = fchown(shm_fd, mysql_uid, mysql_gid);
 	if (rc)
-	{
-		WRITE_LOG (NULL, 0, "chown(%s, %d, %d) failed with %d code - IGNORING",
-			data_cfg.log_mode, shared_memory_name, (int)mysql_uid, (int)mysql_gid, errno);
-	}
+		LOG(L_ERR, "chown(%s, %d, %d) failed with %d code - IGNORING", shared_memory_name, (int)mysql_uid, (int)mysql_gid, errno);
 	rc = fchmod(shm_fd, S_IRUSR | S_IWUSR);
 	if (rc)
-	{
-		WRITE_LOG (NULL, 0, "chmod(%s, %o) failed with %d code - IGNORING",
-			data_cfg.log_mode, shared_memory_name, S_IRUSR | S_IWUSR, errno);
-	}
+		LOG(L_ERR, "chmod(%s, %o) failed with %d code - IGNORING", shared_memory_name, S_IRUSR | S_IWUSR, errno);
 
 	if (first)
 	{
 		rc = ftruncate(shm_fd, sizeof(shm_structure));
 		if (rc)
-		{
-			WRITE_LOG (NULL, 0, "truncate(%s, %u) failed with %d code - IGNORING",
-				data_cfg.log_mode, shared_memory_name, (unsigned)sizeof(shm_structure), errno);
-		}
+			LOG(L_ERR, "truncate(%s, %u) failed with %d code - IGNORING", shared_memory_name, (unsigned)sizeof(shm_structure), errno);
 	}
 
 	if ((bad_list = (shm_structure *) cl_mmap (0, sizeof (shm_structure),
 			(PROT_READ | PROT_WRITE), MAP_SHARED,
 			shm_fd, 0)) == MAP_FAILED)
 	{
-		WRITE_LOG (NULL, 0, "cl_map(%s) failed with %d code - EXITING",
-				data_cfg.log_mode, shared_memory_name, errno);
+		LOG(L_ERR, "cl_map(%s) failed with %d code - EXITING", shared_memory_name, errno);
 		close(shm_fd);
 		shm_fd = -1;
 		umask(old_umask);
@@ -220,8 +213,7 @@ int init_bad_users_list(void)
 	{
 		if (sem_init(&bad_list->sem, 1, 1) < 0)
 		{
-			WRITE_LOG (NULL, 0, "sem_init(%s) failed with %d code - EXITING",
-					data_cfg.log_mode, shared_memory_name, errno);
+			LOG(L_ERR, "sem_init(%s) failed with %d code - EXITING", shared_memory_name, errno);
 			cl_munmap ((void *) bad_list, sizeof (shm_structure));
 			close(shm_fd);
 			shm_fd = -1;
@@ -282,22 +274,22 @@ static int is_user_in_list(const char *username, struct governor_config *cfgptr)
 {
 	if (!bad_list || (bad_list == MAP_FAILED))
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s): EXIT as bad_list is NOT INITED %p", username, bad_list);
+		LOG(L_FRZ, "(%s): EXIT as bad_list is NOT INITED %p", username, bad_list);
 		return -1;
 	}
 	long index;
 	for (index = 0; index < bad_list->numbers; index++)
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s): %ld/%ld: before check against(%s)", username,
+		LOG(L_FRZ, "(%s): %ld/%ld: before check against(%s)", username,
 			index, bad_list->numbers, bad_list->items[index].username);
 		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN-1))
 		{
-			EXTLOG(EL_FREEZE, 1, "(%s): %ld/%ld: FOUND(%s)", username,
+			LOG(L_FRZ, "(%s): %ld/%ld: FOUND(%s)", username,
 				index, bad_list->numbers, bad_list->items[index].username);
 			return 1;
 		}
 	}
-	EXTLOG(EL_FREEZE, 1, "(%s): NOT FOUND from %ld", username, bad_list->numbers);
+	LOG(L_FRZ, "(%s): NOT FOUND from %ld", username, bad_list->numbers);
 	return 0;
 }
 
@@ -308,7 +300,7 @@ int add_user_to_list(const char *username, int is_all)
 
 	if (!bad_list || (bad_list == MAP_FAILED))
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): FAILED as bad_list is NOT INITED %p", username, is_all, bad_list);
+		LOG(L_FRZ, "(%s, %d): FAILED as bad_list is NOT INITED %p", username, is_all, bad_list);
 		return -1;
 	}
 
@@ -316,7 +308,7 @@ int add_user_to_list(const char *username, int is_all)
 	// before any locks and heavy operation on the map
 	if (is_user_in_list(username, &data_cfg))
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): EXIT as is_user_in_list FOUND it", username, is_all);
+		LOG(L_FRZ, "(%s, %d): EXIT as is_user_in_list FOUND it", username, is_all);
 		return 0;
 	}
 
@@ -325,34 +317,34 @@ int add_user_to_list(const char *username, int is_all)
 	{
 		uid = get_uid(username);
 		unlock_rdwr_map();
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): get_uid ret %d", username, is_all, uid);
+		LOG(L_FRZ, "(%s, %d): get_uid ret %d", username, is_all, uid);
 	}
 	else
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): lock_read_map failed so NO CALL to get_uid and uid left BAD_LVE %d", username, is_all, uid);
+		LOG(L_FRZ, "(%s, %d): lock_read_map failed so NO CALL to get_uid and uid left BAD_LVE %d", username, is_all, uid);
 	}
 	if (is_all && uid == BAD_LVE)
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): set uid to 0 due to is_all!=0 and uid==BAD_LVE", username, is_all);
+		LOG(L_FRZ, "(%s, %d): set uid to 0 due to is_all!=0 and uid==BAD_LVE", username, is_all);
 		uid = 0;
 	}
 
 	if ((bad_list->numbers + 1) == MAX_ITEMS_IN_TABLE)
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): FAILED as must add it but NO SPACE", username, is_all);
+		LOG(L_FRZ, "(%s, %d): FAILED as must add it but NO SPACE", username, is_all);
 		return -2;
 	}
 
 	if (sem_wait(&bad_list->sem) == 0)
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): adding it with uid %d to %ld pos", username, is_all, uid, bad_list->numbers);
+		LOG(L_FRZ, "(%s, %d): adding it with uid %d to %ld pos", username, is_all, uid, bad_list->numbers);
 		strlcpy(bad_list->items[bad_list->numbers].username, username, USERNAMEMAXLEN);
 		bad_list->items[bad_list->numbers++].uid = uid;
 		sem_post(&bad_list->sem);
 	}
 	else
 	{
-		EXTLOG(EL_FREEZE, 1, "(%s, %d): FAILED as must add it but sem_wait FAILED %d", username, is_all, errno);
+		LOG(L_FRZ, "(%s, %d): FAILED as must add it but sem_wait FAILED %d", username, is_all, errno);
 		return -3;
 	}
 
@@ -661,11 +653,11 @@ int32_t is_user_in_bad_list_client_persistent(char *username)
 
 	if (!bad_list_clients_global || (bad_list_clients_global == MAP_FAILED))
 	{
-		print_message_log("%s(%s): FAILED as bad_list is not inited: %p", __FUNCTION__, username, bad_list_clients_global);
+		LOG(L_ERR|L_FRZ, "(%s): FAILED as bad_list is not inited: %p", username, bad_list_clients_global);
 		return fnd;
 	}
 
-	print_message_log("%s(%s): before search from %ld num", __FUNCTION__, username, bad_list_clients_global->numbers);
+	LOG(L_FRZ, "(%s): before search from %ld num", username, bad_list_clients_global->numbers);
 	int tries = 1;
 	while (tries)
 	{
@@ -675,14 +667,13 @@ int32_t is_user_in_bad_list_client_persistent(char *username)
 			int found = 0;
 			for (index = 0; index < bad_list_clients_global->numbers; index++)
 			{
-				print_message_log("%s(%s): %ld/%ld before check against(%s)",
-						__FUNCTION__, username, index, bad_list_clients_global->numbers, 
-						bad_list_clients_global->items[index].username );
+				LOG(L_FRZ, "(%s): %ld/%ld before check against(%s)",
+					username, index, bad_list_clients_global->numbers, 
+					bad_list_clients_global->items[index].username );
 				if (!strncmp(bad_list_clients_global->items[index].username, username, USERNAMEMAXLEN))
 				{
 					fnd = bad_list_clients_global->items[index].uid;
-					print_message_log("%s (%s): %ld/%ld FOUND - uid %d",
-							    __FUNCTION__, username, index, bad_list_clients_global->numbers, fnd );
+					LOG(L_FRZ, "(%s): %ld/%ld FOUND - uid %d", username, index, bad_list_clients_global->numbers, fnd);
 					found = 1;
 					break;
 				}
@@ -692,7 +683,7 @@ int32_t is_user_in_bad_list_client_persistent(char *username)
 			if (!found)
 			{
 				fnd = 0;
-				print_message_log("%s(%s): cannot find it in bad_list", __FUNCTION__, username);
+				LOG(L_FRZ, "(%s): cannot find it in bad_list", username);
 			}
 		}
 		else
@@ -702,12 +693,12 @@ int32_t is_user_in_bad_list_client_persistent(char *username)
 				tries++;
 				if (tries == 400)
 				{
-					print_message_log("%s(%s): FAILED - %d failures to acquire semaphore", __FUNCTION__, username, tries);
+					LOG(L_ERR|L_FRZ, "(%s): FAILED - %d failures to acquire semaphore", username, tries);
 					break;
 				}
 			} else
 			{
-				print_message_log("%s(%s): FAILED - sem_trywait failed with errno %d", __FUNCTION__, username, errno);
+				LOG(L_ERR|L_FRZ, "(%s): FAILED - sem_trywait failed with errno %d", username, errno);
 				tries = 0;
 			}
 		}
@@ -752,36 +743,5 @@ void printf_bad_list_client_persistent(void)
 		}
 	}
 	return;
-}
-
-
-static FILE *mysqld_message_log;
-
-void governor_init_message_log(void)
-{
-	struct stat fstat;
-	mysqld_message_log = stat("/usr/share/lve/dbgovernor/extlog-mysqld.flag", &fstat) ?
-				NULL : fopen("/var/log/dbgovernor-debug.log","a");
-}
-
-void print_message_log(char *format, ...)
-{
-	char dt[20]; // space enough for DD/MM/YYYY HH:MM:SS and terminator
-	struct tm tm;
-	time_t current_time;
-	char data[8192];
-	va_list ptr;
-
-	if (!mysqld_message_log)
-		return;
-
-	current_time = time(NULL);
-	tm = *localtime(&current_time); // convert time_t to struct tm
-	strftime(dt, sizeof dt, "%d/%m/%Y %H:%M:%S", &tm); // format
-
-	va_start(ptr, format);
-	vsprintf(data, format, ptr);
-	va_end(ptr);
-	fprintf(mysqld_message_log, "%s: PID %d TID %d %s\n", dt, getpid(), gettid_p(), data);
 }
 

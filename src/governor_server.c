@@ -88,7 +88,7 @@ create_socket (void)
 
 	if ((global_socket = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
-		WRITE_LOG (NULL, 0, "Can't create socket", data_cfg.log_mode);
+		LOG(L_ERR, "Can't create socket");
 		close_log ();
 		close_restrict_log ();
 		exit (EXIT_FAILURE);
@@ -96,7 +96,7 @@ create_socket (void)
 
 	if (setsockopt (global_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt) < 0)
 	{
-		WRITE_LOG (NULL, 0, "Can't change socket options", data_cfg.log_mode);
+		LOG(L_ERR, "Can't change socket options");
 		close_log ();
 		close_restrict_log ();
 		exit (EXIT_FAILURE);
@@ -110,8 +110,7 @@ create_socket (void)
 
 	if (bind (global_socket, (struct sockaddr *) &saun, len) < 0)
 	{
-		WRITE_LOG (NULL, 0, "Can't bind to socket address %s", data_cfg.log_mode,
-			SOCK_ADDRESS);
+		LOG(L_ERR, "Can't bind to socket address %s", SOCK_ADDRESS);
 		close_log ();
 		close_restrict_log ();
 		exit (EXIT_FAILURE);
@@ -119,7 +118,7 @@ create_socket (void)
 
 	if (listen (global_socket, 32) < 0)
 	{
-		WRITE_LOG (NULL, 0, "Can't listen on socket", data_cfg.log_mode);
+		LOG(L_ERR, "Can't listen on socket");
 		close_log ();
 		close_restrict_log ();
 		exit (EXIT_FAILURE);
@@ -164,13 +163,12 @@ recv_wrapper (int __fd, void *__buf, size_t __n, int __flags)
 void *
 process_data_every_second (void *data)
 {
+	LOG(L_LIFE|L_MON, "thread begin");
+
 	char buffer[_DBGOVERNOR_BUFFER_2048];
 	double old_tm = 0.0, new_tm = 0.0;
 	struct timespec cur_tm;
-	struct governor_config data_cfg;
 
-	get_config_data (&data_cfg);
-	WRITE_LOG (NULL, 0, "MONITOR thread: BEGIN", data_cfg.log_mode);
 	while (1)
 	{
 		sleep (1);
@@ -194,13 +192,14 @@ process_data_every_second (void *data)
 		send_commands_cycle ();
 
 		//Print statistics to restrict log
+		struct governor_config data_cfg;
 		get_config_data (&data_cfg);
 		if (data_cfg.restrict_format >= 4)
 		{
 			print_to_restrict_log_stats (NULL);
 		}
 	}
-	WRITE_LOG (NULL, 0, "MONITOR thread: END", data_cfg.log_mode);
+	LOG(L_LIFE|L_MON, "thread end");
 	return NULL;
 }
 
@@ -213,6 +212,8 @@ term_handler (int i)
 void *
 get_data_from_client (void *data)
 {
+	LOG(L_LIFE|L_DMN, "thread begin");
+
 	struct governor_config data_cfg;
 	int ret;
 	int timeout = 1000;
@@ -223,7 +224,6 @@ get_data_from_client (void *data)
 	nfds = 1;
 
 	get_config_data (&data_cfg);
-	WRITE_LOG (NULL, 0, "DAEMON thread: BEGIN", data_cfg.log_mode);
 	fds = (struct pollfd *) calloc (1, nfds * sizeof (struct pollfd));
 	fds->fd = get_soket ();
 	fds->events = POLLIN;
@@ -243,7 +243,7 @@ get_data_from_client (void *data)
 	{
 		if (break_thread)
 		{
-			WRITE_LOG (NULL, 0, "DAEMON thread: END by signal", data_cfg.log_mode);
+			LOG(L_LIFE|L_DMN, "thread end by signal");
 			return NULL;
 		}
 
@@ -261,8 +261,7 @@ get_data_from_client (void *data)
 		if (ret == -1)
 		{
 			//Try to recreate socket
-			WRITE_LOG (NULL, 0, "Error on polling socket. Recreating socket",
-					data_cfg.log_mode);
+			LOG(L_ERR|L_DMN, "Error on polling socket. Recreating socket");
 			for (i = 0; (i < nfds) && (ret); i++)
 			{
 				cleanup (0, (fds + i)->fd, 1);
@@ -314,8 +313,7 @@ get_data_from_client (void *data)
 #endif
 				if ((fds + nfds)->fd == -1)
 				{
-					WRITE_LOG (NULL, 0, "Error on polling socket. Accepting error",
-							data_cfg.log_mode);
+					LOG(L_ERR|L_DMN, "Error on polling socket. Accepting error");
 					cleanup (0, (fds + nfds)->fd, 1);
 					fds_tmp = (struct pollfd *) realloc (fds,
 										nfds *
@@ -402,8 +400,7 @@ get_data_from_client (void *data)
 				//printf("Error descriptor %d\n", (fds + i)->fd);
 #endif
 				remove_tid_data_by_fd ((fds + i)->fd);
-				WRITE_LOG (NULL, 0, "Error on polling socket. Error %d",
-					data_cfg.log_mode, errno);
+				LOG(L_ERR|L_DMN, "Error on polling socket. Error %d", errno);
 				cleanup (0, (fds + i)->fd, 2);
 				nfds--;
 				memcpy (fds + i, fds + i + 1,
@@ -447,8 +444,7 @@ get_data_from_client (void *data)
 					}
 					else
 					{
-						WRITE_LOG (NULL, 0, "Error on polling socket. Read %d",
-							data_cfg.log_mode, errno);
+						LOG(L_ERR|L_DMN, "Error on polling socket. Read %d", errno);
 						cleanup (0, (fds + i)->fd, 1);
 					}
 					nfds--;
@@ -468,24 +464,19 @@ get_data_from_client (void *data)
 				else if (message.magic != CD_MAGIC)
 				{
 					if (sync)
-						WRITE_LOG (NULL, 0, "Governor library version mismatch detected - stat processing stopped. Try to restart mysqld service", data_cfg.log_mode);
+						LOG(L_ERR|L_DMN, "Governor library version mismatch detected - stat processing stopped. Try to restart mysqld service");
 					sync = 0;
 				}
 				else if (message.magic == CD_MAGIC)
 				{
 					if (!sync)
-						WRITE_LOG (NULL, 0, "Governor library version mismatch fixed - stat processing restored", data_cfg.log_mode);
+						LOG(L_ERR|L_DMN, "Governor library version mismatch fixed - stat processing restored");
 					sync = 1;
 					if (data_cfg.restrict_format >= 4)
-					{
-						WRITE_LOG (NULL,
-							1,
-							"Received info descriptor %d TYPE %d, WATCH TID %d, USER NAME %s, CPU %ld, WRITE %ld, READ %ld",
-							data_cfg.log_mode,
+						LOG_RESTRICT("Received info descriptor %d TYPE %d, WATCH TID %d, USER NAME %s, CPU %ld, WRITE %ld, READ %ld",
 							(fds + i)->fd, message.type, message.tid,
 							message.username, message.cpu, message.write,
 							message.read);
-					}
 #ifdef TEST
 					//printf("Get cpu %ld, tid %d, tm %f, type %d\n", message.cpu, message.tid, (double)message.update_time + (double)message.nanoseconds /(double) SEC2NANO, message.type);
 #endif
@@ -501,9 +492,9 @@ get_data_from_client (void *data)
 								&& (!strncmp(tbl_buff.username, message.username,
 								USERNAMEMAXLEN))) {
 								if (data_cfg.log_mode == DEBUG_MODE)
-								WRITE_LOG(NULL, 0,
+								LOG(L_ERR,
 								"Lost TID user info. User name %s",
-								data_cfg.log_mode, tbl->username);
+								tbl->username);
 								} */
 							add_new_tid_data (&message, (fds + i)->fd);
 						}
@@ -534,7 +525,7 @@ get_data_from_client (void *data)
 			}
 		}
 	}
-	WRITE_LOG (NULL, 0, "DAEMON thread: END", data_cfg.log_mode);
+	LOG(L_LIFE|L_DMN, "thread end");
 	return NULL;
 }
 
@@ -555,14 +546,8 @@ chek_user_perf (gpointer key, tid_table * item, gpointer user_data)
 	get_config_data (&data_cfg);
 
 	if (data_cfg.restrict_format >= 4)
-	{
-		WRITE_LOG (NULL,
-			1,
-			"Watch info for WATCH TID %d, USER NAME %s, CPU %ld, WRITE %ld, READ %ld Time %f",
-			data_cfg.log_mode,
-			kkey, item->username, item->cpu, item->write, item->read,
-			old_tm);
-	}
+		LOG_RESTRICT("Watch info for WATCH TID %d, USER NAME %s, CPU %ld, WRITE %ld, READ %ld Time %f",
+			kkey, item->username, item->cpu, item->write, item->read, old_tm);
 
 	if (data_cfg.improved_accuracy)
 	{
@@ -597,15 +582,10 @@ chek_user_perf (gpointer key, tid_table * item, gpointer user_data)
 		}
 
 		if (data_cfg.restrict_format >= 4)
-		{
-			WRITE_LOG (NULL,
-				1,
-				"Proceed info for WATCH TID %d, USER NAME %s, CPU %ld, WRITE %ld, READ %ld Time %f---> NEW CPU %f, WRITE %ld, READ %ld Cur_tm %f",
-				data_cfg.log_mode,
+			LOG_RESTRICT("Proceed info for WATCH TID %d, USER NAME %s, CPU %ld, WRITE %ld, READ %ld Time %f---> NEW CPU %f, WRITE %ld, READ %ld Cur_tm %f",
 				kkey, item->username, item->cpu, item->write, item->read,
 				old_tm, item1.utime + item1.stime, item2.write_bytes,
 				item2.read_bytes, new_tm);
-		}
 #ifdef TEST
 		// struct timespec cur_tm11;
 		// clock_gettime(CLOCK_REALTIME, &cur_tm11);
@@ -640,12 +620,9 @@ void
 monitor_data_from_client (void *data)
 {
 	struct governor_config data_cfg;
-
 	get_config_data (&data_cfg);
 	if (data_cfg.restrict_format >= 4)
-	{
-		WRITE_LOG (NULL, 1, "TID Table size %ld", data_cfg.log_mode, get_tid_size ());
-	}
+		LOG_RESTRICT("TID Table size %ld", get_tid_size());
 	struct timespec cur_tm;
 	clock_gettime (CLOCK_REALTIME, &cur_tm);
 	struct timespec *tm = malloc (sizeof (struct timespec));

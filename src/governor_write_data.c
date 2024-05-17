@@ -39,6 +39,7 @@
 #include "parce_proc_fs.h"
 #include "dbgovernor_string_functions.h"
 #include "shared_memory.h"
+#include "log.h"
 
 #define SEC2NANO 1000000000
 
@@ -293,6 +294,10 @@ connect_to_server_in ()
 
 	sd.socket = s;
 	sd.status = 1;
+
+	open_log(MYSQLD_EXTLOG_PATH);
+	init_log_ex(false);
+
 	return 0;
 }
 
@@ -539,19 +544,17 @@ int (*lve_enter_flags) (void *, uint32_t, uint32_t *, int) = NULL;
 int (*lve_exit) (void *, uint32_t *) = NULL;
 int (*is_in_lve) (void *) = NULL;
 
-void governor_init_message_log(void);
+//void governor_init_message_log(void);
 
 int governor_load_lve_library ()
 {
 	lve_library_handle = NULL;
 
-	governor_init_message_log();
+	//governor_init_message_log();
 	char *error_dl = NULL;
 	lve_library_handle = dlopen ("liblve.so.0", RTLD_LAZY);
 	if (!lve_library_handle)
-	{
-		print_message_log("%s: dlopen(liblve.so.0) failed; errno %d", __FUNCTION__, errno);
-	}
+		LOG(L_ERR, "dlopen(liblve.so.0) failed; errno %d", errno);
 
 	if (!lve_library_handle)
 		return 0;
@@ -561,7 +564,7 @@ int governor_load_lve_library ()
 		init_lve = (void *(*)(void *, void *)) dlsym(lve_library_handle, "init_lve");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			print_message_log("%s: ERROR dlerror after dlsym(init_lve) ret (%s); init_lve(%p) errno %d", __FUNCTION__, error_dl, init_lve, errno);
+			LOG(L_ERR, "dlerror after dlsym(init_lve) ret (%s); init_lve(%p) errno %d", error_dl, init_lve, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -573,7 +576,7 @@ int governor_load_lve_library ()
 		destroy_lve = (int (*)(void *)) dlsym(lve_library_handle, "destroy_lve");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			print_message_log("%s: ERROR dlerror after dlsym(destroy_lve) ret (%s); destroy_lve(%p) errno %d", __FUNCTION__, error_dl, destroy_lve, errno);
+			LOG(L_ERR, "dlerror after dlsym(destroy_lve) ret (%s); destroy_lve(%p) errno %d", error_dl, destroy_lve, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -585,7 +588,7 @@ int governor_load_lve_library ()
 		lve_enter_flags = (int (*)(void *, uint32_t, uint32_t *, int)) dlsym(lve_library_handle, "lve_enter_flags");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			print_message_log("%s: ERROR dlerror after dlsym(lve_enter_flags) ret (%s); lve_enter_flags(%p) errno %d", __FUNCTION__, error_dl, lve_enter_flags, errno);
+			LOG(L_ERR, "dlerror after dlsym(lve_enter_flags) ret (%s); lve_enter_flags(%p) errno %d", error_dl, lve_enter_flags, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -597,7 +600,7 @@ int governor_load_lve_library ()
 		lve_exit = (int (*)(void *, uint32_t *)) dlsym(lve_library_handle, "lve_exit");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			print_message_log("%s: ERROR dlerror after dlsym(lve_exit) ret (%s); lve_exit(%p) errno %d", __FUNCTION__, error_dl, lve_exit, errno);
+			LOG(L_ERR, "dlerror after dlsym(lve_exit) ret (%s); lve_exit(%p) errno %d", error_dl, lve_exit, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -609,7 +612,7 @@ int governor_load_lve_library ()
 		is_in_lve = (int (*)(void *)) dlsym(lve_library_handle, "is_in_lve");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			print_message_log("%s: WARN dlerror after dlsym(is_in_lve) ret (%s); is_in_lve(%p) errno %d", __FUNCTION__, error_dl, is_in_lve, errno);
+			LOG(L_ERR, "dlerror after dlsym(is_in_lve) ret (%s); is_in_lve(%p) errno %d", error_dl, is_in_lve, errno);
 			is_in_lve = NULL;
 			break;
 		}
@@ -630,14 +633,12 @@ int governor_init_lve(void)
 		{
 			lve = init_lve (malloc, free);
 			if (!lve)
-			{
-				print_message_log("%s: ERROR, init_lve failed: errno %d", __FUNCTION__, errno);
-			}
+				LOG(L_ERR, "init_lve failed: errno %d", errno);
 		}
 	}
 	else
 	{
-		print_message_log("%s: ERROR, init_lve is not initialized", __FUNCTION__);
+		LOG(L_ERR, "init_lve is not initialized");
 	}
 
 	if (lve == NULL)
@@ -675,7 +676,7 @@ int governor_enter_lve(uint32_t * cookie, char *username)
 {
 	if (!lve_enter_flags || !lve)
 	{
-		print_message_log("%s(%s) FAILED - LVE is not inited %p-%p", __FUNCTION__, username, lve_enter_flags, lve);
+		LOG(L_FRZ, "(%s) FAILED - LVE is not inited %p-%p", username, lve_enter_flags, lve);
 		return -1;
 	}
 
@@ -687,16 +688,16 @@ int governor_enter_lve(uint32_t * cookie, char *username)
 	int container_lve = is_user_in_bad_list_client_persistent(username);
 	if (container_lve < 0)
 	{
-		print_message_log("%s(%s) FAILED - is_user_in_bad_list_client_persistent FAILED", __FUNCTION__, username);
+		LOG(L_ERR|L_FRZ, "(%s) FAILED - is_user_in_bad_list_client_persistent FAILED", username);
 		return -1;
 	}
 	if (container_lve == 0)
 	{
-		print_message_log("%s(%s) NO NEED as is_user_in_bad_list_client_persistent cannot find it", __FUNCTION__, username);
+		LOG(L_FRZ, "(%s) NO NEED as is_user_in_bad_list_client_persistent cannot find it", username);
 		return 1;
 	}
 
-	print_message_log("%s(%s) is_user_in_bad_list_client_persistent FOUND it - %d - before lve_enter_flags call", __FUNCTION__, username, container_lve);
+	LOG(L_FRZ, "(%s) is_user_in_bad_list_client_persistent FOUND it - %d - before lve_enter_flags call", username, container_lve);
 	errno = 0;
 	int rc = lve_enter_flags(lve, container_lve, cookie, lve_flags);
 	int keep_errno = errno;
@@ -707,14 +708,14 @@ int governor_enter_lve(uint32_t * cookie, char *username)
 					//lve_exit(lve, cookie);
 					//return -1;
 			lve_uid = container_lve;
-			print_message_log("%s(%s) ALREADY IN LVE as lve_enter_flags(%d) ret %d with errno==EPERM", __FUNCTION__, username, container_lve, rc);
+			LOG(L_FRZ, "(%s) ALREADY IN LVE as lve_enter_flags(%d) ret %d with errno==EPERM", username, container_lve, rc);
 			return 0;
 		}
-		print_message_log("%s(%s) FAILED as lve_enter_flags(%d) ret %d with errno %d (no EPERM)", __FUNCTION__, username, container_lve, rc, keep_errno);
+		LOG(L_ERR|L_FRZ, "(%s) FAILED as lve_enter_flags(%d) ret %d with errno %d (no EPERM)", username, container_lve, rc, keep_errno);
 		return -1;
 	}
 	lve_uid = container_lve;
-	print_message_log("%s(%s) lve_enter_flags(%d) ENTERED INTO LVE", __FUNCTION__, username, container_lve, rc, keep_errno, EPERM);
+	LOG(L_FRZ, "(%s) lve_enter_flags(%d) ENTERED INTO LVE", username, container_lve, rc, keep_errno, EPERM);
 	return 0;
 }
 
@@ -722,13 +723,13 @@ int governor_enter_lve_light(uint32_t * cookie)
 {
 	if (!lve_enter_flags || !lve)
 	{
-		print_message_log("%s FAILED - LVE is not inited %p-%p", __FUNCTION__, lve_enter_flags, lve);
+		LOG(L_FRZ, "LVE is not inited %p-%p", lve_enter_flags, lve);
 		return -1;
 	}
 
 	if (!lve_uid)
 	{
-		print_message_log("%s  NO NEED as lve_uid %d", __FUNCTION__, lve_uid);
+		LOG(L_FRZ, "NO NEED as lve_uid %d", lve_uid);
 		return 1;
 	}
 
@@ -741,13 +742,13 @@ int governor_enter_lve_light(uint32_t * cookie)
 		{	//if already inside LVE
 			//lve_exit(lve, cookie);
 			//return -1;
-			print_message_log("%s lve_enter_flags(%d) failed with code %d, but errno==EPERM - already in LVE", __FUNCTION__, lve_uid, rc);
+			LOG(L_FRZ, "lve_enter_flags(%d) failed with code %d, but errno==EPERM - already in LVE", lve_uid, rc);
 			return 0;
 		}
-		print_message_log("%s lve_enter_flags(%d) failed with code %d and errno %d - FAILED", __FUNCTION__, lve_uid, rc, keep_errno);
+		LOG(L_ERR|L_FRZ, "lve_enter_flags(%d) failed with code %d and errno %d - FAILED", lve_uid, rc, keep_errno);
 		return -1;
 	}
-	print_message_log("%s lve_enter_flags(%d) OK", __FUNCTION__, lve_uid);
+	LOG(L_FRZ, "lve_enter_flags(%d) OK", lve_uid);
 	return 0;
 }
 
@@ -755,11 +756,11 @@ void governor_lve_exit(uint32_t * cookie)
 {
 	if (!lve_exit || !lve)
 	{
-		print_message_log("%s FAILED - LVE is not inited %p-%p", __FUNCTION__, lve_exit, lve);
+		LOG(L_UNFRZ, "LVE is not inited %p-%p", lve_exit, lve);
 		return;
 	}
 
-	print_message_log("%s (uid %d)", __FUNCTION__, lve_uid);
+	LOG(L_UNFRZ, "(uid %d)", lve_uid);
 	lve_exit(lve, cookie);
 }
 

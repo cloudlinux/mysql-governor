@@ -22,10 +22,10 @@ struct fifo_stats
 
 struct fifo_stats *fifo_stats_init (int size);
 void fifo_stats_free (struct fifo_stats *fifo);
-Stats *fifo_stats_push (struct fifo_stats *fifo, Stats * x);
+Stats *fifo_stats_push (struct fifo_stats *fifo, const Stats * x);
 Stats *fifo_stats_get (struct fifo_stats *fifo, int i);
 void fifo_stats_foreach (struct fifo_stats *fifo, void (*fp) (Stats *));
-Stats *fifo_stats_refresh_last (struct fifo_stats *fifo, Stats * x);
-void fifo_stats_avg (struct fifo_stats *fifo, Stats * sum, int length);
+Stats *fifo_stats_refresh_last (struct fifo_stats *fifo, const Stats * x);
+void fifo_stats_avg(const struct fifo_stats *fifo, Stats *sum, int length);
 
 #endif
