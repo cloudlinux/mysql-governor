@@ -164,7 +164,7 @@ int createPidFile_III(const char *pidFile_III, int flags_III)
 	return 0;
 }
 
-void becameDaemon(int self_supporting)
+void becomeDaemon(int self_supporting)
 {
 	struct governor_config data_cfg;
 
@@ -257,7 +257,7 @@ void becameDaemon(int self_supporting)
 	DIR * fd_dir = opendir(fd_dname);
 
 	/* Go through /proc/<cur-pid>/fd/ directory to find out
-	** all open descriptors and close them (expect of logs)
+	** all open descriptors and close them (except of logs)
 	*/
 	if (fd_dir)
 	{
@@ -596,7 +596,7 @@ void initGovernor(void)
 void trackingDaemon(void)
 {
 	int status = 0;
-	becameDaemon(0);
+	becomeDaemon(0);
 
 bg_loop: ;
 	config_destroy_lock();
@@ -677,7 +677,7 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef SYSTEMD_FLAG
-	becameDaemon (0);
+	becomeDaemon (0);
 	sd_notify (0, "READY=1");
 #else
 	if (data_cfg.daemon_monitor)
@@ -688,7 +688,7 @@ int main(int argc, char *argv[])
 			exit(EXIT_SUCCESS);
 	} else
 	{
-		becameDaemon(1);
+		becomeDaemon(1);
 	}
 #endif
 #else
