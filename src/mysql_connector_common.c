@@ -529,30 +529,30 @@ flush_user_priv()
 }
 
 //KILL QUERY request
-void
-kill_query(const char *user_name)
+void kill_query(const char *user_name)
 {
 	if (mysql_do_command == NULL)
 		return;
 	char user_name_alloc[USERNAMEMAXLEN * 2];
 	(*_mysql_real_escape_string)(mysql_do_command, user_name_alloc, user_name, strlen(user_name));
+
 	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
-	snprintf(sql_buffer, _DBGOVERNOR_BUFFER_8192, QUERY_KILL_USER_QUERY, user_name_alloc);
+	snprintf(sql_buffer, sizeof(sql_buffer), QUERY_KILL_USER_QUERY, user_name_alloc);
+
 	if (db_mysql_exec_query(sql_buffer, &mysql_do_command))
-		LOG(L_ERR|L_MYSQL, "Can't execute sql request. Kill query");
+		LOG(L_ERR|L_MYSQL, "Can't execute 'Kill Query'");
 	MYSQL_RES *res = (*_mysql_store_result)(mysql_do_command);
 	(*_mysql_free_result)(res);
 }
 
-void
-kill_query_by_id(long id, MYSQL **mysql_internal)
+void kill_query_by_id(long id, MYSQL **mysql_internal)
 {
 	if (*mysql_internal == NULL)
 		return;
 	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
-	snprintf(sql_buffer, _DBGOVERNOR_BUFFER_8192 - 1, QUERY_KILL_USER_QUERY_ID, id);
+	snprintf(sql_buffer, sizeof(sql_buffer), QUERY_KILL_USER_QUERY_ID, id);
 	if (db_mysql_exec_query(sql_buffer, mysql_internal))
-		LOG(L_ERR|L_MYSQL, "Can't execute sql request. Kill query");
+		LOG(L_ERR|L_MYSQL, "Can't execute 'Kill Connection'");
 	MYSQL_RES *res = (*_mysql_store_result)(*mysql_internal);
 	(*_mysql_free_result)(res);
 }
@@ -562,17 +562,18 @@ governor_enable()
 {
 	if (is_plugin_version)
 	{
-		LOG(L_SRV|L_MYSQL, "db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE_PLG)");
+		LOG(L_SRV|L_MYSQL, "Executing QUERY_GOVERNOR_MODE_ENABLE_PLG");
 		if (db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE_PLG, &mysql_send_governor))
-			LOG(L_ERR|L_SRV|L_MYSQL, "Can't execute sql request ENABLE_GOVERNOR_PLG");
-		LOG(L_SRV|L_MYSQL, "db_mysql_exec_query(QUERY_GOVERNOR_RECON_LVE_PLG2)");
+			LOG(L_ERR|L_SRV|L_MYSQL, "Can't execute QUERY_GOVERNOR_MODE_ENABLE_PLG");
+
+		LOG(L_SRV|L_MYSQL, "Executing QUERY_GOVERNOR_RECON_LVE_PLG2");
 		if (db_mysql_exec_query(QUERY_GOVERNOR_RECON_LVE_PLG2, &mysql_send_governor))
-			LOG(L_ERR|L_SRV|L_MYSQL, "Can't execute sql request ENABLE_GOVERNOR_SECOND");
+			LOG(L_ERR|L_SRV|L_MYSQL, "Can't execute QUERY_GOVERNOR_RECON_LVE_PLG2");
 	} else
 	{
-		LOG(L_SRV|L_MYSQL, "db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE)");
+		LOG(L_SRV|L_MYSQL, "Executing QUERY_GOVERNOR_MODE_ENABLE");
 		if (db_mysql_exec_query(QUERY_GOVERNOR_MODE_ENABLE, &mysql_send_governor))
-			LOG(L_ERR|L_SRV|L_MYSQL, "Can't execute sql request ENABLE_GOVERNOR");
+			LOG(L_ERR|L_SRV|L_MYSQL, "Can't execute QUERY_GOVERNOR_MODE_ENABLE");
 	}
 	if (mysql_send_governor)
 	{
