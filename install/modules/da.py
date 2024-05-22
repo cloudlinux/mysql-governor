@@ -107,6 +107,21 @@ class DirectAdminManager(InstallManager):
         InstallManager._after_install_new_packages(self)
         print("Rebuild php please... /usr/local/directadmin/custombuild/build php")
 
+    def _get_custombuild_option(self, option_name):
+        """
+        Get an option from the DirectAdmin custombuild options.conf file
+        """
+        CUSTOMBUILD_OPTIONS = "/usr/local/directadmin/custombuild/options.conf"
+        option_regex = "{}=".format(option_name)
+        try:
+            option_grep = grep(CUSTOMBUILD_OPTIONS, option_regex)
+            if not option_grep:
+                return None
+            option_value = option_grep[0].split("=")[1].strip()
+            return option_value
+        except IndexError:
+            return None
+
     def _detect_version_if_auto(self):
         """
         Detect vesrion of MySQL if mysql.type is auto
@@ -126,15 +141,23 @@ class DirectAdminManager(InstallManager):
             print('Failed to detect from mysql binary, trying to detect from custombuild options')
             check_file("/usr/local/directadmin/custombuild/build")
             check_file("/usr/local/directadmin/custombuild/options.conf")
+
             # MYSQL_DA_TYPE=`cat /usr/local/directadmin/custombuild/options.conf | grep mysql_inst= | cut -d= -f2`
-            try:
-                mysql_ver_grep = grep("/usr/local/directadmin/custombuild/options.conf", "mysql=")
-                MYSQL_DA_VER = mysql_ver_grep[0].split("=")[1].strip()
-                mysql_type_grep = grep("/usr/local/directadmin/custombuild/options.conf", "mysql_inst=")
-                MYSQL_DA_TYPE = mysql_type_grep[0].split("=")[1].strip()
-            except IndexError:
-                MYSQL_DA_VER = ""
-                MYSQL_DA_TYPE = ""
+            # This parameter is used to indicate what type of DB should be installed.
+            # Typical values are 'mysql', 'mariadb' or 'no'.
+            MYSQL_DA_TYPE = self._get_custombuild_option("mysql_inst")
+
+            # On newer versions of DirectAdmin, the config parameter used to define MariaDB version is mariadb.
+            # On older ones, both MySQL and MariaDB versions are defined by mysql parameter.
+            if MYSQL_DA_TYPE == "mariadb":
+                MARIADB_DA_VER = self._get_custombuild_option("mariadb")
+
+            MYSQL_DA_VER = self._get_custombuild_option("mysql")
+
+            # If we have a specified MariaDB version, we should use it.
+            # Otherwise, fall back to the older approach and use the mysql parameter for MariaDB versions too.
+            if MYSQL_DA_TYPE == "mariadb" and MARIADB_DA_VER:
+                MYSQL_DA_VER = MARIADB_DA_VER
 
             if MYSQL_DA_TYPE == "no":
                 if os.path.exists("/usr/share/lve/dbgovernor/da.tp.old"):
@@ -173,10 +196,20 @@ class DirectAdminManager(InstallManager):
                 "10.1.1": "mariadb101"
             }
 
-            if MYSQL_DA_TYPE == "mysql":
-                MYSQL_DA_VER = mysql_version_map[MYSQL_DA_VER]
-            elif MYSQL_DA_TYPE == "mariadb":
-                MYSQL_DA_VER = mariadb_version_map[MYSQL_DA_VER]
+            # Double-check that we actually have a valid version and type
+            try:
+                # Did we actually detect a version from the mapping?
+                if not MYSQL_DA_TYPE or not MYSQL_DA_VER:
+                    # It's OK not to reraise the exception here, the scenario being handled is different
+                    # pylint: disable=raise-missing-from
+                    raise AttributeError("MySQL/MariaDB version could not be detected")
+                if MYSQL_DA_TYPE == "mysql":
+                    MYSQL_DA_VER = mysql_version_map[MYSQL_DA_VER]
+                elif MYSQL_DA_TYPE == "mariadb":
+                    MYSQL_DA_VER = mariadb_version_map[MYSQL_DA_VER]
+            # In case we have a version that is not in the mapping
+            except KeyError as e:
+                raise RuntimeError(f"Unsupported MySQL version: {MYSQL_DA_VER} ({MYSQL_DA_TYPE})") from e
 
         return MYSQL_DA_VER
 

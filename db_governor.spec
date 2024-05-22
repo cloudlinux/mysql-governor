@@ -1,5 +1,5 @@
 %define g_version   1.2
-%define g_release   110
+%define g_release   111
 %define g_key_library 13
 
 %if %{undefined _unitdir}
@@ -29,6 +29,7 @@ Requires: wget
 Requires: libxml2
 Requires: alt-python27-cllib >= 3.3.3-1
 Requires: cloudlinux-venv
+# Requires: sentry-native
 Requires(preun): /sbin/chkconfig
 BuildRequires: cmake
 BuildRequires: ncurses-devel
@@ -40,6 +41,7 @@ BuildRequires: pcre-devel
 BuildRequires: patch
 BuildRequires: alt-python27-cllib >= 3.3.3-1
 BuildRequires: cloudlinux-venv
+# BuildRequires: sentry-native-devel
 %if 0%{?fedora} >= 15 || 0%{?rhel} >= 7
 BuildRequires: systemd
 BuildRequires: systemd-devel
@@ -187,9 +189,11 @@ install -D -m 755 install/scripts/cpanel_map_rebuilder $RPM_BUILD_ROOT/usr/share
 install -D -m 755 install/scripts/dbgovernor_map $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map
 install -D -m 755 install/scripts/dbgovernor_map.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map.py
 install -D -m 755 install/scripts/dbgovernor_map_plesk.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map_plesk.py
+install -D -m 755 install/scripts/sentry_daemon.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sentry_daemon.py
 install -D -m 755 install/scripts/detect-cpanel-mysql-version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 install -D -m 755 install/scripts/cpanel-mysql-url-detect.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
 install -D -m 755 install/scripts/set_cpanel_mysql_version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm
+install -D -m 755 install/scripts/dbgovernor_watchdog.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py
 install -D -m 755 install/scripts/mysql_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/mysql_hook
 install -D -m 755 install/scripts/map_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/map_hook
 install -D -m 755 install/scripts/sync_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sync_hook
@@ -198,6 +202,7 @@ install -D -m 644 logrotate/mysql-governor $RPM_BUILD_ROOT/etc/logrotate.d/mysql
 install -D -m 644 install/utils/cloudlinux.versions $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/cloudlinux.versions
 install -D -m 644 install/utils/dbgovernor $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/db_governor
 install -D -m 600 install/list_problem_files.txt $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/
+install -D -m 600 install/sentry_dsn $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/sentry_dsn
 
 install -D -m 755 install/utils/mysql_export $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/mysql_export
 
@@ -371,6 +376,14 @@ if [ -e "/etc/container/dbgovernor-libcheck" ]; then
         fi
 fi
 
+if [ $1 -gt 0 ] ; then
+    if [ -e "/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" ]; then
+        echo "*/5 * * * * root /usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" > /etc/cron.d/dbgovernor_watchdog_cron
+        chmod 644 /etc/cron.d/dbgovernor_watchdog_cron
+        chown root:root /etc/cron.d/dbgovernor_watchdog_cron
+    fi
+fi
+
 %preun
 %if 0%{?rhel} >= 7
 if [ $1 -eq 0 ]; then
@@ -388,6 +401,18 @@ if [ $1 -eq 1 -o $1 -eq 0 ] ; then
  if [ -e /var/run/mysql-governor-config.xml ]; then
     rm -f /var/run/mysql-governor-config.xml
  fi
+fi
+
+if [ $1 -eq 0 ]; then
+    if [ -e "/etc/cron.d/dbgovernor_watchdog_cron" ]; then
+        # Remove the cron job file when uninstalling
+        rm -f /etc/cron.d/dbgovernor_watchdog_cron
+    fi
+
+    if [ -e "/usr/share/lve/dbgovernor/sentry_dsn" ]; then
+        # Remove Sentry DSN file when uninstalling
+        rm -f /usr/share/lve/dbgovernor/sentry_dsn
+    fi
 fi
 
 %postun
@@ -482,6 +507,12 @@ fi
 %{_includedir}/libgovernor.h
 
 %changelog
+* Thu May 13 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-111
+- CLOS-2645: Corrected MariaDB version detection logic for DA config
+- CLOS-2593, CLOS-2613: Added extended logging
+- CLOS-2385: Added watchdog monitoring utility to governor package
+- CLOS-2386: Implemented Sentry logging mechanism with switchable approach)
+
 * Tue Apr 30 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-110
 - CLOS-2322: Fixed issue with not applying limits after Governor service restart
 - CLOS-2535: Governor threads logging added

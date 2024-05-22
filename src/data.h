@@ -55,80 +55,86 @@ typedef char parameter_t[USERNAMEMAXLEN];
 /* Network names identificators */
 typedef enum client_type_enum
 {
-  DBDUMPER = 0, DBTOP, DBEXIT, DBCTL, DBTOPCL
+	BDUMPER = 0, DBTOP, DBEXIT, DBCTL, DBTOPCL
 } client_type_t;
 
 typedef enum dbctl_command_enum
 {
-  SET =
-    0, IGNORE, DELETE, LIST, LIST_R, RESTRICT, UNRESTRICT, UNRESTRICT_A,
-    LOG_PATH, REREAD_CFG, REINIT_USERS_LIST, DBUSER_MAP_CMD
+	SET = 0, IGNORE, DELETE, LIST, LIST_R, RESTRICT, UNRESTRICT, UNRESTRICT_A,
+	LOG_PATH, REREAD_CFG, REINIT_USERS_LIST, DBUSER_MAP_CMD
 } dbctl_command_l;
 
 typedef enum
-{ TEST_MODE,
-  PRODUCTION_MODE,
-  DEBUG_MODE,
-  ERROR_MODE,
-  RESTRICT_MODE,
-  NORESTRICT_MODE,
-  IGNORE_MODE,
-  OLD_RESTRICT_MODE,
-  NEW_RESTRICT_MODE,
-  EXTLOG_MODE
+{
+	TEST_MODE,
+	PRODUCTION_MODE,
+	DEBUG_MODE,
+	ERROR_MODE,
+	RESTRICT_MODE,
+	NORESTRICT_MODE,
+	IGNORE_MODE,
+	OLD_RESTRICT_MODE,
+	NEW_RESTRICT_MODE,
+	EXTLOG_MODE
 } MODE_TYPE;
+
+typedef enum
+{
+	SENTRY_MODE_DISABLED = 0,
+	SENTRY_MODE_NATIVE = 1,
+	SENTRY_MODE_EXTERNAL = 2
+} SENTRY_MODE;
 
 typedef struct
 {
-  long _current, _short, _mid, _long;
+	long _current, _short, _mid, _long;
 } T_LONG;
 
 typedef enum
 {
-  NORESTRICT_PARAM2 = 0,
-  CPU_PARAM = 4,
-  READ_PARAM,
-  WRITE_PARAM,
-  NORESTRICT_PARAM = 100,
+	NORESTRICT_PARAM2 = 0,
+	CPU_PARAM = 4,
+	READ_PARAM,
+	WRITE_PARAM,
+	NORESTRICT_PARAM = 100,
 } GOVERNORS_FIELD_NAME;
 
 /*Period types*/
 typedef enum
 {
-  NO_PERIOD = 0,
-  CURRENT_PERIOD,
-  SHORT_PERIOD,
-  MID_PERIOD,
-  LONG_PERIOD
+	NO_PERIOD = 0,
+	CURRENT_PERIOD,
+	SHORT_PERIOD,
+	MID_PERIOD,
+	LONG_PERIOD
 } GOVERNORS_PERIOD_NAME;
 
 typedef struct dbctl_options_struct
 {
-  username_t username;
-  int cpu;
-  int read;
-  int write;
-  int level;
-  int timeout;
-  int user_max_connections;
-
+	username_t username;
+	int cpu;
+	int read;
+	int write;
+	int level;
+	int timeout;
+	int user_max_connections;
 } DbCtlOptions;
 
 typedef struct user_statistics_struct_cfg
 {
-  T_LONG cpu;
-  T_LONG write;
-  T_LONG read;
-  T_LONG slow;
-  bool account_flag;		// true == account ("name" attribute), false == "mysql_name" attribute
-  MODE_TYPE mode;		// RESTRICT_MODE|NORESTRICT_MODE|IGNORE_MODE (default = RESTRICT_MODE)
+	T_LONG cpu;
+	T_LONG write;
+	T_LONG read;
+	T_LONG slow;
+	bool account_flag;		// true == account ("name" attribute), false == "mysql_name" attribute
+	MODE_TYPE mode;		// RESTRICT_MODE|NORESTRICT_MODE|IGNORE_MODE (default = RESTRICT_MODE)
 } Stats_cfg;
 
 typedef struct user_statistics_struct
 {
-  double cpu;
-  long long write;
-  long long read;
+	double cpu;
+	long long write;
+	long long read;
 } Stats;
 
 typedef Stats stats_limit;
@@ -137,93 +143,91 @@ typedef Stats_cfg stats_limit_cfg;
 #define CD_MAGIC 0xDEADBEEF
 typedef struct _client_data
 {
-  int magic;
-  int type;
-  pid_t tid;
-  pid_t pid;
-  char username[USERNAMEMAXLEN];
-  long long cpu;
-  long long write;
-  long long read;
-  time_t update_time;
-  long naoseconds;
-  struct timeval utime;
-  struct timeval stime;
+	int magic;
+	int type;
+	pid_t tid;
+	pid_t pid;
+	char username[USERNAMEMAXLEN];
+	long long cpu;
+	long long write;
+	long long read;
+	time_t update_time;
+	long nanoseconds;
+	struct timeval utime;
+	struct timeval stime;
 } client_data;
 
 typedef struct restrict_info_struct
 {
-  GOVERNORS_PERIOD_NAME field_restrict;
-  GOVERNORS_FIELD_NAME field_level_restrict;
+	GOVERNORS_PERIOD_NAME field_restrict;
+	GOVERNORS_FIELD_NAME field_level_restrict;
 } restrict_info;
 
 /* Restrict command enumerator */
 typedef enum command_enum
 {
-  EXIT = 0, FREEZE, UNFREEZE, SLOWQUERY
+	EXIT = 0, FREEZE, UNFREEZE, SLOWQUERY
 } command_t;
 
 typedef struct mysql_command_struct
 {
-  username_t username;
-  command_t command;
-  int restrict_level;
-  long id;
+	username_t username;
+	command_t command;
+	int restrict_level;
+	long id;
 } Command;
 
 typedef struct mysql_dbctl_command_struct
 {
-  dbctl_command_l command;
-  parameter_t parameter;
-  DbCtlOptions options;
-
+	dbctl_command_l command;
+	parameter_t parameter;
+	DbCtlOptions options;
 } DbCtlCommand;
 
 //Network exchange data
 typedef struct _dbtop_exch
 {
-  username_t id;
-  Stats current;
-  Stats short_average;
-  Stats mid_average;
-  Stats long_average;
-  int restricted;
-  int timeout;
-  restrict_info info;
-  time_t start_count;
+	username_t id;
+	Stats current;
+	Stats short_average;
+	Stats mid_average;
+	Stats long_average;
+	int restricted;
+	int timeout;
+	restrict_info info;
+	time_t start_count;
 } dbtop_exch;
 
 typedef struct __dbgov_statitrics
 {
-  char username[USERNAMEMAXLEN];
-  int max_simultaneous_requests;
+	char username[USERNAMEMAXLEN];
+	int max_simultaneous_requests;
 
-  double sum_cpu;		// in %
-  double sum_write;		// in MB/s
-  double sum_read;		// in MB/s
+	double sum_cpu;			// in %
+	double sum_write;		// in MB/s
+	double sum_read;		// in MB/s
 
-  int number_of_iterations;	// number of measurements per period
+	int number_of_iterations;	// number of measurements per period
 
-  double max_cpu;		// in %
-  double max_write;		// in MB/s
-  double max_read;		// in MB/s
+	double max_cpu;			// in %
+	double max_write;		// in MB/s
+	double max_read;		// in MB/s
 
-  int number_of_restricts;
+	int number_of_restricts;
 
-  long limit_cpu_on_period_end;	//in %
-  long limit_read_on_period_end;	//in MB/s
-  long limit_write_on_period_end;	//in MB/s
+	long limit_cpu_on_period_end;	// in %
+	long limit_read_on_period_end;	// in MB/s
+	long limit_write_on_period_end;	// in MB/s
 
-  int cause;
-  MODE_TYPE ignored;
-
+	int cause;
+	MODE_TYPE ignored;
 } dbgov_statitrics;
 
 typedef struct _user_map
 {
-  username_t username;
-  int uid;
-  username_t account_name;
+	username_t username;
+	int uid;
+	username_t account_name;
 } UserMap;
 
 

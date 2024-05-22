@@ -4,6 +4,7 @@
 <connector prefix_separator="_"/>
 <intervals short="15" mid="60" long="300"/>
 <log file="/var/log/dbgovernor-error.log" mode="ERROR"/>
+<sentry dsn="https://5185227e29d84b4986936c52e92ab486@cl.sentry.cloudlinux.com/37" sock="/var/run/db-governor-sentry.sock" mode="EXTERNAL"/>
 <restrict level1="60s" level2="15m" level3="1h" level4="1d" timeout="1h" log="/var/log/dbgovernor-restrict.log" user_max_connections="30"/>
 <statistic mode="on"/>
 <default>

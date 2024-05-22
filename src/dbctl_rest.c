@@ -18,16 +18,19 @@
 #include "wrappers.h"
 #include "dbgovernor_string_functions.h"
 
-int restrict_user(char *user, char *level) {
+int restrict_user(char *user, char *level)
+{
 	FILE *in = NULL;
 	FILE *out = NULL;
 	int _socket = -1;
 
-	if (!strncmp(user, "default", sizeof(username_t) - 1)) {
+	if (!strncmp(user, "default", sizeof(username_t) - 1))
+	{
 		return 1;
 	}
 
-	if (opensock(&_socket, &in, &out)) {
+	if (opensock(&_socket, &in, &out))
+	{
 		client_type_t ctt = DBCTL;
 		fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
@@ -48,8 +51,8 @@ int restrict_user(char *user, char *level) {
 		fflush(out);
 
 		closesock(_socket, in, out);
-	} else {
-
+	} else
+	{
 		closesock(_socket, in, out);
 		return 0;
 	}
@@ -57,16 +60,19 @@ int restrict_user(char *user, char *level) {
 	return 1;
 }
 
-int unrestrict(char *user) {
+int unrestrict(char *user)
+{
 	FILE *in = NULL;
 	FILE *out = NULL;
 	int _socket = -1;
 
-	if (!strncmp(user, "default", sizeof(username_t) - 1)) {
+	if (!strncmp(user, "default", sizeof(username_t) - 1))
+	{
 		return 1;
 	}
 
-	if (opensock(&_socket, &in, &out)) {
+	if (opensock(&_socket, &in, &out))
+	{
 		client_type_t ctt = DBCTL;
 		fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
@@ -87,7 +93,8 @@ int unrestrict(char *user) {
 		fflush(out);
 
 		closesock(_socket, in, out);
-	} else {
+	} else
+	{
 		closesock(_socket, in, out);
 		return 0;
 	}
@@ -95,12 +102,14 @@ int unrestrict(char *user) {
 	return 1;
 }
 
-int dbupdatecmd(void) {
+int dbupdatecmd(void)
+{
 	FILE *in = NULL;
 	FILE *out = NULL;
 	int _socket = -1;
 
-	if (opensock(&_socket, &in, &out)) {
+	if (opensock(&_socket, &in, &out))
+	{
 		client_type_t ctt = DBCTL;
 		fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
@@ -120,7 +129,8 @@ int dbupdatecmd(void) {
 		fflush(out);
 
 		closesock(_socket, in, out);
-	} else {
+	} else
+	{
 		closesock(_socket, in, out);
 		return 0;
 	}
@@ -128,12 +138,14 @@ int dbupdatecmd(void) {
 	return 1;
 }
 
-int unrestrict_all(void) {
+int unrestrict_all(void)
+{
 	FILE *in = NULL;
 	FILE *out = NULL;
 	int _socket = -1;
 
-	if (opensock(&_socket, &in, &out)) {
+	if (opensock(&_socket, &in, &out))
+	{
 		client_type_t ctt = DBCTL;
 		fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
@@ -153,7 +165,8 @@ int unrestrict_all(void) {
 		fflush(out);
 
 		closesock(_socket, in, out);
-	} else {
+	} else
+	{
 		closesock(_socket, in, out);
 		return 0;
 	}

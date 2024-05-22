@@ -9,7 +9,8 @@
 
 #define HELP_LEN 24
 
-char help[HELP_LEN][512] = {
+char help[HELP_LEN][512] =
+{
   "dbtop - utility to monitor MySQL usage.\n",
   "-r - dbtop refresh period in seconds( dbtop -r12 )",
   "Control keys:\n",

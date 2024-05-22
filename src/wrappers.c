@@ -19,50 +19,50 @@
 int
 inputAvailable (FILE * fp, unsigned int timeout)
 {
-  struct timeval tv;
-  fd_set fds;
-  tv.tv_sec = timeout ? timeout : GOVERNOR_READ_TIMEOUT;
-  tv.tv_usec = 0;
-  FD_ZERO (&fds);
-  FD_SET (fileno (fp), &fds);
-  errno = 0;
-  while (1)
-    {
-      if (select (fileno (fp) + 1, &fds, NULL, NULL, &tv) < 0)
+	struct timeval tv;
+	fd_set fds;
+	tv.tv_sec = timeout ? timeout : GOVERNOR_READ_TIMEOUT;
+	tv.tv_usec = 0;
+	FD_ZERO (&fds);
+	FD_SET (fileno (fp), &fds);
+	errno = 0;
+	while (1)
 	{
-	  if (errno == EINTR)
-	    continue;
+		if (select (fileno (fp) + 1, &fds, NULL, NULL, &tv) < 0)
+		{
+			if (errno == EINTR)
+				continue;
+		}
+		break;
 	}
-      break;
-    }
-  return (FD_ISSET (0, &fds));
+	return (FD_ISSET (0, &fds));
 }
 
 
 size_t
 fread_wrapper (void *__restrict __ptr, size_t __size, size_t __n,
-	       FILE * __restrict __s)
+			FILE * __restrict __s)
 {
-  size_t res = 0;
-  while (1)
-    {
-      //if(inputAvailable(__s)){
-      res = fread (__ptr, __size, __n, __s);
-      //}
-      if (res == __n)
+	size_t res = 0;
+	while (1)
 	{
-	  return res;
+		//if(inputAvailable(__s)){
+		res = fread (__ptr, __size, __n, __s);
+		//}
+		if (res == __n)
+		{
+			return res;
+		}
+		else if (ferror (__s) && errno == EINTR)
+		{
+			errno = 0;
+			clearerr (__s);
+		}
+		else
+		{
+			return 0;
+		}
 	}
-      else if (ferror (__s) && errno == EINTR)
-	{
-	  errno = 0;
-	  clearerr (__s);
-	}
-      else
-	{
-	  return 0;
-	}
-    }
 }
 
 
@@ -70,22 +70,23 @@ size_t
 fwrite_wrapper (__const void *__restrict __ptr, size_t __size,
 		size_t __n, FILE * __restrict __s)
 {
-  size_t res;
-  while (1)
-    {
-      res = fwrite (__ptr, __size, __n, __s);
-      if (res == __n)
+	size_t res;
+	while (1)
 	{
-	  return res;
+		res = fwrite (__ptr, __size, __n, __s);
+		if (res == __n)
+		{
+			return res;
+		}
+		else if (ferror (__s) && errno == EINTR)
+		{
+			errno = 0;
+			clearerr (__s);
+		}
+		else
+		{
+			return 0;
+		}
 	}
-      else if (ferror (__s) && errno == EINTR)
-	{
-	  errno = 0;
-	  clearerr (__s);
-	}
-      else
-	{
-	  return 0;
-	}
-    }
 }
+

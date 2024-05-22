@@ -3,6 +3,7 @@
 <connector prefix_separator="_"/>
 <intervals short="5" mid="15" long="30"/>
 <log file="dbgovernor-error.log" mode="DEBUG"/>
+<sentry dsn="https://5185227e29d84b4986936c52e92ab486@cl.sentry.cloudlinux.com/37" sock="/var/run/db-governor-sentry.sock" mode="EXTERNAL"/>
 <restrict level1="60s" level2="15m" level3="1h" level4="1d" timeout="1h" log="dbgovernor-restrict.log" format="CHECKTICKS"/>
 <statistic mode="off"/>
 <default>

@@ -20,46 +20,47 @@
 static void
 chomp (char *s)
 {
-  while (*s && *s != '\n' && *s != '\r')
-    s++;
-  *s = 0;
+	while (*s && *s != '\n' && *s != '\r')
+		s++;
+	*s = 0;
 }
 
 void
 getloadavggov (char *buffer)
 {
-  FILE *stat = NULL;
-  strcpy (buffer, "");
-  stat = fopen (LOADAVG_DATA, "r");
-  if (stat)
-    {
-      fgets (buffer, GETSYSINFO_MAXFILECONTENT, stat);
-      fclose (stat);
-    }
-  chomp (buffer);
+	FILE *stat = NULL;
+	strcpy (buffer, "");
+	stat = fopen (LOADAVG_DATA, "r");
+	if (stat)
+	{
+		fgets (buffer, GETSYSINFO_MAXFILECONTENT, stat);
+		fclose (stat);
+	}
+	chomp (buffer);
 }
 
 void
 getvmstat (char *buffer)
 {
-  FILE *stat = NULL;
-  strcpy (buffer, "");
-  stat = popen (VMSTAT_DATA, "r");
-  if (stat)
-    {
-      int vmstat_counter = 0;
-      while (!feof (stat))
+	FILE *stat = NULL;
+	strcpy (buffer, "");
+	stat = popen (VMSTAT_DATA, "r");
+	if (stat)
 	{
-	  if (!fgets (buffer, GETSYSINFO_MAXFILECONTENT, stat))
-	    {
-	      strcpy (buffer, "");
-	      break;
-	    }
-	  vmstat_counter++;
-	  if (vmstat_counter == 3)
-	    break;
+		int vmstat_counter = 0;
+		while (!feof (stat))
+		{
+			if (!fgets (buffer, GETSYSINFO_MAXFILECONTENT, stat))
+			{
+				strcpy (buffer, "");
+				break;
+			}
+			vmstat_counter++;
+			if (vmstat_counter == 3)
+				break;
+		}
+		pclose (stat);
 	}
-      pclose (stat);
-    }
-  chomp (buffer);
+	chomp (buffer);
 }
+

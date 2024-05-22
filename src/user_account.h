@@ -17,12 +17,12 @@
 #include "data.h"
 
 User_stats *add_user_stats (username_t account_id, GHashTable * accounts,
-			    GHashTable * users);
+				GHashTable * users);
 
 struct user_account
 {
-  username_t username;
-  username_t account;
+	username_t username;
+	username_t account;
 };
 
 void init_user_account_table (void);

@@ -25,30 +25,39 @@
  * Parse file with path
  * if error occurs, the error message saves in error buffer with length maxErrDesct and returns NULL
  */
-static xml_data *parseConfigData_orig(const char *path, char *error, int maxErrDescr) {
-	if (path) {
+static xml_data *parseConfigData_orig(const char *path, char *error, int maxErrDescr)
+{
+	if (path)
+	{
 		xml_data *xml = calloc(1, sizeof(xml_data));
-		if (xml) {
+		if (xml)
+		{
 			xmlKeepBlanksDefault(0);
 			xml->doc = xmlReadFile(path, NULL, 0);
-			if (xml->doc) {
+			if (xml->doc)
+			{
 				xml->root = (void *) xmlDocGetRootElement(xml->doc);
-				if (xml->root) {
+				if (xml->root)
+				{
 					strncpy(xml->path, path, MAX_XML_PATH);
 					return xml;
-				} else {
+				} else
+				{
 					xmlFreeDoc((xmlDocPtr) xml->doc);
 					free(xml);
 					snprintf(error, maxErrDescr, "Document is empty %s", path);
 				}
-			} else {
+			} else
+			{
 				free(xml);
 				snprintf(error, maxErrDescr, "Can't parse file %s", path);
 			}
-		} else {
+		} else
+		{
 			snprintf(error, maxErrDescr, "Can't allocate data for xml parsing");
 		}
-	} else {
+	} else
+	{
 		snprintf(error, maxErrDescr, "Path to config file shouldn't be empty");
 	}
 	return NULL;
@@ -61,8 +70,8 @@ static int config_lock(int ro)
 	if (fd < 0)
 		return -1;
 
-	if (flock(fd, ro ? LOCK_SH : LOCK_EX) < 0) {
-
+	if (flock(fd, ro ? LOCK_SH : LOCK_EX) < 0)
+	{
 		close(fd);
 		return -2;
 	}
@@ -84,8 +93,8 @@ xml_data *parseConfigData(const char *path, char *error, int maxErrDescr)
 	xml_data * xml = NULL;
 
 	int fd = config_lock(1);
-	if (fd < 0) {
-
+	if (fd < 0)
+	{
 		if (error)
 			snprintf(error, maxErrDescr, "Can't lock config, fd:%d errno:%d", fd, errno);
 		return NULL;
@@ -102,16 +111,19 @@ xml_data *parseConfigData(const char *path, char *error, int maxErrDescr)
  * finds element with name nodeName in parsed data. NULL if nothing found. node - root elemnt for
  * node finding or NULL for docroot
  */
-void *FindElementWithName(xml_data *data, void *node, const char *nodeName) {
+void *FindElementWithName(xml_data *data, void *node, const char *nodeName)
+{
 	xmlNodePtr cur = node ? node : (xmlNodePtr) data->root;
 	cur = cur->xmlChildrenNode;
-	while (cur != NULL) {
-		if ((!xmlStrcmp(cur->name, (const xmlChar *) nodeName))) {
+	while (cur != NULL)
+	{
+		if ((!xmlStrcmp(cur->name, (const xmlChar *) nodeName)))
+		{
 			return (void *) cur;
 		}
-		xmlNodePtr nodef = (xmlNodePtr) FindElementWithName(data, cur,
-				nodeName);
-		if (nodef) {
+		xmlNodePtr nodef = (xmlNodePtr) FindElementWithName(data, cur, nodeName);
+		if (nodef)
+		{
 			return (void *) nodef;
 		}
 		cur = cur->next;
@@ -125,21 +137,25 @@ void *FindElementWithName(xml_data *data, void *node, const char *nodeName) {
  * node finding or NULL for docroot
  */
 void *FindElementWithNameAndAttr(xml_data *data, void *node, const char *nodeName,
-		const char *attrName, const char *attrValue) {
+		const char *attrName, const char *attrValue)
+{
 	xmlNodePtr cur = node ? node : (xmlNodePtr) data->root;
 	cur = cur->xmlChildrenNode;
-	while (cur != NULL) {
-		if ((!xmlStrcmp(cur->name, (const xmlChar *) nodeName))) {
+	while (cur != NULL)
+	{
+		if ((!xmlStrcmp(cur->name, (const xmlChar *) nodeName)))
+		{
 			const char *attr = getElemAttr(cur, attrName);
-			if (attr && !strcmp(attr, attrValue)){
+			if (attr && !strcmp(attr, attrValue))
+			{
 				releaseElemValue(attr);
 				return cur;
 			}
 			releaseElemValue(attr);
 		}
-		xmlNodePtr nodef = (xmlNodePtr) FindElementWithName(data, cur,
-				nodeName);
-		if (nodef) {
+		xmlNodePtr nodef = (xmlNodePtr) FindElementWithName(data, cur, nodeName);
+		if (nodef)
+		{
 			return (void *) nodef;
 		}
 		cur = cur->next;
@@ -151,14 +167,17 @@ void *FindElementWithNameAndAttr(xml_data *data, void *node, const char *nodeNam
  * step by node childs, prev_node = NULL returns pointer to the first element
  * not NULL - next element, NULL returned means end of chain
  */
-void *getNextChild(void *node, const char *childName, void *prev_node) {
+void *getNextChild(void *node, const char *childName, void *prev_node)
+{
 	if (!node)
 		return NULL;
 	xmlNodePtr nodef = (xmlNodePtr) node;
 	xmlNodePtr cur = prev_node ? ((xmlNodePtr) prev_node)->next
 			: nodef->xmlChildrenNode;
-	while (cur != NULL) {
-		if (!xmlStrcmp(cur->name, (const xmlChar *) childName)) {
+	while (cur != NULL)
+	{
+		if (!xmlStrcmp(cur->name, (const xmlChar *) childName))
+		{
 			return (void *) cur;
 		}
 		cur = cur->next;
@@ -169,12 +188,15 @@ void *getNextChild(void *node, const char *childName, void *prev_node) {
 /*
  * get value of attribute attrName of node. NULL if attribute not found
  */
-const char *getElemAttr(void *node, const char *attrName) {
+const char *getElemAttr(void *node, const char *attrName)
+{
 	if (!node)
 		return NULL;
 	xmlAttr* attribute = ((xmlNodePtr) node)->properties;
-	while (attribute) {
-		if ((!xmlStrcmp(attribute->name, (const xmlChar *) attrName))) {
+	while (attribute)
+	{
+		if ((!xmlStrcmp(attribute->name, (const xmlChar *) attrName)))
+		{
 			xmlChar* value = xmlNodeListGetString(((xmlNodePtr) node)->doc,
 					attribute->children, 1);
 			return (const char *) value;
@@ -187,7 +209,8 @@ const char *getElemAttr(void *node, const char *attrName) {
 /*
  * get node value as string
  */
-const char *getElemValue(void *node) {
+const char *getElemValue(void *node)
+{
 	xmlChar* value = xmlNodeListGetString(((xmlNodePtr) node)->doc,
 			((xmlNodePtr) node)->xmlChildrenNode, 1);
 	return (const char *) value;
@@ -197,7 +220,8 @@ const char *getElemValue(void *node) {
  * release value of node or attribute. Result of getElemValue and getElemAttr
  * should be freed
  */
-void releaseElemValue(const char *value) {
+void releaseElemValue(const char *value)
+{
 	if (value)
 		xmlFree((xmlChar *) value);
 }
@@ -205,11 +229,12 @@ void releaseElemValue(const char *value) {
 /*
  * step by attributes of nodeValue, prev_attr shows last checked attribute
  */
-void *getNextAttr(void *nodeValue, void *prev_attr) {
+void *getNextAttr(void *nodeValue, void *prev_attr)
+{
 	xmlNodePtr Node = (xmlNodePtr) nodeValue;
 	xmlAttrPtr attr = NULL;
-	for (attr = prev_attr ? ((xmlAttrPtr) prev_attr)->next : Node->properties; attr; attr
-			= attr->next) {
+	for (attr = prev_attr ? ((xmlAttrPtr) prev_attr)->next : Node->properties; attr; attr = attr->next)
+	{
 		return (void *) attr;
 	}
 	return NULL;
@@ -218,10 +243,13 @@ void *getNextAttr(void *nodeValue, void *prev_attr) {
 /*
  * get attrubute name
  */
-char *getAttributeName(void *attr) {
-	if (attr) {
+char *getAttributeName(void *attr)
+{
+	if (attr)
+	{
 		char *ptr = calloc(1, strlen(((xmlAttrPtr) attr)->name) + 1);
-		if (ptr) {
+		if (ptr)
+		{
 			strcpy(ptr, ((xmlAttrPtr) attr)->name);
 			return ptr;
 		}
@@ -232,13 +260,13 @@ char *getAttributeName(void *attr) {
 /*
  * get value of attribute attr
  */
-char *getAttributeValue(void *attr) {
+char *getAttributeValue(void *attr)
+{
 	if (!attr)
 		return NULL;
 	xmlAttrPtr attribute = (xmlAttrPtr) attr;
 
-	xmlChar* value = xmlNodeListGetString(attribute->doc, attribute->children,
-			1);
+	xmlChar* value = xmlNodeListGetString(attribute->doc, attribute->children, 1);
 
 	return (char *) value;
 }
@@ -249,15 +277,18 @@ char *getAttributeValue(void *attr) {
  * return pointer to the new element and NULL if not created
  */
 void *setNode(xml_data *data, void *node, const char *nodeName,
-		const char *value) {
+		const char *value)
+{
 	xmlNodePtr parent = node ? (xmlNodePtr) node : (xmlNodePtr) data->root;
 	if (!nodeName)
 		return (void *) NULL;
 	xmlNodePtr fNode = (xmlNodePtr) FindElementWithName(data, parent, nodeName);
 	xmlNodePtr addressNode = NULL;
-	if (fNode) {
+	if (fNode)
+	{
 		xmlNodeSetContent(addressNode, (const xmlChar *) value);
-	} else {
+	} else
+	{
 		addressNode = xmlNewChild(parent, NULL, (const xmlChar *) nodeName,
 				(const xmlChar *) value);
 	}
@@ -271,15 +302,18 @@ void *setNode(xml_data *data, void *node, const char *nodeName,
  * return pointer to the new element and NULL if not created
  */
 void *setNodeWithAttr(xml_data *data, void *node, const char *nodeName,
-		const char *value, const char *attrName, const char *attrValue) {
+		const char *value, const char *attrName, const char *attrValue)
+{
 	xmlNodePtr parent = node ? (xmlNodePtr) node : (xmlNodePtr) data->root;
 	if (!nodeName)
 		return (void *) NULL;
 	xmlNodePtr fNode = (xmlNodePtr) FindElementWithNameAndAttr(data, parent, nodeName, attrName, attrValue);
 	xmlNodePtr addressNode = NULL;
-	if (fNode) {
+	if (fNode)
+	{
 		xmlNodeSetContent(addressNode, (const xmlChar *) value);
-	} else {
+	} else
+	{
 		addressNode = xmlNewChild(parent, NULL, (const xmlChar *) nodeName,
 				(const xmlChar *) value);
 		setAttr(addressNode, attrName, attrValue);
@@ -291,12 +325,14 @@ void *setNodeWithAttr(xml_data *data, void *node, const char *nodeName,
  * set attribute value for existing node or create new.
  * return pointer to the new element and NULL if not created
  */
-void *setAttr(void *node, const char *attrName, const char *value) {
+void *setAttr(void *node, const char *attrName, const char *value)
+{
 	xmlNodePtr parent = (xmlNodePtr) node;
 	if (!attrName || !node)
 		return (void *) NULL;
 	xmlAttrPtr addressNode = NULL;
-	if (node) {
+	if (node)
+	{
 		addressNode = xmlSetProp((xmlNodePtr) node, (const xmlChar *) attrName,
 				(const xmlChar *) value);
 	}
@@ -306,8 +342,10 @@ void *setAttr(void *node, const char *attrName, const char *value) {
 /*
  * save xml to file, if path not specified it will be taken from data->path
  */
-int saveXML(xml_data * data, char *path) {
-	if (data && data->doc) {
+int saveXML(xml_data * data, char *path)
+{
+	if (data && data->doc)
+	{
 		int ret;
 
 		int fd = config_lock(0);
@@ -326,7 +364,8 @@ int saveXML(xml_data * data, char *path) {
 /*
  * remove node from the tree
  */
-void removeNode(void *node) {
+void removeNode(void *node)
+{
 	xmlNodePtr parent = (xmlNodePtr) node;
 	xmlUnlinkNode(parent);
 	xmlFreeNode(parent);
@@ -335,9 +374,12 @@ void removeNode(void *node) {
 /*
  * free data allocated for XML
  */
-void releaseConfigData(xml_data *data) {
-	if (data) {
-		if (data->doc) {
+void releaseConfigData(xml_data *data)
+{
+	if (data)
+	{
+		if (data->doc)
+		{
 			xmlFreeDoc((xmlDocPtr) data->doc);
 		}
 		free(data);

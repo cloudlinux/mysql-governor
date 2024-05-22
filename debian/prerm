@@ -24,6 +24,14 @@ case "$1" in
         if [ -e /var/run/mysql-governor-config.xml ]; then
             rm -f /var/run/mysql-governor-config.xml
         fi
+
+        if [ -e "/etc/cron.d/dbgovernor_watchdog_cron" ]; then
+            rm -f /etc/cron.d/dbgovernor_watchdog_cron
+        fi
+
+        if [ -e "/usr/share/lve/dbgovernor/sentry_dsn" ]; then
+            rm -f /usr/share/lve/dbgovernor/sentry_dsn
+        fi
     ;;
 
     upgrade)

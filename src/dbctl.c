@@ -28,8 +28,8 @@ int kb_flag = 0;
 
 typedef struct dbclt_options
 {
-  int option;
-  char *val;
+	int option;
+	char *val;
 } Options;
 
 typedef enum dbctl_keyword_enum
@@ -78,360 +78,358 @@ parse_comm (int argc, char **argv);
 void
 version (void)
 {
-  printf ("version %s\n", GOVERNOR_CUR_VER);
+	printf ("version %s\n", GOVERNOR_CUR_VER);
 }
 
 void
 usage (void)
 {
-  puts ("usage: dbctl command [parameter] [options]");
+	puts ("usage: dbctl command [parameter] [options]");
 }
 
 void
 help (void)
 {
-  printf ("dbctl ");
-  version ();
-  usage ();
-  printf ("commands:\n");
-  printf ("%-24s set parameters for a db_governor\n", SET_KW);
+	printf ("dbctl ");
+	version ();
+	usage ();
+	printf ("commands:\n");
+	printf ("%-24s set parameters for a db_governor\n", SET_KW);
 
-  printf ("%-24s list users & their limits (list all known users in dbgovernor, not just those that have limits set )\n", LIST_KW);
-  printf ("%-24s list restricted customers, with their limits, restriction reason, and time period they will still be restricted\n", LIST_RESTRICTED_KW);
+	printf ("%-24s list users & their limits (list all known users in dbgovernor, not just those that have limits set )\n", LIST_KW);
+	printf ("%-24s list restricted customers, with their limits, restriction reason, and time period they will still be restricted\n", LIST_RESTRICTED_KW);
 
-  printf ("%-24s ignore particular user\n", IGNORE_KW);
-  printf ("%-24s cancel ignore particular user\n", MONITOR_KW);
-  printf ("%-24s remove limits for user/use defaults\n", DELETE_KW);
+	printf ("%-24s ignore particular user\n", IGNORE_KW);
+	printf ("%-24s cancel ignore particular user\n", MONITOR_KW);
+	printf ("%-24s remove limits for user/use defaults\n", DELETE_KW);
 
-  printf ("%-24s restrict user using lowest level (or if --level specified, using the specified level)\n", RESTRICT_KW);
-  printf ("%-24s unrestrict username (configuration file remains unchanged)\n", UNRESTRICT_KW);
-  printf ("%-24s unrestrict all restricted users (configuration file remains unchanged)\n", UNRESTRICT_ALL_KW);
+	printf ("%-24s restrict user using lowest level (or if --level specified, using the specified level)\n", RESTRICT_KW);
+	printf ("%-24s unrestrict username (configuration file remains unchanged)\n", UNRESTRICT_KW);
+	printf ("%-24s unrestrict all restricted users (configuration file remains unchanged)\n", UNRESTRICT_ALL_KW);
 
-  printf ("%-24s show this message\n", HELP_KW);
-  printf ("%-24s version number\n", VERSION_KW);
-  printf ("%-24s set lve mode 'off|abusers|all|single|on'\n", LVE_MODE_KW);
-  printf ("%-27s 'off' - not put user's queries into LVE\n", "");
-  printf ("%-27s 'abusers' - when user reaches the limit,\n", "");
-  printf ("%-27s             put user's queries into LVE for that user\n", "");
-  printf ("%-27s 'all' - user's queries always run inside LVE for that user - deprecated\n", "");
-  printf ("%-27s 'single|on' - single LVE for all abusers. 'on' - deprecated\n", "");
-  printf ("%-24s set lve improved accuracy algorithm 'off|on'\n", LVE_ACCURACY_KW);
+	printf ("%-24s show this message\n", HELP_KW);
+	printf ("%-24s version number\n", VERSION_KW);
+	printf ("%-24s set lve mode 'off|abusers|all|single|on'\n", LVE_MODE_KW);
+	printf ("%-27s 'off' - not put user's queries into LVE\n", "");
+	printf ("%-27s 'abusers' - when user reaches the limit,\n", "");
+	printf ("%-27s             put user's queries into LVE for that user\n", "");
+	printf ("%-27s 'all' - user's queries always run inside LVE for that user - deprecated\n", "");
+	printf ("%-27s 'single|on' - single LVE for all abusers. 'on' - deprecated\n", "");
+	printf ("%-24s set lve improved accuracy algorithm 'off|on'\n", LVE_ACCURACY_KW);
 
-  printf ("\nparameter:\n");
-  printf ("%-24s set default parameter\n", "default");
-  printf ("%-24s set parameter for user\n", "username");
+	printf ("\nparameter:\n");
+	printf ("%-24s set default parameter\n", "default");
+	printf ("%-24s set parameter for user\n", "username");
 
-  printf ("\noptions:\n");
-  printf ("%-24s limit CPU   (pct)  usage\n", "--cpu=N");
-  printf ("%-24s limit READ  (MB/s) usage (can by k(KB/s), b(BB/s))\n", "--read=N");
-  printf ("%-24s limit WRITE (MB/s) usage (can by k(KB/s), b(BB/s))\n", "--write=N");
+	printf ("\noptions:\n");
+	printf ("%-24s limit CPU   (pct)  usage\n", "--cpu=N");
+	printf ("%-24s limit READ  (MB/s) usage (can by k(KB/s), b(BB/s))\n", "--read=N");
+	printf ("%-24s limit WRITE (MB/s) usage (can by k(KB/s), b(BB/s))\n", "--write=N");
 
-  printf ("\noptions for parameter list:\n");
-  printf ("%-24s show limits in Kbytes no pretty print\n", "--kb");
-  printf ("%-24s show limits in bytes no pretty print\n", "--bb");
-  printf ("%-24s show limits in Mbytes no pretty print\n", "--mb");
-  printf ("%-24s limit time for long running select queries\n", "--slow=N");
-  printf ("%-24s level (1,2,3 or 4) specified\n", "--level=N");
+	printf ("\noptions for parameter list:\n");
+	printf ("%-24s show limits in Kbytes no pretty print\n", "--kb");
+	printf ("%-24s show limits in bytes no pretty print\n", "--bb");
+	printf ("%-24s show limits in Mbytes no pretty print\n", "--mb");
+	printf ("%-24s limit time for long running select queries\n", "--slow=N");
+	printf ("%-24s level (1,2,3 or 4) specified\n", "--level=N");
 }
 
 GList *
 GetOptList (int argc, char **argv, int *ret)
 {
-  int helpflag = 0;
-  int verflag = 0;
+	int helpflag = 0;
+	int verflag = 0;
 
-  struct option loptions[] = {
-    {"cpu", required_argument, NULL, 'c'},
-    {"read", required_argument, NULL, 'r'},
-    {"write", required_argument, NULL, 'w'},
-    {"slow", required_argument, NULL, 's'},
-    {"level", required_argument, NULL, 'l'},
-    {"lve-mode", required_argument, NULL, 100},
-    {"lve-improved-accuracy", required_argument, NULL, 101},
-	{"help", no_argument, &helpflag, 1},
-    {"version", no_argument, &verflag, 1},
-    {"kb", no_argument, &kb_flag, 1},
-    {"bb", no_argument, &kb_flag, 2},
-    {"mb", no_argument, &kb_flag, 3},
-    {0, 0, 0, 0}
-  };
-
-  GList *opts = NULL;
-  int opt;
-  while ((opt = getopt_long (argc, argv, "c:r:w:s:", loptions, NULL)) != -1)
-    {
-      switch (opt)
+	struct option loptions[] =
 	{
-	case 'c':
-	case 'r':
-	case 'w':
-	  {
-	    Options *_opts;
-	    _opts = malloc (sizeof (Options));
-	    _opts->option = opt;
-	    _opts->val = optarg;
+		{"cpu", required_argument, NULL, 'c'},
+		{"read", required_argument, NULL, 'r'},
+		{"write", required_argument, NULL, 'w'},
+		{"slow", required_argument, NULL, 's'},
+		{"level", required_argument, NULL, 'l'},
+		{"lve-mode", required_argument, NULL, 100},
+		{"lve-improved-accuracy", required_argument, NULL, 101},
+		{"help", no_argument, &helpflag, 1},
+		{"version", no_argument, &verflag, 1},
+		{"kb", no_argument, &kb_flag, 1},
+		{"bb", no_argument, &kb_flag, 2},
+		{"mb", no_argument, &kb_flag, 3},
+		{0, 0, 0, 0}
+	};
 
-	    SplitStr *data = NULL;
-	    int res = split (&data, optarg, ',');
-	    if (!res)
-	      {
-		puts ("Error format parameter!");
-		exit (0);
-	      }
-	    release_split (data, res);
-
-	    opts = g_list_append (opts, _opts);
-	  }
-	  break;
-	case 's':
-	  {
-	    Options *_opts;
-	    _opts = malloc (sizeof (Options));
-	    _opts->option = opt;
-	    _opts->val = optarg;
-
-	    SplitStr *data = NULL;
-
-	    opts = g_list_append (opts, _opts);
-	  }
-	  break;
-	case 'l':
-	  {
-	    Options *_opts;
-	    _opts = malloc (sizeof (Options));
-	    _opts->option = opt;
-	    _opts->val = optarg;
-
-	    opts = g_list_append (opts, _opts);
-	  }
-	  break;
-	case 100:
-	case 101:
-	  {
-	    Options *_opts;
-	    _opts = malloc (sizeof (Options));
-	    _opts->option = opt;
-	    _opts->val = optarg;
-
-	    opts = g_list_append (opts, _opts);
-	  }
-	  break;
-	case 0:
-	  break;
-	case ':':
-	  *ret = 1;
-	  return opts;
-	  break;
-	case '?':
-	  *ret = 1;
-	  return opts;
-	  break;
-	}
-    }
-
-  if (opts == NULL)
-    {
-      if (helpflag == 1)
+	GList *opts = NULL;
+	int opt;
+	while ((opt = getopt_long (argc, argv, "c:r:w:s:", loptions, NULL)) != -1)
 	{
-	  help ();
-	  *ret = 0;
-	  return NULL;
-	}
-      if (verflag == 1)
-	{
-	  version ();
-	  *ret = 0;
-	  return NULL;
-	}
-    }
+		switch (opt)
+		{
+			case 'c':
+			case 'r':
+			case 'w':
+				{
+					Options *_opts;
+					_opts = malloc (sizeof (Options));
+					_opts->option = opt;
+					_opts->val = optarg;
 
-  *ret = 0;
-  return opts;
+					SplitStr *data = NULL;
+					int res = split (&data, optarg, ',');
+					if (!res)
+					{
+					puts ("Error format parameter!");
+					exit (0);
+					}
+					release_split (data, res);
+
+					opts = g_list_append (opts, _opts);
+				}
+				break;
+			case 's':
+				{
+					Options *_opts;
+					_opts = malloc (sizeof (Options));
+					_opts->option = opt;
+					_opts->val = optarg;
+
+					SplitStr *data = NULL;
+
+					opts = g_list_append (opts, _opts);
+				}
+				break;
+			case 'l':
+				{
+					Options *_opts;
+					_opts = malloc (sizeof (Options));
+					_opts->option = opt;
+					_opts->val = optarg;
+
+					opts = g_list_append (opts, _opts);
+				}
+				break;
+			case 100:
+			case 101:
+				{
+					Options *_opts;
+					_opts = malloc (sizeof (Options));
+					_opts->option = opt;
+					_opts->val = optarg;
+
+					opts = g_list_append (opts, _opts);
+				}
+				break;
+			case 0:
+				break;
+			case ':':
+				*ret = 1;
+				return opts;
+			case '?':
+				*ret = 1;
+				return opts;
+		}
+	}
+
+	if (opts == NULL)
+	{
+		if (helpflag == 1)
+		{
+			help ();
+			*ret = 0;
+			return NULL;
+		}
+		if (verflag == 1)
+		{
+			version ();
+			*ret = 0;
+			return NULL;
+		}
+	}
+
+	*ret = 0;
+	return opts;
 }
 
 char *
 GetVal (char opt, GList * list)
 {
-  GList *opts = NULL;
-  for (opts = g_list_first (list); opts != NULL; opts = g_list_next (opts))
-    {
-      Options *_opts = (Options *) opts->data;
-      if (_opts->option == opt)
-	return _opts->val;
-    }
+	GList *opts = NULL;
+	for (opts = g_list_first (list); opts != NULL; opts = g_list_next (opts))
+	{
+		Options *_opts = (Options *) opts->data;
+		if (_opts->option == opt)
+			return _opts->val;
+	}
 
-  return NULL;
+	return NULL;
 }
 
 int
 GetCmd (int argc, char **argv)
 {
-  int ret = 0;
+	int ret = 0;
 
-  dbctl_keyword_t kw = parse_comm(argc, argv);
-  if (kw == ERROR_KWE)
-    return 1;
+	dbctl_keyword_t kw = parse_comm(argc, argv);
+	if (kw == ERROR_KWE)
+		return 1;
 
-  switch (kw)
-  {
-    case ERROR_KWE:
-    return 1;
-
-    case HELP_KWE:
-    case VERSION_KWE:
-    default:
-      GetOptList (argc, argv, &ret);
-    return ret;
-
-    case LVE_MODE_KWE:
-      {
-        GList *list = (GList *) GetOptList (argc, argv, &ret);
-        if (!setLveMode ((char *) GetVal (100, list)))
-	  return 2;
-      }
-    break;
-
-	case LVE_ACCURACY_KWE:
-      {
-        GList *list = (GList *) GetOptList (argc, argv, &ret);
-        if (!setLveAccuracy ((char *) GetVal (101, list)))
-	  return 2;
-      }
-    break;
-
-    case SET_KWE:
-      if (argc > 2)
+	switch (kw)
 	{
-	  char *_argv = argv[2];
-	  GList *list = (GList *) GetOptList (argc, argv, &ret);
+		case ERROR_KWE:
+			return 1;
 
-	  if (strcmp ("default", _argv) == 0)
-	    {
-	      if (!setDefault ((char *) GetVal ('c', list),
-		     (char *) GetVal ('r', list), (char *) GetVal ('w', list),
-		     (char *) GetVal ('s', list)))
-	        return 2;
-	    }
-	  else
-	    {
-	      if (!setUser (_argv, (char *) GetVal ('c', list),
-		     (char *) GetVal ('r', list), (char *) GetVal ('w', list),
-		     (char *) GetVal ('s', list)))
-	        return 2;
-	    }
+		case HELP_KWE:
+		case VERSION_KWE:
+		default:
+			GetOptList (argc, argv, &ret);
+			return ret;
+
+		case LVE_MODE_KWE:
+			{
+				GList *list = (GList *) GetOptList (argc, argv, &ret);
+				if (!setLveMode ((char *) GetVal (100, list)))
+					return 2;
+			}
+			break;
+
+		case LVE_ACCURACY_KWE:
+			{
+				GList *list = (GList *) GetOptList (argc, argv, &ret);
+				if (!setLveAccuracy ((char *) GetVal (101, list)))
+					return 2;
+			}
+			break;
+
+		case SET_KWE:
+			if (argc > 2)
+			{
+				char *_argv = argv[2];
+				GList *list = (GList *) GetOptList (argc, argv, &ret);
+
+				if (strcmp ("default", _argv) == 0)
+				{
+					if (!setDefault ((char *) GetVal ('c', list),
+						(char *) GetVal ('r', list), (char *) GetVal ('w', list),
+						(char *) GetVal ('s', list)))
+						return 2;
+				}
+				else
+				{
+					if (!setUser (_argv, (char *) GetVal ('c', list),
+						(char *) GetVal ('r', list), (char *) GetVal ('w', list),
+						(char *) GetVal ('s', list)))
+						return 2;
+				}
+			}
+			else
+				return 1;
+			break;
+
+		case RESTRICT_KWE:
+			if (argc > 2)
+			{
+				char *_argv = argv[2];
+				GList *list = (GList *) GetOptList (argc, argv, &ret);
+
+				if (!restrict_user (_argv, (char *) GetVal ('l', list)))
+					return 2;
+			}
+			else
+				return 1;
+			break;
+
+		case IGNORE_KWE:
+			if (argc > 2)
+			{
+				if (!ignoreUser (argv[2]))
+					return 2;
+			}
+			else
+				return 1;
+			break;
+
+		case MONITOR_KWE:
+			if (argc > 2)
+			{
+				if (!watchUser (argv[2]))
+					return 2;
+			}
+			else
+				return 1;
+			break;
+
+		case DELETE_KWE:
+			if (argc > 2)
+			{
+				if (!deleteUser (argv[2]))
+					return 2;
+			}
+			else
+				return 1;
+			break;
+
+		case UNRESTRICT_KWE:
+			if (argc > 2)
+			{
+				if (!unrestrict (argv[2]))
+					return 2;;
+			}
+			else
+				return 1;
+			break;
+
+		case LIST_KWE:
+		case LIST_RAW_KWE:
+			if (argc == 3)
+			{
+				if (!strcmp(argv[2], "--bb")) kb_flag = 2;
+				if (!strcmp(argv[2], "--kb")) kb_flag = 1;
+				if (!strcmp(argv[2], "--mb")) kb_flag = 3;
+			}
+			if (!list_all(kb_flag, 0, (kw==LIST_RAW_KWE)) != 0)
+				return 2;
+			break;
+
+		case LIST_JSON_KWE:
+			if (argc == 3)
+			{
+				if (!strcmp(argv[2], "--bb")) kb_flag = 2;
+				if (!strcmp(argv[2], "--kb")) kb_flag = 1;
+				if (!strcmp(argv[2], "--mb")) kb_flag = 3;
+			}
+			if (!list_all_json(kb_flag))
+				return 2;
+			break;
+
+		case LIST_RESTRICTED_KWE:
+			if (!list_restricted ())
+				return 2;
+			break;
+
+		case UNRESTRICT_ALL_KWE:
+			if (!unrestrict_all ())
+				return 2;
+			break;
+
+		case LIST_RESTRICTED_SHM_KWE:
+			list_restricted_shm ();
+			break;
+
+		case DBUPDATE_KWE:
+			if (!dbupdatecmd())
+				return 2;
+			break;
 	}
-      else
-	return 1;
-    break;
-
-    case RESTRICT_KWE:
-      if (argc > 2)
-	{
-	  char *_argv = argv[2];
-	  GList *list = (GList *) GetOptList (argc, argv, &ret);
-
-	  if (!restrict_user (_argv, (char *) GetVal ('l', list)))
-	    return 2;
-	}
-      else
-	return 1;
-    break;
-
-    case IGNORE_KWE:
-      if (argc > 2)
-	{
-	  if (!ignoreUser (argv[2]))
-	    return 2;
-	}
-      else
-	return 1;
-    break;
-
-    case MONITOR_KWE:
-      if (argc > 2)
-	{
-	  if (!watchUser (argv[2]))
-	    return 2;
-	}
-      else
-	return 1;
-    break;
-
-    case DELETE_KWE:
-      if (argc > 2)
-	{
-	  if (!deleteUser (argv[2]))
-	    return 2;
-	}
-      else
-	return 1;
-    break;
-
-    case UNRESTRICT_KWE:
-      if (argc > 2)
-	{
-	  if (!unrestrict (argv[2]))
-	    return 2;;
-	}
-      else
-	return 1;
-    break;
-
-    case LIST_KWE:
-    case LIST_RAW_KWE:
-      if (argc == 3)
-	{
-	  if (!strcmp(argv[2], "--bb")) kb_flag = 2;
-	  if (!strcmp(argv[2], "--kb")) kb_flag = 1;
-	  if (!strcmp(argv[2], "--mb")) kb_flag = 3;
-	}
-      if (!list_all(kb_flag, 0, (kw==LIST_RAW_KWE)) != 0)
-	return 2;
-    break;
-
-    case LIST_JSON_KWE:
-      if (argc == 3)
-	{
-	  if (!strcmp(argv[2], "--bb")) kb_flag = 2;
-	  if (!strcmp(argv[2], "--kb")) kb_flag = 1;
-	  if (!strcmp(argv[2], "--mb")) kb_flag = 3;
-	}
-      if (!list_all_json(kb_flag) != 0)
-	return 2;
-    break;
-
-    case LIST_RESTRICTED_KWE:
-      if (!list_restricted ())
-	return 2;
-    break;
-
-    case UNRESTRICT_ALL_KWE:
-      if (!unrestrict_all ())
-	return 2;
-    break;
-
-    case LIST_RESTRICTED_SHM_KWE:
-      list_restricted_shm ();
-    break;
-
-    case DBUPDATE_KWE:
-      if (!dbupdatecmd())
-	return 2;
-    break;
-
-  }
-  return 0;
+	return 0;
 }
 
 int
 main (int argc, char **argv)
 {
-  int ret = 1;
+	int ret = 1;
 
-  if (argc < 2 || (ret = GetCmd(argc, argv)) == 1)
-    usage ();
+	if (argc < 2 || (ret = GetCmd(argc, argv)) == 1)
+		usage ();
 
-  return ret;
+	return ret;
 }
 
 

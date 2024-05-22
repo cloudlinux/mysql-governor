@@ -31,95 +31,94 @@
 int
 main (int argc, char *argv[])
 {
-  int cmd = 0;
-  struct governor_config data_cfg;
+	int cmd = 0;
+	struct governor_config data_cfg;
 
-  if (!config_init (CONFIG_PATH))
-    {
-      fprintf (stderr, "Unable to read config file: %s\n", CONFIG_PATH);
-      fflush (stderr);
-      exit (EXIT_FAILURE);
-    }
+	if (!config_init (CONFIG_PATH))
+	{
+		fprintf (stderr, "Unable to read config file: %s\n", CONFIG_PATH);
+		fflush (stderr);
+		exit (EXIT_FAILURE);
+	}
 
-  get_config_data (&data_cfg);
+	get_config_data (&data_cfg);
 
-  if (argc > 1)
-    {
-      if (!strcasecmp (argv[1], "force-old"))
+	if (argc > 1)
 	{
-	  cmd = 1;
+		if (!strcasecmp (argv[1], "force-old"))
+		{
+			cmd = 1;
+		}
+		if (!strcasecmp (argv[1], "show-bad-users-list"))
+		{
+			cmd = 2;
+		}
+		if (!strcasecmp (argv[1], "help"))
+		{
+			cmd = 3;
+		}
 	}
-      if (!strcasecmp (argv[1], "show-bad-users-list"))
+	if (cmd == 3)
 	{
-	  cmd = 2;
+		printf ("Usage: /usr/sbin/mysql_unfreeze [comand]\n");
+		printf ("Commands list:\n");
+		printf
+		("     empty command        :unfreeze users according to configuration file options\n");
+		printf
+		("     force-old            :unfreeze users by DBDISABLE method (for old restriction removing)\n");
+		printf
+		("     show-bad-users-list  :show bad users list (if lve using)\n");
+		return 0;
 	}
-      if (!strcasecmp (argv[1], "help"))
+	if (!config_init (CONFIG_PATH))
 	{
-	  cmd = 3;
+		fprintf (stderr, "Unable to read config file. Unfreeze aborted\n");
+		fflush (stderr);
+		exit (-1);
 	}
-    }
-  if (cmd == 3)
-    {
-      printf ("Usage: /usr/sbin/mysql_unfreeze [comand]\n");
-      printf ("Commands list:\n");
-      printf
-	("     empty command        :unfreeze users according to configuration file options\n");
-      printf
-	("     force-old            :unfreeze users by DBDISABLE method (for old restriction removing)\n");
-      printf
-	("     show-bad-users-list  :show bad users list (if lve using)\n");
-      return 0;
-    }
-  if (!config_init (CONFIG_PATH))
-    {
-      fprintf (stderr, "Unable to read config file. Unfreeze aborted\n");
-      fflush (stderr);
-      exit (-1);
-    }
-  open_log (data_cfg.log);
-  init_mysql_function ();
-  if (!data_cfg.is_gpl && data_cfg.use_lve && (cmd != 1))
-    {
-      if (cmd == 0)
+	open_log (data_cfg.log);
+	init_mysql_function ();
+	if (!data_cfg.is_gpl && data_cfg.use_lve && (cmd != 1))
 	{
-	  if (db_connect (data_cfg.host, data_cfg.db_login,
-			  data_cfg.db_password, "information_schema", argc,
-			  argv, data_cfg.log_mode) < 0)
-	    exit (-1);
-	  //unfreaze_lve (data_cfg.log_mode);
-	  if (init_bad_users_list_utility () >= 0)
-	    {
-	      WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
-	      remove_bad_users_list_utility ();
-	    }
-	  else
-	    {
-	      WRITE_LOG (NULL, 0, "Can't init BAD users list", data_cfg.log_mode);
-	    }
-	  db_close ();
+		if (cmd == 0)
+		{
+			if (db_connect (data_cfg.host, data_cfg.db_login,
+					data_cfg.db_password, "information_schema", argc,
+					argv, data_cfg.log_mode) < 0)
+				exit (-1);
+			//unfreeze_lve (data_cfg.log_mode);
+			if (init_bad_users_list_utility () >= 0)
+			{
+				WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
+				remove_bad_users_list_utility ();
+			}
+			else
+			{
+				WRITE_LOG (NULL, 0, "Can't init BAD users list", data_cfg.log_mode);
+			}
+			db_close ();
+		}
+		else
+		{
+			user_in_bad_list_client_show ();
+		}
 	}
-      else
+	else
 	{
-	  user_in_bad_list_cleint_show ();
+		if (!data_cfg.is_gpl)
+		{
+			if (db_connect (data_cfg.host, data_cfg.db_login,
+					data_cfg.db_password, "information_schema", argc,
+					argv, data_cfg.log_mode) < 0)
+				exit (-1);
+			//unfreeze_all(data_cfg.log_mode);
+			//unfreeze_lve (data_cfg.log_mode);
+			WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
+			db_close ();
+		}
 	}
-    }
-  else
-    {
-      if (!data_cfg.is_gpl)
-	{
-	  if (db_connect (data_cfg.host, data_cfg.db_login,
-			  data_cfg.db_password, "information_schema", argc,
-			  argv, data_cfg.log_mode) < 0)
-	    exit (-1);
-	  //unfreaze_all(data_cfg.log_mode);
-	  //unfreaze_lve (data_cfg.log_mode);
-	  WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
-	  db_close ();
-	}
-    }
-  delete_mysql_function ();
-  return 0;
-
+	delete_mysql_function ();
+	return 0;
 }
 
 #endif

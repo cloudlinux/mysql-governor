@@ -12,7 +12,7 @@
 
 typedef struct split_str
 {
-  char *str;
+	char *str;
 } SplitStr;
 
 
@@ -24,7 +24,7 @@ int watchUser (char *user);
 int setLveMode (char *mode);
 int setLveAccuracy (char *mode);
 
-int split (SplitStr ** s_s, char *str, char t);
+int split (SplitStr ** s_s, const char *str, char t);
 void release_split (SplitStr * data, int cnt);
 
 #endif /* __DBCTL_SET__ */

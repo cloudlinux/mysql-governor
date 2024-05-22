@@ -15,9 +15,9 @@
 
 struct fifo_stats
 {
-  Stats **ar;
-  int size;
-  int first;
+	Stats **ar;
+	int size;
+	int first;
 };
 
 struct fifo_stats *fifo_stats_init (int size);

@@ -15,11 +15,11 @@
 
 #include "stats.h"
 
-void clac_stats_difference (client_data * new, tid_table * old, Stats * st);
-void clac_stats_difference_inner (long long cpu, long long read,
-				  long long write, tid_table * old,
-				  Stats * st);
-void proceed_accounts (double tm);
+void calc_stats_difference (client_data * new, tid_table * old, Stats * st);
+void calc_stats_difference_inner (long long cpu, long long read,
+					long long write, tid_table * old,
+					Stats * st);
+void process_accounts (double tm);
 Stats *add_new_stats (username_t username, Stats * st, long long tick_id);
 void add_empty_stats_for_uid (username_t username);
 void free_accounts_and_users (void);
@@ -29,15 +29,15 @@ void lock_acc (void);
 void unlock_acc (void);
 void *get_accounts (void);
 
-void clac_stats_difference_inner_from_counter (long long cpu, long long read,
-					       long long write, double tm_in,
-					       Stats * st, double new_tm);
-void clac_stats_difference_add_to_counters (client_data * new,
-					    tid_table * old);
-void clac_stats_difference_inner_add_to_counters (double cpu,
-						  long long read,
-						  long long write,
-						  tid_table * old);
+void calc_stats_difference_inner_from_counter (long long cpu, long long read,
+					long long write, double tm_in,
+					Stats * st, double new_tm);
+void calc_stats_difference_add_to_counters (client_data * new,
+					tid_table * old);
+void calc_stats_difference_inner_add_to_counters (double cpu,
+					long long read,
+					long long write,
+					tid_table * old);
 int is_user_ignored (char *user_name);
 double calc_cpu_from_rusage(tid_table * item);
 

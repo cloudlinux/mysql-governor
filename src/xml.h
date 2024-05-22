@@ -12,7 +12,8 @@
 
 #define MAX_XML_PATH 4096
 
-typedef struct __xml_data {
+typedef struct __xml_data
+{
 	void *doc;
 	void *root;
 	char path[MAX_XML_PATH];
