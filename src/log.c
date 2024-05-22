@@ -185,7 +185,7 @@ static int write_log_impl(FILE *f, const char *tags, bool error, const char *src
 	int rc = 0;
 	#define INC_P \
 		do {\
-			if (rc < 0 || rc >= pSz)\
+			if (rc < 0 || rc >= (int)pSz)\
 				return EIO;\
 			p += rc;\
 			pSz -= rc;\
@@ -236,7 +236,7 @@ static int write_log_impl(FILE *f, const char *tags, bool error, const char *src
 			rc = snprintf(p, pSz, ", ");
 			INC_P;
 		}
-		rc = snprintf(p, pSz, "cpu = %f, read = %ld, write = %ld", limits->cpu, limits->read, limits->write);
+		rc = snprintf(p, pSz, "cpu = %f, read = %lld, write = %lld", limits->cpu, limits->read, limits->write);
 		INC_P;
 	}
 
@@ -291,7 +291,7 @@ static const char *get_tag_name(unsigned tag)
 {
 	int i;
 	for (i=0; i < EXTLOG_TAG_BITS; i++)
-		if (tag == (1 << i))
+		if (tag == (1u << i))
 			return tag_names[i];
 	return NULL;
 }
@@ -307,16 +307,20 @@ static void concat_tag_names(unsigned tags, const char *delim, int lowerCase, ch
 		unsigned tag = 1 << i;
 		if (tags & tag)
 		{
-			if (p > dst)	// before any tag except first, add delimiter
-			{
-				memcpy(p, delim, delimLen);
-				p += delimLen;
-			}
 			const char *s_tag = get_tag_name(tag);
 			if (!s_tag)
 				s_tag = "unknown";
 			size_t len = strlen(s_tag);
+			if (delimLen+len+1 > dstSz)
+				return;
+			if (p > dst)	// before any tag except first, add delimiter
+			{
+				memcpy(p, delim, delimLen);
+				p += delimLen;
+				dstSz -= delimLen;
+			}
 			memcpy(p, s_tag, len + 1);
+			dstSz -= len + 1;
 			if (lowerCase)
 			{
 				char *pp;
