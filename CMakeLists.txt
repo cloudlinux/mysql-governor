@@ -19,7 +19,6 @@ INCLUDE_DIRECTORIES(${LIBXML2_INCLUDE_DIR})
 #LINK_LIBRARIES(${GLIB2_LIBRARIES} ${MYSQL_CLIENT_LIBS})
 #INCLUDE_DIRECTORIES(${GLIB2_INCLUDE_DIRS})
 SET(LIBS ${GLIB2_LIBRARIES} ${LIBXML2_LIBRARIES} pthread m rt dl ncurses)
-# TODO: Add cl-sentry and sentry to the list of libraries when sentry-native package will be available for all platforms
 
 IF (${SYSTEMD_FLAG})
 	add_definitions(-DSYSTEMD_FLAG=1)
@@ -125,7 +124,6 @@ TARGET_LINK_LIBRARIES(dbctl ${LIBS})
 ADD_LIBRARY(governor SHARED ${governor_lib_src})
 TARGET_COMPILE_DEFINITIONS(governor PRIVATE LIBGOVERNOR=1)
 TARGET_LINK_LIBRARIES(governor pthread rt dl -Wl,-init,init_libgovernor -Wl,-fini,fini_libgovernor)
-# TODO: Add cl-sentry and sentry to the list of libraries when sentry-native package will be available for all platforms
 
 INSTALL(TARGETS db_governor dbtop mysql_unfreeze dbctl
   DESTINATION bin

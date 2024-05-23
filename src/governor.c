@@ -22,7 +22,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-//#include <cl-sentry.h> // S.K. >> Will be uncommented after Sentry native release for all platforms
 
 #include "data.h"
 #include "dbgovernor_string_functions.h"
@@ -53,9 +52,6 @@
 #define MACRO_CHECK_ZERO_SHORT(x)	if (!st->x._short)		LOG(L_ERR, "short default " # x "  = 0")
 #define MACRO_CHECK_ZERO_MID(x)		if (!st->x._mid)		LOG(L_ERR, "mid default " # x "  = 0")
 #define MACRO_CHECK_ZERO_LONG(x)	if (!st->x._long)		LOG(L_ERR, "long default " # x "  = 0")
-
-#define CL_PYTHON_INTERPRETER   "/opt/cloudlinux/venv/bin/python3"
-#define CL_SENTRY_DAEMON        "/usr/share/lve/dbgovernor/scripts/sentry_daemon.py"
 
 /* Lock a file region (private; public interfaces below) */
 
@@ -458,85 +454,6 @@ fail:
 	LOG(L_LIFE, "make sure that '%s' file exists and has proper ownership (mysql.mysql) and permissions (0%o)", path, (unsigned)required_mode);
 }
 
-static void governor_init_sentry(struct governor_config *cfg)
-{
-	// Init Sentry logging
-	if (cfg->sentry_mode == SENTRY_MODE_NATIVE)
-	{
-		/*
-		// S.K. >> Will be uncommented after Sentry native release for all platforms
-		if (cfg->sentry_dsn && cfg->sentry_dsn[0] != '\0')
-		{
-			if (!cl_sentry_init(cfg->sentry_dsn, CL_SENTRY_DEBUG_INTERNALS, GOVERNOR_CUR_VER, NULL, 0))
-			{
-				fprintf(stderr, "Can't init Sentry\n");
-				fflush(stderr);
-				config_free();
-				exit(EXIT_FAILURE);
-			}
-
-			// Set custom logging tag in order to distinguish logs from different sources
-			cl_sentry_set_custom_global_tag("log-source", "sentry-native");
-		}
-		*/
-	}
-	else if (cfg->sentry_mode == SENTRY_MODE_EXTERNAL)
-	{
-		// Init external Sentry logging
-		pid_t pid;
-		if ((pid = fork()) < 0)
-		{
-			fprintf(stderr, "Failed to fork process for external Sentry daemon\n");
-			fflush(stderr);
-			config_free();
-			exit(EXIT_FAILURE);
-		}
-		else if (pid == 0)
-		{
-			// daemonize child process
-			setsid();
-			setpgid(0, 0);
-
-			char *const argv[] = {(char *)CL_PYTHON_INTERPRETER, (char *)CL_SENTRY_DAEMON, NULL};
-			char *const envp[] = {NULL};
-
-			execve(CL_PYTHON_INTERPRETER, argv, envp);
-			_exit(-1);
-		}
-
-		config_set_sentry_pid(pid);
-	}
-}
-
-static void governor_destroy_sentry()
-{
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
-
-	if (data_cfg.sentry_mode == SENTRY_MODE_NATIVE)
-	{
-		/*
-		// S.K. >> Will be uncommented after Sentry native release for all platforms
-		if (data_cfg.sentry_dsn)
-		{
-			// Deinit Sentry logging
-			cl_sentry_deinit();
-		}
-		*/
-	}
-	else if (data_cfg.sentry_mode == SENTRY_MODE_EXTERNAL)
-	{
-		if (data_cfg.sentry_pid > 0 && kill(data_cfg.sentry_pid, 0) == 0)
-		{
-			// Terminate external Sentry daemon
-			kill(data_cfg.sentry_pid, SIGTERM);
-		}
-	}
-
-	// Reset Sentry related config to avoid dangling pinters
-	config_reset_sentry();
-}
-
 void initGovernor(void)
 {
 	// init global structures
@@ -559,15 +476,11 @@ void initGovernor(void)
 	struct governor_config data_cfg;
 	get_config_data(&data_cfg);
 
-	// Init Sentry logging
-	governor_init_sentry(&data_cfg);
-
 	// Open error log
 	if (open_log(data_cfg.log))
 	{
 		fprintf(stderr, "Can't open log file\n");
 		fflush(stderr);
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -671,7 +584,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(0);
 	}
@@ -702,7 +614,6 @@ int main(int argc, char *argv[])
 		close_log ();
 		close_restrict_log ();
 		close_slow_queries_log ();
-		governor_destroy_sentry();
 		config_free ();
 		fprintf (stderr, "Child chdir error\n");
 		fflush (stderr);
@@ -717,7 +628,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -740,7 +650,6 @@ int main(int argc, char *argv[])
 				close_log();
 				close_restrict_log();
 				close_slow_queries_log();
-				governor_destroy_sentry();
 				config_free();
 				remove("/usr/share/lve/dbgovernor/governor_connected");
 				exit(EXIT_FAILURE);
@@ -767,7 +676,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		remove("/usr/share/lve/dbgovernor/cll_lve_installed");
 		exit(EXIT_FAILURE);
@@ -800,7 +708,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -841,7 +748,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -863,7 +769,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -886,7 +791,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -910,7 +814,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -935,7 +838,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -963,7 +865,6 @@ int main(int argc, char *argv[])
 			close_log();
 			close_restrict_log();
 			close_slow_queries_log();
-			governor_destroy_sentry();
 			config_free();
 			exit(EXIT_FAILURE);
 		}
@@ -995,7 +896,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -1036,7 +936,6 @@ int main(int argc, char *argv[])
 	close_log();
 	close_restrict_log();
 	close_slow_queries_log();
-	governor_destroy_sentry();
 	config_free();
 
 	return 0;

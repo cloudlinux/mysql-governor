@@ -1,0 +1,16 @@
+[Unit]
+Description=Governor Sentry Daemon Service
+After=network.target
+PartOf=db_governor.service
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=3
+TimeoutSec=10s
+LimitNOFILE=65535
+
+ExecStart=/opt/cloudlinux/venv/bin/python3 /usr/share/lve/dbgovernor/scripts/sentry_daemon.py
+
+[Install]
+WantedBy=multi-user.target

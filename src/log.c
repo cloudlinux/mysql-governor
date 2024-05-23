@@ -27,8 +27,6 @@
 #include "governor_config.h"
 #include "log.h"
 
-#define SENTRY_LOG_TAG "governor"
-
 #ifndef GOVERNOR_SENTRY_TIMEOUT
 #define GOVERNOR_SENTRY_TIMEOUT 5
 #endif
@@ -37,12 +35,19 @@
 #define GOVERNOR_SENTRY_MESSAGE_MAX 1024
 #endif
 
+#define SENTRY_DISABLED_FLAG "/usr/share/lve/dbgovernor/sentry-disabled.flag"
+#define SENTRY_DAEMON_SOCK "/var/run/db-governor-sentry.sock"
+#define SENTRY_DAEMON_SOCK_LEN 32
+
 // All the functions return 0 on success and errno otherwise
 
-static int
-external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, const char* socket_path)
+int
+sentry_log(cl_sentry_level_t level, const char* message, size_t len)
 {
-	if (message == NULL || socket_path == NULL) return -1;
+	if (message == NULL || message[0] == '\0') return -1;
+	else if (!access(SENTRY_DISABLED_FLAG, F_OK)) return 0;
+	else if (access(SENTRY_DAEMON_SOCK, F_OK) == -1) return -1;
+
 	size_t message_len = len ? len : strnlen(message, GOVERNOR_SENTRY_MESSAGE_MAX);
 	if (!message_len) return -1;
 
@@ -64,8 +69,10 @@ external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, co
 	memset(&server_address, 0, sizeof(server_address));
 	server_address.sun_family = AF_UNIX;
 
-	strncpy(server_address.sun_path, socket_path, sizeof(server_address.sun_path) - 1);
-	server_address.sun_path[sizeof(server_address.sun_path) - 1] = '\0';
+	int bytes = snprintf(server_address.sun_path,
+			sizeof(server_address.sun_path), "%.*s",
+			SENTRY_DAEMON_SOCK_LEN, SENTRY_DAEMON_SOCK);
+	if (bytes <= 0) return -1;
 
 	if (connect(sock, (struct sockaddr*)&server_address, sizeof(server_address)) < 0)
 	{
@@ -73,7 +80,7 @@ external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, co
 		return -1;
 	}
 
-	const char *level_prefix = level == CL_SENTRY_ERROR ? "ERROR:" : "INFO:";
+	const char *level_prefix = level == CL_SENTRY_ERROR ? "ERROR:" : "DEBUG:";
 	size_t message_size = message_len + strlen(level_prefix) + 1;
 	char *message_with_level = malloc(message_size);
 
@@ -84,37 +91,14 @@ external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, co
 		return -1;
 	}
 
-	int bytes = snprintf(message_with_level, message_size, "%s%s", level_prefix, message);
+	bytes = snprintf(message_with_level, message_size, "%s%s", level_prefix, message);
 	if (bytes > 0) bytes = send(sock, message_with_level, bytes, 0);
 
+	free(message_with_level);
 	shutdown(sock, SHUT_RDWR);
 	close(sock);
 
 	return bytes;
-}
-
-void
-sentry_log(cl_sentry_level_t level, const char *message, size_t len)
-{
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
-
-	if (data_cfg.sentry_mode == SENTRY_MODE_NATIVE)
-	{
-		/*
-		// S.K. >> Will be uncommented after Sentry native release for all platforms
-		sentry_level_t log_level = (level == CL_SENTRY_ERROR) ?
-						SENTRY_LEVEL_ERROR : SENTRY_LEVEL_INFO;
-
-		if (data_cfg.sentry_dsn != NULL) // Chech if DSN is set
-			cl_sentry_message(log_level, SENTRY_LOG_TAG, message);
-		*/
-	}
-	else if (data_cfg.sentry_mode == SENTRY_MODE_EXTERNAL)
-	{
-		if (data_cfg.sentry_sock != NULL) // Chech if daemon socket is set
-			external_sentry_log(level, message, len, data_cfg.sentry_sock);
-	}
 }
 
 static FILE *log = NULL, *restrict_log = NULL, *slow_queries_log = NULL;

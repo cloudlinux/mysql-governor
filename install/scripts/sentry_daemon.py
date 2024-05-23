@@ -128,6 +128,8 @@ class SentryDaemon:
             logging.error(message[6:].strip())
         elif message.startswith("INFO:"):
             logging.info(message[5:].strip())
+        elif message.startswith("DEBUG:"):
+            logging.debug(message[6:].strip())
         else: # Default log level (ERROR)
             logging.error(message)
 

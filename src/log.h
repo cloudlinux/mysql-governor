@@ -12,7 +12,6 @@
 
 #include "data.h"
 #include <stdio.h>
-//#include <cl-sentry.h> // S.K. >> Will be uncommented after Sentry native release for all platforms
 
 // All the functions return 0 on success and errno otherwise
 
@@ -75,7 +74,7 @@ extern unsigned log_enabled_tags;
 extern unsigned log_verbosity_level;
 
 typedef enum {
-	CL_SENTRY_INFO,
+	CL_SENTRY_DEBUG,
 	CL_SENTRY_ERROR
 } cl_sentry_level_t;
 
@@ -92,6 +91,6 @@ int write_log_ex(unsigned tags, unsigned level, const char *src_file, int src_li
 	while (0)
 
 // Sentry logging
-void sentry_log(cl_sentry_level_t level, const char *message, size_t len);
+int sentry_log(cl_sentry_level_t level, const char *message, size_t len);
 
 #endif

@@ -1,6 +1,7 @@
 [Unit]
 Description=MySQL watcher service
-After=syslog.target network.target mysql.service mysqld.service mariadb.service
+Requires=governor_sentry_daemon.service
+After=governor_sentry_daemon.service syslog.target network.target mysql.service mysqld.service mariadb.service
 
 [Service]
 Environment="G_SLICE=always-malloc" "HOME=/root"
