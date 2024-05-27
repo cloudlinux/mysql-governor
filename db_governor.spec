@@ -514,6 +514,7 @@ fi
 - CLOS-2593, CLOS-2613: Added extended logging
 - CLOS-2385: Added watchdog monitoring utility to governor package
 - CLOS-2386: Implemented external Sentry logging mechanism
+- CLOS-2594, CLOS-2641: Implemented logging from MySQL and uniform logging
 
 * Tue Apr 30 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-110
 - CLOS-2322: Fixed issue with not applying limits after Governor service restart
