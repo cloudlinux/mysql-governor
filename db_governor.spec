@@ -29,7 +29,6 @@ Requires: wget
 Requires: libxml2
 Requires: alt-python27-cllib >= 3.3.3-1
 Requires: cloudlinux-venv
-# Requires: sentry-native
 Requires(preun): /sbin/chkconfig
 BuildRequires: cmake
 BuildRequires: ncurses-devel
@@ -41,7 +40,6 @@ BuildRequires: pcre-devel
 BuildRequires: patch
 BuildRequires: alt-python27-cllib >= 3.3.3-1
 BuildRequires: cloudlinux-venv
-# BuildRequires: sentry-native-devel
 %if 0%{?fedora} >= 15 || 0%{?rhel} >= 7
 BuildRequires: systemd
 BuildRequires: systemd-devel
@@ -145,6 +143,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/history
 # install systemd unit files and scripts for handling server startup
 mkdir -p ${RPM_BUILD_ROOT}%{_unitdir}
 install -m 644 db_governor.service ${RPM_BUILD_ROOT}%{_unitdir}/
+install -m 644 governor_sentry_daemon.service ${RPM_BUILD_ROOT}%{_unitdir}/
 install -m 644 var-lve-dbgovernor\\x2dshm.mount ${RPM_BUILD_ROOT}%{_unitdir}/
 %else
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
@@ -317,6 +316,7 @@ fi
 if [ $1 = 1 ]; then
     # Ensure autostart for db_governor service (on install, not upgrade)
     systemctl enable db_governor >/dev/null 2>&1 || :
+    systemctl enable governor_sentry_daemon >/dev/null 2>&1 || :
 fi
 %else
 if [ $1 = 1 ]; then
@@ -389,6 +389,7 @@ fi
 if [ $1 -eq 0 ]; then
     # Package removal, not upgrade
     systemctl --no-reload disable db_governor.service >/dev/null 2>&1 || :
+    systemctl --no-reload disable governor_sentry_daemon.service >/dev/null 2>&1 || :
     systemctl stop db_governor.service >/dev/null 2>&1 || :
 fi
 %else
@@ -493,6 +494,7 @@ fi
 %config(noreplace) %{_sysconfdir}/container/governor_package_limit.json
 %if 0%{?fedora} >= 15 || 0%{?rhel} >= 7
 %{_unitdir}/db_governor.service
+%{_unitdir}/governor_sentry_daemon.service
 %{_unitdir}/var-lve-dbgovernor\x2dshm.mount
 %else
 %{_sysconfdir}/rc.d/init.d/*
@@ -511,7 +513,7 @@ fi
 - CLOS-2645: Corrected MariaDB version detection logic for DA config
 - CLOS-2593, CLOS-2613: Added extended logging
 - CLOS-2385: Added watchdog monitoring utility to governor package
-- CLOS-2386: Implemented Sentry logging mechanism with switchable approach)
+- CLOS-2386: Implemented external Sentry logging mechanism
 
 * Tue Apr 30 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-110
 - CLOS-2322: Fixed issue with not applying limits after Governor service restart

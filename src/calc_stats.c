@@ -167,46 +167,33 @@ tick_empty_users (gpointer key, User_stats * us, void *data)
 void
 calc_acc_stats (gpointer key, Account * ac, gpointer data)
 {
-	int i = 1;
-	User_stats *us = (User_stats *) g_ptr_array_index (ac->users, 0);
-
 	send_to_glib_info *internal_info = (send_to_glib_info *) data;
 
-	Stats *ptr = fifo_stats_get (us->stats, 0);
-	ac->current = *fifo_stats_get (us->stats, 0);
+	int i = 0;
+	const User_stats *us = (const User_stats *) g_ptr_array_index (ac->users, i++);
+	const Stats *ptr = fifo_stats_get(us->stats, 0);
+
+	ac->current = *ptr;
 	ac->short_average = us->short_average;
 	ac->mid_average = us->mid_average;
 	ac->long_average = us->long_average;
-	while (i < ac->users->len)
-	{
-		us = (User_stats *) g_ptr_array_index (ac->users, i++);
-		if (ac->need_dbg)
-		{
-			WRITE_LOG (NULL,
-				1,
-				" step 2-%d: process user stats %s, c %f, r %llu, w %llu",
-				internal_info->log_mode,
-				i, us->id ? us->id : "Unk", fifo_stats_get (us->stats,
-									0)->cpu,
-				fifo_stats_get (us->stats, 0)->read,
-				fifo_stats_get (us->stats, 0)->write);
-		}
 
-		sum_stats (&ac->current, fifo_stats_get (us->stats, 0));
+	for (; i < ac->users->len; i++)
+	{
+		us = (const User_stats *) g_ptr_array_index (ac->users, i);
+		ptr = fifo_stats_get(us->stats, 0);
+
+		if (ac->need_dbg)
+			LOG_RESTRICT("step 2-%d: process user stats %s, c %f, r %llu, w %llu", i, us->id ? us->id : "Unk", ptr->cpu, ptr->read, ptr->write);
+
+		sum_stats (&ac->current, ptr);
 		sum_stats (&ac->short_average, &us->short_average);
 		sum_stats (&ac->mid_average, &us->mid_average);
 		sum_stats (&ac->long_average, &us->long_average);
-		ptr = fifo_stats_get (us->stats, 0);
 	}
 
 	if (ac->need_dbg)
-	{
-		WRITE_LOG (NULL,
-			1,
-			" step 3: summary, c %f, r %llu, w %llu",
-			internal_info->log_mode,
-			ac->current.cpu, ac->current.read, ac->current.write);
-	}
+		LOG_RESTRICT("step 3: summary, c %f, r %llu, w %llu", ac->current.cpu, ac->current.read, ac->current.write);
 }
 
 is_stat_overlimit (current);
@@ -296,6 +283,7 @@ check_restrict (Account * ac)
 	time (&now);
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
+	char tmp_buf[_DBGOVERNOR_BUFFER_8192];
 
 	if (_cur != NORESTRICT_PARAM2)
 	{
@@ -317,20 +305,12 @@ check_restrict (Account * ac)
 		ac->info.field_level_restrict = _cur;
 		if (!old_restricted)
 			account_restrict (ac, sl);
-		if (data_cfg.restrict_log)
-		{
-			char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-			prepareRestrictDescription (tmp_buf, ac, sl);
-			WRITE_LOG (&ac->current,
-				1,
-				tmp_buf, data_cfg.log_mode);
-		}
+		LOG_RESTRICT_LIMITS(&ac->current, "%s", prepareRestrictDescription(tmp_buf, ac, sl));
 		return 1;
 	}
 	else
 	{
-		GOVERNORS_FIELD_NAME _short =
-		is_stat_overlimit_short (&ac->short_average, sl);
+		GOVERNORS_FIELD_NAME _short = is_stat_overlimit_short (&ac->short_average, sl);
 		if (_short != NORESTRICT_PARAM2)
 		{
 		//Short restrict
@@ -351,14 +331,7 @@ check_restrict (Account * ac)
 			ac->info.field_level_restrict = _short;
 			if (!old_restricted)
 				account_restrict (ac, sl);
-			if (data_cfg.restrict_log)
-			{
-				char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-				prepareRestrictDescription (tmp_buf, ac, sl);
-				WRITE_LOG (&ac->short_average,
-					1,
-					tmp_buf, data_cfg.log_mode);
-			}
+			LOG_RESTRICT_LIMITS(&ac->short_average, "%s", prepareRestrictDescription(tmp_buf, ac, sl));
 			return 1;
 		}
 		else
@@ -385,14 +358,7 @@ check_restrict (Account * ac)
 				ac->info.field_level_restrict = _mid;
 				if (!old_restricted)
 					account_restrict (ac, sl);
-				if (data_cfg.restrict_log)
-				{
-					char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-					prepareRestrictDescription (tmp_buf, ac, sl);
-					WRITE_LOG (&ac->mid_average,
-						1,
-						tmp_buf, data_cfg.log_mode);
-				}
+				LOG_RESTRICT_LIMITS(&ac->mid_average, "%s", prepareRestrictDescription(tmp_buf, ac, sl));
 				return 1;
 			}
 			else
@@ -420,15 +386,7 @@ check_restrict (Account * ac)
 					ac->info.field_level_restrict = _long;
 					if (!old_restricted)
 						account_restrict (ac, sl);
-					if (data_cfg.restrict_log)
-					{
-						char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-						prepareRestrictDescription (tmp_buf, ac, sl);
-
-						WRITE_LOG (&ac->long_average,
-							1,
-							tmp_buf, data_cfg.log_mode);
-					}
+					LOG_RESTRICT_LIMITS(&ac->long_average, "%s", prepareRestrictDescription(tmp_buf, ac, sl));
 					return 1;
 				}
 			}
@@ -462,23 +420,19 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = CURRENT_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(cur): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+		LOG(L_MON|L_FRZ, "(cur): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
 			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(cur): Before account_restrict()");
+			LOG(L_MON|L_FRZ, "(cur): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(cur): account_restrict() OMITTED due to old_restricted");
+			LOG(L_MON|L_FRZ, "(cur): account_restrict() OMITTED due to old_restricted");
 		}
-		if (data_cfg.restrict_log)
-		{
-			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-			WRITE_LOG (&ac->current, 1, tmp_buf, data_cfg.log_mode);
-		}
+		LOG_RESTRICT_LIMITS(&ac->current, "%s", prepareRestrictDescriptionLimit(tmp_buf, ac, sl));
 		return 1;
 	}
 
@@ -497,23 +451,19 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = SHORT_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(short): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+		LOG(L_MON|L_FRZ, "(short): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
 			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(short): Before account_restrict()");
+			LOG(L_MON|L_FRZ, "(short): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(short): account_restrict() OMITTED due to old_restricted");
+			LOG(L_MON|L_FRZ, "(short): account_restrict() OMITTED due to old_restricted");
 		}
-		if (data_cfg.restrict_log)
-		{
-			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-			WRITE_LOG (&ac->short_average, 1, tmp_buf, data_cfg.log_mode);
-		}
+		LOG_RESTRICT_LIMITS(&ac->short_average, "%s", prepareRestrictDescriptionLimit(tmp_buf, ac, sl));
 		return 1;
 	}
 
@@ -532,23 +482,19 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = MID_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(mid): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+		LOG(L_MON|L_FRZ, "(mid): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
 			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(mid): Before account_restrict()");
+			LOG(L_MON|L_FRZ, "(mid): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(mid): account_restrict() OMITTED due to old_restricted");
+			LOG(L_MON|L_FRZ, "(mid): account_restrict() OMITTED due to old_restricted");
 		}
-		if (data_cfg.restrict_log)
-		{
-			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-			WRITE_LOG (&ac->mid_average, 1, tmp_buf, data_cfg.log_mode);
-		}
+		LOG_RESTRICT_LIMITS(&ac->mid_average, "%s", prepareRestrictDescriptionLimit(tmp_buf, ac, sl));
 		return 1;
 	}
 
@@ -567,23 +513,19 @@ check_restrict_limit (Account * ac)
 		time (&ac->start_count);
 		ac->info.field_restrict = LONG_PERIOD;
 		ac->info.field_level_restrict = ol_field;
-		EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(long): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
+		LOG(L_MON|L_FRZ, "(long): overlimited_field %d; restricted(old:%d; new:%d; period:%d; level:%d), stat_count:%ld",
 			(int)ol_field, old_restricted, ac->restricted, restrict_period,
 			ac->info.field_restrict, (long)ac->start_count);
 		if (!old_restricted)
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(long): Before account_restrict()");
+			LOG(L_MON|L_FRZ, "(long): Before account_restrict()");
 			account_restrict (ac, sl);
 		}
 		else
 		{
-			EXTLOG(EL_MONITOR|EL_FREEZE, 1, "(long): account_restrict() OMITTED due to old_restricted");
+			LOG(L_MON|L_FRZ, "(long): account_restrict() OMITTED due to old_restricted");
 		}
-		if (data_cfg.restrict_log)
-		{
-			prepareRestrictDescriptionLimit (tmp_buf, ac, sl);
-			WRITE_LOG (&ac->long_average, 1, tmp_buf, data_cfg.log_mode);
-		}
+		LOG_RESTRICT_LIMITS(&ac->long_average, "%s", prepareRestrictDescriptionLimit(tmp_buf, ac, sl));
 		return 1;
 	}
 
@@ -632,13 +574,7 @@ account_analyze_limit (gpointer * key, Account * ac, void *data)
 				ac->info.field_level_restrict = NORESTRICT_PARAM2;
 				ac->timeout = 0;
 				account_unrestrict (ac);
-				if (data_cfg.restrict_log)
-				{
-					char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-					sprintf (tmp_buf, "Restrict mode is over for user %s\n",
-						ac->id);
-					WRITE_LOG (NULL, 1, tmp_buf, data_cfg.log_mode);
-				}
+				LOG_RESTRICT("Restrict mode is over for user %s\n", ac->id);
 			}
 		}
 	}
@@ -651,7 +587,6 @@ account_analyze (gpointer * key, Account * ac, void *data)
 	stats_limit_cfg cfg_buf;
 	stats_limit_cfg *sl = config_get_account_limit (ac->id, &cfg_buf);
 	int restrict_period = 0;
-	char tmp_buf[_DBGOVERNOR_BUFFER_8192];
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 
@@ -683,13 +618,7 @@ account_analyze (gpointer * key, Account * ac, void *data)
 				if (!check_restrict (ac))
 					account_unrestrict (ac);
 				else
-				{
-					sprintf (tmp_buf, "No unrestrict yet for %s %d %ld\n",
-						ac->id, ac->timeout, ac->start_count);
-					WRITE_LOG (NULL,
-						1,
-						tmp_buf, data_cfg.log_mode);
-				}
+					LOG_RESTRICT("No unrestrict yet for %s %d %ld\n", ac->id, ac->timeout, ac->start_count);
 				//} else if (ac->start_count + data_cfg.timeout <= now) {
 			}
 			else if (((ac->start_count + data_cfg.timeout) <= now)
@@ -701,11 +630,7 @@ account_analyze (gpointer * key, Account * ac, void *data)
 				ac->info.field_restrict = NO_PERIOD;
 				ac->info.field_level_restrict = NORESTRICT_PARAM2;
 				ac->timeout = 0;
-				sprintf (tmp_buf, "Penalty period is over %s %d %ld\n", ac->id,
-					ac->timeout, ac->start_count);
-				WRITE_LOG (NULL,
-					1,
-					tmp_buf, data_cfg.log_mode);
+				LOG_RESTRICT("Penalty period is over %s %d %ld\n", ac->id, ac->timeout, ac->start_count);
 			}
 		}
 	}
@@ -716,24 +641,13 @@ add_user_stats_from_counter (gpointer key, Stat_counters * item,
 			gpointer user_data)
 {
 	Stats st;
-	send_to_glib_info *internal_info = (send_to_glib_info *) user_data;
-	double *in_tm = (double *) &internal_info->tm;
+	const send_to_glib_info *internal_info = (send_to_glib_info *) user_data;
+	const double *in_tm = (const double *) &internal_info->tm;
 	calc_stats_difference_inner_from_counter ((long long) item->s.cpu,
 							item->s.read, item->s.write,
 							item->tm, &st, *in_tm);
-	if (internal_info->dbg)
-	{
-		int len = strlen (internal_info->dbg);
-		if (!strncmp (internal_info->dbg, (char *) key, len))
-		{
-			WRITE_LOG (NULL,
-				1,
-				" step 1: counters c %f, r %llu, w %llu, tm %f",
-				internal_info->log_mode,
-				item->s.cpu, item->s.read, item->s.write,
-				(*in_tm - item->tm));
-		}
-	}
+	if (internal_info->dbg && !strncmp(internal_info->dbg, (const char *)key, strlen(internal_info->dbg)))
+		LOG_RESTRICT("step 1: counters c %f, r %llu, w %llu, tm %f", item->s.cpu, item->s.read, item->s.write, (*in_tm - item->tm));
 	add_new_stats ((char *) key, &st, get_current_tick ());
 	reset_counters ((char *) key);
 }
@@ -1143,7 +1057,7 @@ calc_stats_difference_inner_from_counter (long long cpu, long long read,
 			st->cpu = 0.0;
 		}
 #ifdef TEST
-		EXTLOG(EL_MONITOR, 1, "CPU %f  COUNTER cpu %lld, time %f, tm_i %f", st->cpu, cpu, tm, tm_in);
+		LOG(L_MON, "CPU %f  COUNTER cpu %lld, time %f, tm_i %f", st->cpu, cpu, tm, tm_in);
 #endif
 		if (read >= 0)
 		{
@@ -1177,7 +1091,7 @@ double calc_cpu_from_rusage(tid_table * item)
 	int hz = sysconf (_SC_CLK_TCK);
 	cpu = cpu_us/(1000000.0/hz);
 #ifdef TEST
-	EXTLOG(EL_MONITOR, 1, "calc %s c:%lld(%f), r:%lld, w:%lld\n", item->username, item->cpu_end - item->cpu, cpu, item->read_end - item->read, item->write_end - item->write);
+	LOG(L_MON, "calc %s c:%lld(%f), r:%lld, w:%lld\n", item->username, item->cpu_end - item->cpu, cpu, item->read_end - item->read, item->write_end - item->write);
 #endif
 	return cpu;
 }
@@ -1199,7 +1113,7 @@ calc_stats_difference_inner_add_to_counters (double cpu, long long read,
 	double old_tm = old->update_time + (double) old->nanoseconds	/ (double) SEC2NANO;
 	double new_tm = cur_tm.tv_sec + (double) cur_tm.tv_nsec		/ (double) SEC2NANO;
 #ifdef TEST
-	EXTLOG(EL_MONITOR, 1, "add_to-counters %s - dt - %f c %f, w %lld, r %lld, old c %lld, w %lld, r %lld",
+	LOG(L_MON, "add_to-counters %s - dt - %f c %f, w %lld, r %lld, old c %lld, w %lld, r %lld",
 		old->username, new_tm - old_tm, cpu, write, read, old->cpu, old->write, old->read);
 #endif
 	if (new_tm > old_tm)
@@ -1233,13 +1147,7 @@ calc_stats_difference_inner_add_to_counters (double cpu, long long read,
 void
 print_to_restrict_log_account_info (gpointer * key, Account * ac, void *data)
 {
-	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
-
-	WRITE_LOG (NULL,
-		1,
-		"Screen item %s Cur: cpu %f, read %lld, write %lld | Shrt: cpu %f, read %lld, write %lld | Mid: cpu %f, read %lld, write %lld | Lng: cpu %f, read %lld, write %lld |",
-		data_cfg.log_mode,
+	LOG_RESTRICT("Screen item %s Cur: cpu %f, read %lld, write %lld | Shrt: cpu %f, read %lld, write %lld | Mid: cpu %f, read %lld, write %lld | Lng: cpu %f, read %lld, write %lld |",
 		ac->id, ac->current.cpu, ac->current.read, ac->current.write,
 		ac->short_average.cpu, ac->short_average.read,
 		ac->short_average.write, ac->mid_average.cpu,
@@ -1255,14 +1163,9 @@ print_to_restrict_log_stats (void *data)
 	get_config_data (&data_cfg);
 
 	time_t tm = time (NULL);
-	WRITE_LOG (NULL,
-		1,
-		"Begin screen %ld", data_cfg.log_mode, tm);
-	g_hash_table_foreach (accounts, (GHFunc) print_to_restrict_log_account_info,
-				NULL);
-	WRITE_LOG (NULL,
-		1,
-		"End screen %ld", data_cfg.log_mode, tm);
+	LOG_RESTRICT("Begin screen %ld", tm);
+	g_hash_table_foreach (accounts, (GHFunc) print_to_restrict_log_account_info, NULL);
+	LOG_RESTRICT("End screen %ld", tm);
 }
 
 void
@@ -1374,19 +1277,8 @@ dbctl_restrict_set (gpointer key, Account * ac, void *data)
 		ac->info.field_level_restrict = _cur;
 		account_restrict (ac, sl);
 
-		if (data_cfg.restrict_log)
-		{
-			char restrict_buf[_DBGOVERNOR_BUFFER_8192];
-			if (data_cfg.restrict_mode)
-			{
-				prepareRestrictDescriptionLimit (restrict_buf, ac, sl);
-			}
-			else
-			{
-				prepareRestrictDescription (restrict_buf, ac, sl);
-			}
-			WRITE_LOG (&ac->current, 1, restrict_buf, data_cfg.log_mode);
-		}
+		char restrict_buf[_DBGOVERNOR_BUFFER_8192];
+		LOG_RESTRICT_LIMITS(&ac->current, "%s", data_cfg.restrict_mode ? prepareRestrictDescriptionLimit(restrict_buf, ac, sl) : prepareRestrictDescription(restrict_buf, ac, sl));
 	}
 }
 
@@ -1417,10 +1309,7 @@ resetting_user_stats (Account * ac)
 void
 dbctl_unrestrict_set (gpointer key, Account * ac, void *data)
 {
-	char tmp_buf[_DBGOVERNOR_BUFFER_8192];
-	DbCtlCommand *command = (DbCtlCommand *) data;
-	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
+	const DbCtlCommand *command = (const DbCtlCommand *) data;
 
 	//  User_stats *us = (User_stats *)g_hash_table_lookup( users, command->options.username );
 	//  if( !us ) us = add_user_stats( command->options.username, accounts, users );
@@ -1453,15 +1342,9 @@ dbctl_unrestrict_set (gpointer key, Account * ac, void *data)
 		resetting_user_stats (ac);
 
 		if (!check_restrict (ac))
-		{
 			account_unrestrict (ac);
-		}
 		else
-		{
-			sprintf (tmp_buf, "No unrestrict yet for %s %d %ld\n",
-				ac->id, ac->timeout, ac->start_count);
-			WRITE_LOG (NULL, 1, tmp_buf, data_cfg.log_mode);
-		}
+			LOG_RESTRICT("No unrestrict yet for %s %d %ld\n", ac->id, ac->timeout, ac->start_count);
 	}
 }
 
@@ -1519,21 +1402,19 @@ add_all_users_to_list (gpointer key, Account * ac, void *data)
 void reinit_users_list(void)
 {
 	struct governor_config data_cfg;
-	GHashTable *ac = NULL;
-
 	get_config_data(&data_cfg);
 
 	if (lock_write_map () == 0)
 	{
 		if (!get_map_file (&data_cfg))
-			WRITE_LOG(NULL, 0, "Failed read dbuser-map file", data_cfg.log_mode);
+			LOG(L_ERR, "Failed read dbuser-map file");
 		unlock_rdwr_map ();
 	}
 
-	ac = (GHashTable *) get_accounts ();
+	GHashTable *ac = (GHashTable *) get_accounts ();
 	if (ac == NULL)
 	{
-		WRITE_LOG(NULL, 0, "Failed to get accounts, service db_governor should be restarted.", data_cfg.log_mode);
+		LOG(L_ERR, "Failed to get accounts, service db_governor should be restarted");
 		return;
 	}
 
@@ -1549,7 +1430,7 @@ void reinit_users_list(void)
 	if (data_cfg.all_lve)
 		g_hash_table_foreach(ac, (GHFunc)add_all_users_to_list, NULL);
 
-	EXTLOG(EL_MONITOR, 1, "Reinit users list completed");
+	LOG(L_MON, "Reinit users list completed");
 }
 
 gboolean

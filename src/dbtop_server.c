@@ -44,32 +44,28 @@ void send_account (const char *key, Account * ac, FILE * out);
 void *
 run_server (void *data)
 {
-	int i, s, len;
-	struct sockaddr_un saun;
-	int ret;
-	struct governor_config data_cfg;
+	LOG(L_LIFE|L_DBTOP, "thread begin");
 
-	get_config_data (&data_cfg);
-
-	WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: BEGIN", data_cfg.log_mode);
+	int s;
 	if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
-		WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: Can't create socket: %d", data_cfg.log_mode, errno);
+		LOG(L_ERR|L_DBTOP, "can't create socket: %d", errno);
 		// close_log ();
 		// close_restrict_log ();
 		// exit (EXIT_FAILURE);
 		return NULL;
 	}
 
+	struct sockaddr_un saun;
 	saun.sun_family = AF_UNIX;
 	strcpy (saun.sun_path, SOCK_ADDRESS);
 
 	unlink (SOCK_ADDRESS);
-	len = sizeof (saun.sun_family) + strlen (saun.sun_path);
+	int len = sizeof (saun.sun_family) + strlen (saun.sun_path);
 
 	if (bind (s, (struct sockaddr *) &saun, len) < 0)
 	{
-		WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: bind failed: %d", data_cfg.log_mode, errno);
+		LOG(L_ERR|L_DBTOP, "bind failed: %d", errno);
 		// close_log ();
 		// close_restrict_log ();
 		close (s);
@@ -79,7 +75,7 @@ run_server (void *data)
 
 	if (listen (s, 3) < 0)
 	{
-		WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: listen failed: %d", data_cfg.log_mode, errno);
+		LOG(L_ERR|L_DBTOP, "listen failed: %d", errno);
 		// close_log ();
 		// close_restrict_log ();
 		close (s);
@@ -90,7 +86,7 @@ run_server (void *data)
 	accept_connections (s);
 	close (s);
 
-	WRITE_LOG (NULL, 0, "DBTOP_SERVER thread: END", data_cfg.log_mode);
+	LOG(L_LIFE|L_DBTOP, "thread end");
 	return NULL;
 }
 
@@ -107,12 +103,12 @@ run_dbtop_command (void *data)
 	if (!out)
 	{
 		//Try to open second time
-		EXTLOG(EL_DBTOP, 1, "first fdopen() failed");
+		LOG(L_DBTOP, "first fdopen() failed");
 		out = fdopen ((int) ns, "w+");
 		//If null, then cancel command
 		if (!out)
 		{
-			EXTLOG(EL_DBTOP, 1, "second fdopen() failed");
+			LOG(L_DBTOP, "second fdopen() failed");
 			close (ns);
 			return NULL;
 		}
@@ -122,7 +118,7 @@ run_dbtop_command (void *data)
 	resp = fwrite_wrapper (&new_record, sizeof (int), 1, out);
 	if (!resp)
 	{
-		EXTLOG(EL_DBTOP, 1, "write failed");
+		LOG(L_DBTOP, "write failed");
 		fflush (out);
 		fclose (out);
 		return NULL;
@@ -130,7 +126,7 @@ run_dbtop_command (void *data)
 	resp = fread_wrapper (&get_response, sizeof (int), 1, out);
 	if (!resp)
 	{
-		EXTLOG(EL_DBTOP, 1, "no response");
+		LOG(L_DBTOP, "no response");
 		fflush (out);
 		fclose (out);
 		return NULL;
@@ -150,9 +146,6 @@ run_dbtop_command (void *data)
 void *handle_client_connect(void *fd)
 {
 	int ns = (int) ((intptr_t) fd), result;
-	struct governor_config data_cfg;
-
-	get_config_data (&data_cfg);
 
 	client_type_t ctt;
 	result = read (ns, &ctt, sizeof (client_type_t));
@@ -178,8 +171,7 @@ void *handle_client_connect(void *fd)
 	}
 	else
 	{
-		WRITE_LOG (NULL, 0, "incorrect connection(DBTOP)", data_cfg.log_mode);
-
+		LOG(L_ERR|L_DBTOP, "incorrect connection");
 		close (ns);
 	}
 	return NULL;
@@ -191,9 +183,6 @@ accept_connections (int s)
 	struct sockaddr_un fsaun;
 	int fromlen = sizeof (fsaun);
 	pthread_t thread;
-	struct governor_config data_cfg;
-
-	get_config_data (&data_cfg);
 
 	while (1)
 	{
@@ -207,7 +196,7 @@ accept_connections (int s)
 			}
 			else
 			{
-				WRITE_LOG (NULL, 0, "Can't server accept(DBTOP)", data_cfg.log_mode);
+				LOG(L_ERR|L_DBTOP, "can't server accept");
 				close_log ();
 				close_restrict_log ();
 				return;
@@ -224,12 +213,11 @@ volatile static int flag_need_to_renew_dbmap = 0;
 void *
 renew_map_on_request (void *data)
 {
+	LOG(L_LIFE|L_USRMAPRQ, "thread begin");
+
 	time_t last_renew = 0;
 	flag_need_to_renew_dbmap = 0;
-	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
 
-	WRITE_LOG (NULL, 0, "USERMAP_ONREQ thread: BEGIN", data_cfg.log_mode);
 	while (1)
 	{
 		if (flag_need_to_renew_dbmap)
@@ -241,18 +229,14 @@ renew_map_on_request (void *data)
 				last_renew = current_check;
 				pid_t renew_pid = fork ();
 				if (renew_pid < 0)
-				{
-					WRITE_LOG (NULL, 0, "(%d)Fork error (renew dbmap). Path %s", data_cfg.log_mode,
-						errno, "dbupdate");
-				}
+					LOG(L_ERR|L_USRMAPRQ, "(%d)Fork error (renew dbmap). Path %s", errno, "dbupdate");
 				else
 				{
 					if (!renew_pid)
 					{
 						execl ("/usr/share/lve/dbgovernor/mysqlgovernor.py",
 								"/usr/share/lve/dbgovernor/mysqlgovernor.py", "--dbupdate", NULL);
-						WRITE_LOG (NULL, 0, "(%d)Exec error (renew dbmap). Path %s",
-							data_cfg.log_mode, errno, "dbupdate");
+						LOG(L_ERR|L_USRMAPRQ, "(%d)Exec error (renew dbmap). Path %s", errno, "dbupdate");
 						exit (0);
 					}
 				}
@@ -261,7 +245,7 @@ renew_map_on_request (void *data)
 		sleep(DBMAPHOOK_RECHECK);
 	}
 
-	WRITE_LOG (NULL, 0, "USERMAP_ONREQ thread: END", data_cfg.log_mode);
+	LOG(L_LIFE|L_USRMAPRQ, "thread end");
 	return NULL;
 }
 

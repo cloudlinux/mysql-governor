@@ -83,18 +83,17 @@ main (int argc, char *argv[])
 		if (cmd == 0)
 		{
 			if (db_connect (data_cfg.host, data_cfg.db_login,
-					data_cfg.db_password, "information_schema", argc,
-					argv, data_cfg.log_mode) < 0)
+					data_cfg.db_password, "information_schema", argc, argv) < 0)
 				exit (-1);
-			//unfreeze_lve (data_cfg.log_mode);
+			//unfreeze_lve();
 			if (init_bad_users_list_utility () >= 0)
 			{
-				WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
+				LOG(L_UNFRZ, "Unfreeze completed");
 				remove_bad_users_list_utility ();
 			}
 			else
 			{
-				WRITE_LOG (NULL, 0, "Can't init BAD users list", data_cfg.log_mode);
+				LOG(L_ERR, "Can't init BAD users list");
 			}
 			db_close ();
 		}
@@ -108,12 +107,11 @@ main (int argc, char *argv[])
 		if (!data_cfg.is_gpl)
 		{
 			if (db_connect (data_cfg.host, data_cfg.db_login,
-					data_cfg.db_password, "information_schema", argc,
-					argv, data_cfg.log_mode) < 0)
+					data_cfg.db_password, "information_schema", argc, argv) < 0)
 				exit (-1);
-			//unfreeze_all(data_cfg.log_mode);
-			//unfreeze_lve (data_cfg.log_mode);
-			WRITE_LOG (NULL, 0, "Unfreeze completed", data_cfg.log_mode);
+			//unfreeze_all();
+			//unfreeze_lve();
+			LOG(L_UNFRZ, "Unfreeze completed");
 			db_close ();
 		}
 	}

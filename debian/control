@@ -18,7 +18,6 @@ Build-Depends: debhelper-compat (= 12),
                gawk,
                sed,
                coreutils
-# TODO: Append sentry-native-dev to the Build-Depends once it will be released for all platforms
 Standards-Version: 4.4.1
 Homepage: http://cloudlinux.com
 
@@ -34,7 +33,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
          cloudlinux-venv,
          alt-python27-cllib (>= 3.3.3-1),
          lve-utils (>= 6.5.2-1),
-# TODO: Append sentry-native to the Depends once it will be released for all platforms
 # governor writes some files that lve-stats DBGovSaver plugin writes and deletes
          lve-stats
 Description: DB control utilities

@@ -49,6 +49,7 @@ override_dh_auto_install:
 # install systemd unit files and scripts for handling server startup
 	mkdir -p $(CURDIR)/debian/tmp/usr/lib/systemd/system/
 	install -m 644 $(CURDIR)/db_governor_ubuntu.service $(CURDIR)/debian/tmp/usr/lib/systemd/system/db_governor.service
+	install -m 644 $(CURDIR)/governor_sentry_daemon.service $(CURDIR)/debian/tmp/usr/lib/systemd/system/governor_sentry_daemon.service
 	install -m 644 $(CURDIR)/var-lve-dbgovernor\\x2dshm.mount $(CURDIR)/debian/tmp/usr/lib/systemd/system/
 	install -D -m 600 $(CURDIR)/db-governor.xml $(CURDIR)/debian/tmp/etc/container/mysql-governor.xml
 	install -D -m 664 $(CURDIR)/governor_package_limit.json $(CURDIR)/debian/tmp/etc/container/governor_package_limit.json

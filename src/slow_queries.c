@@ -87,13 +87,13 @@ is_request_in_state_to_no_kill (char *s)
 void *
 parse_slow_query (void *data)
 {
+	LOG(L_LIFE|L_SLOW, "thread begin");
+
 	char buffer[_DBGOVERNOR_BUFFER_8192];
 	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
-	char log_buffer[_DBGOVERNOR_BUFFER_8192];
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 
-	WRITE_LOG (NULL, 0, "SLOW_QUERY thread: BEGIN", data_cfg.log_mode);
 	MYSQL **mysql_do_kill_internal = get_mysql_connect ();
 	MYSQL_RES *res;
 	MYSQL_ROW row;
@@ -121,26 +121,24 @@ parse_slow_query (void *data)
 		}
 		snprintf (sql_buffer, _DBGOVERNOR_BUFFER_8192,
 			QUERY_GET_PROCESSLIST_INFO);
-		if (db_mysql_exec_query(sql_buffer, mysql_do_kill_internal, data_cfg.log_mode))
-		{
-			WRITE_LOG (NULL, 0, "Get show processlist failed", data_cfg.log_mode);
-		}
+		if (db_mysql_exec_query(sql_buffer, mysql_do_kill_internal))
+			LOG(L_ERR|L_SLOW|L_MYSQL, "Get show processlist failed");
 		else
 		{
-			EXTLOG(EL_SLOWQUERY|EL_MYSQLCMD, 1, "processlist obtained");
+			LOG(L_SLOW|L_MYSQL, "processlist obtained");
 
 			res = (*_mysql_store_result) (*mysql_do_kill_internal);
 			counts = (*_mysql_num_rows) (res);
 
 			if (counts > 0)
 			{
-				EXTLOG(EL_SLOWQUERY, 1, "counts > 0");
+				LOG(L_SLOW, "counts > 0");
 
 				while ((row = (*_mysql_fetch_row) (res)))
 				{
 					lengths = (*_mysql_fetch_lengths) (res);
 
-					EXTLOG(EL_SLOWQUERY, 1, "is ROW; row[0]=%s, row[5]=%s, row[7]=%s", row[0], row[5], row[7]);
+					LOG(L_SLOW, "is ROW; row[0]=%s, row[5]=%s, row[7]=%s", row[0], row[5], row[7]);
 
 					db_mysql_get_string (buffer, row[0], lengths[0],
 								_DBGOVERNOR_BUFFER_8192);
@@ -164,19 +162,16 @@ parse_slow_query (void *data)
 						&& ! is_request_in_state_to_no_kill(State)
 						)
 					{
-						EXTLOG(EL_SLOWQUERY, 1, "is SELECT; Id=%d, Time=%d, slow_time=%d", atoi(Id), atoi(Time), slow_time);
-						if (atoi (Time) > slow_time)
+						LOG(L_SLOW, "is SELECT; Id=%d, Time=%d, slow_time=%d", atoi(Id), atoi(Time), slow_time);
+						if (atoi(Time) > slow_time)
 						{
-							EXTLOG(EL_SLOWQUERY, 1, "Time > slow_time");
-							kill_query_by_id (atoi (Id), data_cfg.log_mode,
-										mysql_do_kill_internal);
+							LOG(L_SLOW, "Time > slow_time");
+							kill_query_by_id(atoi(Id), mysql_do_kill_internal);
 
 							char Info_[_DBGOVERNOR_BUFFER_2048];
 							strncpy (Info_, Info, MAX_QUERY_OUTPUT_LEN);
-										Info_[MAX_QUERY_OUTPUT_LEN] = 0;
-							snprintf (log_buffer, sizeof log_buffer, "Query killed - %s : %s",
-								User, Info_);
-							WRITE_LOG (NULL, 2, "%s", data_cfg.log_mode, log_buffer);
+							Info_[MAX_QUERY_OUTPUT_LEN] = 0;
+							LOG_SLOW_QUERIES("Query killed - %s : %s", User, Info_);
 						}
 					}
 				}
@@ -185,6 +180,6 @@ parse_slow_query (void *data)
 		}
 		sleep (DELTA_TIME);
 	}
-	WRITE_LOG (NULL, 0, "SLOW_QUERY thread: END", data_cfg.log_mode);
+	LOG(L_LIFE|L_SLOW, "thread end");
 	return NULL;
 }

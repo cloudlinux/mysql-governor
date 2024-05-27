@@ -113,7 +113,6 @@ enum mysql_option
  * Функция соединения с БД mysql
  * internal_db - указатель на указатель будущего соединения
  * host, user_name, user_password, db_name - параметры соединения (могут быть NULL)
- * debug_mode - режим вывода ошибок
  * argc, argv - параметры командной строки коннектора, нужны для my_defaults
  * save_global - сохранять параметры соединения с базой в глобальных переменных? для реконнекта
  */
@@ -123,32 +122,30 @@ db_connect_common (MYSQL ** internal_db,
 	const char *user_name,
 	const char *user_password,
 	const char *db_name,
-	MODE_TYPE debug_mode, int argc, char *argv[],
+	int argc, char *argv[],
 	int save_global);
 
 /*
  * Функция выполнения запроса к БД. Сердце коннектора
  * query - текст запроса, пердварительно подготовленный и заэкранированный
  * mysql_internal - указатель соединения
- * debug_mode - режим вывода ошибок
  */
 int
-db_mysql_exec_query (const char *query, MYSQL ** mysql_internal,
-	MODE_TYPE debug_mode);
+db_mysql_exec_query (const char *query, MYSQL ** mysql_internal);
 
 int
 db_connect (const char *host, const char *user_name,
-	const char *user_password, const char *db_name, int argc,
-	char *argv[], MODE_TYPE debug_mode);
+	const char *user_password, const char *db_name,
+	int argc, char *argv[]);
 
 int
-check_mysql_version (MODE_TYPE debug_mode);
+check_mysql_version();
 
 //Закрыть ВСЕ соединения к БД
 int db_close (void);
 //Разблокировать всех пользоватлей (соединение должно быть открыто)
-void unfreeze_all (MODE_TYPE debug_mode);
-void unfreeze_daily (MODE_TYPE debug_mode);
+void unfreeze_all();
+void unfreeze_daily();
 //Из формата БД в long
 long db_mysql_get_integer (char *result, unsigned long length);
 //Из формата БД в float
@@ -159,26 +156,24 @@ void db_mysql_get_string (char *buffer, char *result, unsigned long length,
 //Получить строку с последней ошибкой передаваемому соединению
 char *db_getlasterror (MYSQL * mysql_internal);
 void
-update_user_limit (char *user_name, unsigned int limit, MODE_TYPE debug_mode);
+update_user_limit(const char *user_name, unsigned int limit);
 void
-update_user_limit_no_flush (char *user_name, unsigned int limit,
-			MODE_TYPE debug_mode);
-unsigned select_max_user_connections (char *username, MODE_TYPE debug_mode);
-void flush_user_stat (MODE_TYPE debug_mode);
-void flush_user_priv (MODE_TYPE debug_mode);
-void kill_query (char *user_name, MODE_TYPE debug_mode);
-void kill_connection (char *user_name, MODE_TYPE debug_mode);
-void kill_query_by_id (long id, MODE_TYPE debug_mode,
-			MYSQL ** mysql_internal);
-void governor_enable (MODE_TYPE debug_mode);
-void governor_enable_reconn (MODE_TYPE debug_mode);
-void governor_enable_lve (MODE_TYPE debug_mode);
-void governor_enable_reconn_lve (MODE_TYPE debug_mode);
+update_user_limit_no_flush(const char *user_name, unsigned int limit);
+unsigned select_max_user_connections(const char *username);
+void flush_user_stat();
+void flush_user_priv();
+void kill_query(const char *user_name);
+void kill_connection(const char *user_name);
+void kill_query_by_id(long id, MYSQL **mysql_internal);
+void governor_enable();
+void governor_enable_reconn();
+void governor_enable_lve();
+void governor_enable_reconn_lve();
 char *get_work_user (void);
-void lve_connection (char *user_name, MODE_TYPE debug_mode);
-void log_user_queries (char *user_name, MODE_TYPE debug_mode);
+void lve_connection (const char *user_name);
+void log_user_queries(const char *user_name);
 MYSQL **get_mysql_connect (void);
-int activate_plugin (MODE_TYPE debug_mode);
+int activate_plugin();
 
 void db_close_kill (void);
 void db_close_command (void);

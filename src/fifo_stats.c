@@ -52,7 +52,7 @@ fifo_stats_init (int size)
 }
 
 Stats *
-fifo_stats_push (struct fifo_stats * fifo, Stats * x)
+fifo_stats_push (struct fifo_stats * fifo, const Stats * x)
 {
 	Stats *tmp;
 	fifo->first = fifo->first - 1;
@@ -78,7 +78,7 @@ fifo_stats_get (struct fifo_stats * fifo, int i)
 }
 
 Stats *
-fifo_stats_refresh_last (struct fifo_stats * fifo, Stats * x)
+fifo_stats_refresh_last (struct fifo_stats * fifo, const Stats * x)
 {
 	fifo->ar[fifo->first]->cpu += x->cpu;
 	fifo->ar[fifo->first]->read += x->read;
@@ -113,7 +113,7 @@ fifo_stats_sum (struct fifo_stats *fifo, Stats * sum, int length)
 }
 
 void
-fifo_stats_avg (struct fifo_stats *fifo, Stats * sum, int length)
+fifo_stats_avg(const struct fifo_stats *fifo, Stats *sum, int length)
 {
 	memset (sum, (int) 0, sizeof (Stats));
 	int i = 0;
@@ -121,7 +121,7 @@ fifo_stats_avg (struct fifo_stats *fifo, Stats * sum, int length)
 	{
 		if (i >= length)
 			break;
-		Stats *tmp = fifo_stats_get (fifo, i++);
+		Stats *tmp = fifo_stats_get((struct fifo_stats*)fifo, i++);
 		sum->cpu += tmp->cpu;
 		sum->read += tmp->read;
 		sum->write += tmp->write;

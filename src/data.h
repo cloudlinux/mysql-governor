@@ -46,6 +46,7 @@ typedef char parameter_t[USERNAMEMAXLEN];
 #define PATH_TO_GOVERNOR_STATS "/var/lve/dbgovernor/"
 #define PATH_TO_LOG_USER_QUERIES "/var/lve/dbgovernor-store/"
 #define PATH_TO_GOVERNOR_PRIVATE_DIR PATH_TO_GOVERNOR_STATS
+#define MYSQLD_EXTLOG_PATH "/var/log/dbgovernor-mysqld.log"
 
 #define DBUSER_MAP_FILE "/etc/container/dbuser-map"
 #define DUPLICATE_CONFIG_PATH "/var/run/mysql-governor-config.xml"
@@ -74,16 +75,8 @@ typedef enum
 	NORESTRICT_MODE,
 	IGNORE_MODE,
 	OLD_RESTRICT_MODE,
-	NEW_RESTRICT_MODE,
-	EXTLOG_MODE
+	NEW_RESTRICT_MODE
 } MODE_TYPE;
-
-typedef enum
-{
-	SENTRY_MODE_DISABLED = 0,
-	SENTRY_MODE_NATIVE = 1,
-	SENTRY_MODE_EXTERNAL = 2
-} SENTRY_MODE;
 
 typedef struct
 {
@@ -234,5 +227,8 @@ typedef struct _user_map
 #ifndef gettid_p
 #define gettid_p() ((pid_t)syscall(__NR_gettid))
 #endif
+
+#define UNINITED_UID ((uid_t)-1)
+#define UNINITED_GID ((gid_t)-1)
 
 #endif /* DATA_H_ */

@@ -169,7 +169,7 @@ get_map_file (struct governor_config *data_cfg)
 						sizeof (UserMap_->account_name) - 1);
 					int tmp_uid = data_cfg->separate_lve ? atoi (uid) : BAD_LVE;
 
-					EXTLOG(EL_USERMAP, 1, "Added user %s account %s with uid %d", UserMap_->username, UserMap_->account_name, tmp_uid);
+					LOG(L_USRMAP, "Added user %s account %s with uid %d", UserMap_->username, UserMap_->account_name, tmp_uid);
 
 					if (tmp_uid >= 1)
 					{
@@ -209,11 +209,12 @@ set_dbuser_map (void)
 void *
 parse_map_file_every_hour (void *data)
 {
+	LOG(L_LIFE|L_USRMAP, "thread begin");
+
 	struct governor_config data_cfg;
 	time_t last_mod, curr;
 	get_config_data (&data_cfg);
 
-	WRITE_LOG (NULL, 0, "USERMAP thread: BEGIN", data_cfg.log_mode);
 	curr = last_modify_map ();
 	if (curr == -1)
 	{
@@ -229,14 +230,11 @@ parse_map_file_every_hour (void *data)
 		last_mod = last_modify_map ();
 		if (curr < last_mod)
 		{
-			EXTLOG(EL_USERMAP, 1, "reading dbuser-map file");
+			LOG(L_USRMAP, "reading dbuser-map file");
 			if (lock_write_map () == 0)
 			{
 				if (!get_map_file (&data_cfg))
-				{
-					WRITE_LOG (NULL, 0, "Failed read dbuser-map file",
-						data_cfg.log_mode);
-				}
+					LOG(L_ERR|L_USRMAP, "failed to read dbuser-map file");
 				else
 					curr = last_mod;
 				unlock_rdwr_map ();
@@ -251,7 +249,7 @@ parse_map_file_every_hour (void *data)
 		sleep (DELTA_TIME);
 	}
 
-	WRITE_LOG (NULL, 0, "USERMAP thread: END", data_cfg.log_mode);
+	LOG(L_LIFE|L_USRMAP, "thread end");
 	return NULL;
 }
 

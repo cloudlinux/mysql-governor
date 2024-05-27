@@ -17,16 +17,15 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+//#include <unistd.h>
+//#include <string.h>
+#include <sys/un.h>
+#include <sys/socket.h>
+
+
 #include "data.h"
 #include "governor_config.h"
 #include "log.h"
-
-static char *mode_type_enum_to_str[] = { "TEST_MODE", "PRODUCTION_MODE",
-	"DEBUG_MODE", "ERROR_MODE", "RESTRICT_MODE", "NORESTRICT_MODE",
-	"IGNORE_MODE"
-};
-
-#define SENTRY_LOG_TAG "governor"
 
 #ifndef GOVERNOR_SENTRY_TIMEOUT
 #define GOVERNOR_SENTRY_TIMEOUT 5
@@ -36,17 +35,19 @@ static char *mode_type_enum_to_str[] = { "TEST_MODE", "PRODUCTION_MODE",
 #define GOVERNOR_SENTRY_MESSAGE_MAX 1024
 #endif
 
-static FILE *log = NULL, *restrict_log = NULL, *slow_queries_log = NULL;
-
-void print_stats_cfg (FILE * f, stats_limit_cfg * s);
-void print_stats_easy (FILE * f, stats_limit * s);
+#define SENTRY_DISABLED_FLAG "/usr/share/lve/dbgovernor/sentry-disabled.flag"
+#define SENTRY_DAEMON_SOCK "/var/run/db-governor-sentry.sock"
+#define SENTRY_DAEMON_SOCK_LEN 32
 
 // All the functions return 0 on success and errno otherwise
 
-static int
-external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, const char* socket_path)
+int
+sentry_log(cl_sentry_level_t level, const char* message, size_t len)
 {
-	if (message == NULL || socket_path == NULL) return -1;
+	if (message == NULL || message[0] == '\0') return -1;
+	else if (!access(SENTRY_DISABLED_FLAG, F_OK)) return 0;
+	else if (access(SENTRY_DAEMON_SOCK, F_OK) == -1) return -1;
+
 	size_t message_len = len ? len : strnlen(message, GOVERNOR_SENTRY_MESSAGE_MAX);
 	if (!message_len) return -1;
 
@@ -68,8 +69,10 @@ external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, co
 	memset(&server_address, 0, sizeof(server_address));
 	server_address.sun_family = AF_UNIX;
 
-	strncpy(server_address.sun_path, socket_path, sizeof(server_address.sun_path) - 1);
-	server_address.sun_path[sizeof(server_address.sun_path) - 1] = '\0';
+	int bytes = snprintf(server_address.sun_path,
+			sizeof(server_address.sun_path), "%.*s",
+			SENTRY_DAEMON_SOCK_LEN, SENTRY_DAEMON_SOCK);
+	if (bytes <= 0) return -1;
 
 	if (connect(sock, (struct sockaddr*)&server_address, sizeof(server_address)) < 0)
 	{
@@ -77,7 +80,7 @@ external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, co
 		return -1;
 	}
 
-	const char *level_prefix = level == CL_SENTRY_ERROR ? "ERROR:" : "INFO:";
+	const char *level_prefix = level == CL_SENTRY_ERROR ? "ERROR:" : "DEBUG:";
 	size_t message_size = message_len + strlen(level_prefix) + 1;
 	char *message_with_level = malloc(message_size);
 
@@ -88,67 +91,42 @@ external_sentry_log(cl_sentry_level_t level, const char* message, size_t len, co
 		return -1;
 	}
 
-	int bytes = snprintf(message_with_level, message_size, "%s%s", level_prefix, message);
+	bytes = snprintf(message_with_level, message_size, "%s%s", level_prefix, message);
 	if (bytes > 0) bytes = send(sock, message_with_level, bytes, 0);
 
+	free(message_with_level);
 	shutdown(sock, SHUT_RDWR);
 	close(sock);
 
 	return bytes;
 }
 
-void
-sentry_log(cl_sentry_level_t level, const char *message, size_t len)
+static FILE *log = NULL, *restrict_log = NULL, *slow_queries_log = NULL;
+
+int open_log(const char *path)
 {
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
-
-	if (data_cfg.sentry_mode == SENTRY_MODE_NATIVE)
-	{
-		/*
-		// S.K. >> Will be uncommented after Sentry native release for all platforms
-		sentry_level_t log_level = (level == CL_SENTRY_ERROR) ?
-						SENTRY_LEVEL_ERROR : SENTRY_LEVEL_INFO;
-
-		if (data_cfg.sentry_dsn != NULL) // Chech if DSN is set
-			cl_sentry_message(log_level, SENTRY_LOG_TAG, message);
-		*/
-	}
-	else if (data_cfg.sentry_mode == SENTRY_MODE_EXTERNAL)
-	{
-		if (data_cfg.sentry_sock != NULL) // Chech if daemon socket is set
-			external_sentry_log(level, message, len, data_cfg.sentry_sock);
-	}
-}
-
-int
-open_log (const char *log_file)
-{
-	if ((log = fopen (log_file, "a")) == NULL)
+	if ((log = fopen(path, "a")) == NULL)
 		return errno;
 	return 0;
 }
 
-int
-open_restrict_log (const char *log_file)
+int open_restrict_log(const char *path)
 {
-	if ((restrict_log = fopen (log_file, "a")) == NULL)
+	if ((restrict_log = fopen(path, "a")) == NULL)
 		return errno;
 	return 0;
 }
 
-int
-open_slow_queries_log (const char *log_file)
+int open_slow_queries_log(const char *path)
 {
-	if ((slow_queries_log = fopen (log_file, "a")) == NULL)
+	if ((slow_queries_log = fopen(path, "a")) == NULL)
 		return errno;
 	return 0;
 }
 
-int
-close_log (void)
+int close_log()
 {
-	if (log && fclose (log))
+	if (log && fclose(log))
 	{
 		log = NULL;
 		return errno;
@@ -157,10 +135,9 @@ close_log (void)
 	return 0;
 }
 
-int
-close_restrict_log (void)
+int close_restrict_log()
 {
-	if (restrict_log && fclose (restrict_log))
+	if (restrict_log && fclose(restrict_log))
 	{
 		restrict_log = NULL;
 		return errno;
@@ -169,10 +146,9 @@ close_restrict_log (void)
 	return 0;
 }
 
-int
-close_slow_queries_log (void)
+int close_slow_queries_log()
 {
-	if (slow_queries_log && fclose (slow_queries_log))
+	if (slow_queries_log && fclose(slow_queries_log))
 	{
 		slow_queries_log = NULL;
 		return errno;
@@ -181,79 +157,71 @@ close_slow_queries_log (void)
 	return 0;
 }
 
-static int
-do_write_log (FILE *f, int show_pid_tid, const char *tags, const char *src_file, int src_line, const char *src_func, MODE_TYPE mode, Stats *limits, char *fmt, va_list args)
+static int write_log_impl(FILE *f, const char *tags, bool error, const char *src_file, int src_line, const char *src_func, const Stats *limits, const char *fmt, va_list args)
 {
 	if (f == NULL)
 		return -1;
 
-	char s[0x1000], *p = 0;
-	size_t pSz = 0;
-	char timestamp[128];
-	time_t rawtime;
+	bool verbose = src_file && src_line != -1 && src_func;
+
+	char s[0x1000], *p = s;
+	size_t pSz = sizeof(s);
+	int rc = 0;
+	#define INC_P \
+		do {\
+			if (rc < 0 || rc >= (int)pSz)\
+				return EIO;\
+			p += rc;\
+			pSz -= rc;\
+		} while (0)
+
+	char timestamp[0x100];
+	struct timespec ts;
 	struct tm timeinfo;
-	int rc;
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
-
-	time(&rawtime);
-	if (!localtime_r(&rawtime, &timeinfo) || strftime(timestamp, sizeof(timestamp), "%c", &timeinfo) <= 0)
+	if (!clock_gettime(CLOCK_REALTIME, &ts) && localtime_r(&ts.tv_sec, &timeinfo) && strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeinfo) > 0)
+	{
+		if (verbose)
+		{
+			char ns[0x10] = "";
+			snprintf(ns, sizeof(ns), ".%09lld", (long long)ts.tv_nsec);
+			strcat(timestamp, ns);
+		}
+	} else
 		strcpy(timestamp, "unknown time");
-
-	p = s;
-	pSz = sizeof(s);
-
-	rc = snprintf(p, pSz, "[%s] ", timestamp);
-	if (rc < 0 || rc >= pSz)
-		return EIO;
-	p += rc;
-	pSz -= rc;
-
-	if (show_pid_tid)
+	rc = snprintf(p, pSz, "[%s]", timestamp);
+	INC_P;
+	if (verbose)
 	{
-		rc = snprintf(p, pSz, "[%ld:%ld] ", (long)getpid(), (long)gettid_p());
-		if (rc < 0 || rc >= pSz)
-			return EIO;
-		p += rc;
-		pSz -= rc;
+		rc = snprintf(p, pSz, " [%ld:%ld]", (long)getpid(), (long)gettid_p());
+		INC_P;
 	}
-
-	if (mode == DEBUG_MODE)
+	rc = snprintf(p, pSz, error ? "!" : " ");
+	INC_P;
+	if (verbose)
 	{
-		// According to man 3 basename,
-		// GNU version of basename is selected by defining _GNU_SOURCE + not including libgen.h
+		// According to man 3 basename, GNU version of basename is selected by defining _GNU_SOURCE + not including libgen.h
 		rc = snprintf(p, pSz, "[%s:%d:%s] ", basename(src_file), src_line, src_func);
-		if (rc < 0 || rc >= pSz)
-			return EIO;
-		p += rc;
-		pSz -= rc;
+		INC_P;
 	}
-
 	if (tags)
 	{
 		rc = snprintf(p, pSz, "[%s] ", tags);
-		if (rc < 0 || rc >= pSz)
-			return EIO;
-		p += rc;
-		pSz -= rc;
+		INC_P;
 	}
 
-	if (fmt)
-		rc = vsnprintf(p, pSz, fmt, args);
-	else
-		rc = snprintf(p, pSz, "format error");
-	if (rc < 0 || rc >= pSz)
-		return EIO;
-	p += rc;
-	pSz -= rc;
+	rc = fmt ? vsnprintf(p, pSz, fmt, args) : snprintf(p, pSz, "format error");
+	INC_P;
+	bool msgNonEmpty = rc > 0;
 
-	if (limits && (data_cfg.restrict_format > 0))
+	if (limits)
 	{
-		rc = snprintf(p, pSz, "cpu = %f, read = %ld, write = %ld", limits->cpu, limits->read, limits->write);
-		if (rc < 0 || rc >= pSz)
-			return EIO;
-		p += rc;
-		pSz -= rc;
+		if (msgNonEmpty)
+		{
+			rc = snprintf(p, pSz, ", ");
+			INC_P;
+		}
+		rc = snprintf(p, pSz, "cpu = %f, read = %lld, write = %lld", limits->cpu, limits->read, limits->write);
+		INC_P;
 	}
 
 	if (pSz < 2)
@@ -269,156 +237,50 @@ do_write_log (FILE *f, int show_pid_tid, const char *tags, const char *src_file,
 	return 0;
 }
 
-int
-write_log (FILE *f, int show_pid_tid, const char *src_file, int src_line, const char *src_func, MODE_TYPE mode, Stats *limits, char *fmt, ...)
+int write_log_simple(FILE *f, const Stats *limits, const char *fmt, ...)
 {
-	if (f == NULL)
+	if (!f)
 		return -1;
 	va_list args;
 	va_start(args, fmt);
-	int rc = do_write_log(f, show_pid_tid, NULL, src_file, src_line, src_func, mode, limits, fmt, args);
+	int rc = write_log_impl(f, NULL, false, NULL, -1, NULL, limits, fmt, args);
 	va_end(args);
 	return rc;
 }
 
-static void
-print_long (FILE * f, long val)
-{
-	fprintf (f, "= %ld, ", val);
-}
-
-static void
-print_long_last (FILE * f, long val)
-{
-	fprintf (f, "= %ld", val);
-}
-
-void
-print_stats (FILE * f, stats_limit_cfg * s)
-{
-	print_stats_cfg (f, s);
-}
-
-static void
-print_long_cfg (FILE * f, T_LONG val)
-{
-	fprintf (f, "current = %ld", val._current);
-	if (val._short >= 0)
-		fprintf (f, ", short = %ld", val._short);
-	if (val._mid >= 0)
-		fprintf (f, ", mid = %ld", val._mid);
-	if (val._long >= 0)
-		fprintf (f, ", long = %ld", val._long);
-	fprintf (f, "\n");
-}
-
-static void
-print_double (FILE * f, double val)
-{
-	fprintf (f, "= %f, ", val);
-}
-
-void
-print_stats_easy (FILE * f, stats_limit * s)
-{
-	fprintf (f, "cpu ");
-	print_double (f, s->cpu);
-	fprintf (f, "read ");
-	print_long (f, s->read);
-	fprintf (f, "write ");
-	print_long_last (f, s->write);
-}
-
-FILE *
-get_log (void)
+FILE *get_log()
 {
 	return log;
 }
 
-FILE *
-get_restrict_log (void)
+FILE *get_restrict_log()
 {
 	return restrict_log;
 }
 
-FILE *
-get_slow_queries_log (void)
+FILE *get_slow_queries_log()
 {
 	return slow_queries_log;
 }
 
-void
-print_stats_cfg (FILE * f, stats_limit_cfg * s)
+static const char *tag_names[] =
 {
-	fprintf (f, "cpu ");
-	print_long_cfg (f, s->cpu);
-	fprintf (f, "read ");
-	print_long_cfg (f, s->read);
-	fprintf (f, "write ");
-	print_long_cfg (f, s->write);
-}
-
-static void
-print_account_limits (gpointer key, gpointer value, gpointer user_data)
-{
-	fprintf (log, "%s -- ", (char *) key);
-	print_stats (log, value);
-	fprintf (log, "\n");
-}
-
-void
-print_config (void *icfg)
-{
-	struct governor_config *cfg = (struct governor_config *) icfg;
-	if ((cfg->log_mode == DEBUG_MODE) && (log != NULL))
-	{
-		fprintf (log, "db_login %s\n", cfg->db_login);
-		fprintf (log, "db_password %s\n", cfg->db_password);
-		fprintf (log, "host %s\n", cfg->host);
-		fprintf (log, "log %s\n", cfg->log);
-		fprintf (log, "log_mode %s\n", mode_type_enum_to_str[cfg->log_mode]);
-		fprintf (log, "restrict_log %s\n", cfg->restrict_log);
-		fprintf (log, "separator %c\n", cfg->separator);
-		fprintf (log, "level1 %u, level2 %u, level3 %u, level4 %u\n",
-			cfg->level1, cfg->level2, cfg->level3, cfg->level4);
-		fprintf (log, "timeout %u\n", cfg->timeout);
-		fprintf (log, "interval_short %u\n", cfg->interval_short);
-		fprintf (log, "interval_mid %u\n", cfg->interval_mid);
-		fprintf (log, "interval_long %u\n", cfg->interval_long);
-		fprintf (log, "restrict log format %u\n", cfg->restrict_format);
-
-		fprintf (log, "\ndefault\n");
-		print_stats_cfg (log, &cfg->default_limit);
-
-		g_hash_table_foreach (cfg->account_limits,
-			(GHFunc) print_account_limits, "");
-		fprintf (log, "\n");
-	}
-}
-
-
-/*
-	Extended logging section:
-*/
-
-static const char *extlog_tag_names[] =
-{
-	#define DEFINE_EXTLOG_TAG(tag)	#tag,
+	#define DEFINE_LOG_TAG(tag)	#tag,
 	#include "log_tags.h"
-	#undef DEFINE_EXTLOG_TAG
+	#undef DEFINE_LOG_TAG
 };
 
 // tag name in uppercase, or NULL if no such tag defined
-static const char *extlog_tag_name(unsigned tag)
+static const char *get_tag_name(unsigned tag)
 {
 	int i;
 	for (i=0; i < EXTLOG_TAG_BITS; i++)
-		if (tag == (1 << i))
-			return extlog_tag_names[i];
+		if (tag == (1u << i))
+			return tag_names[i];
 	return NULL;
 }
 
-static void extlog_concat_tag_names(unsigned tags, const char *delim, int lowerCase, char *dst, size_t dstSz)
+static void concat_tag_names(unsigned tags, const char *delim, int lowerCase, char *dst, size_t dstSz)
 {
 	char *p = dst;
 	*p = '\0';
@@ -429,16 +291,20 @@ static void extlog_concat_tag_names(unsigned tags, const char *delim, int lowerC
 		unsigned tag = 1 << i;
 		if (tags & tag)
 		{
+			const char *s_tag = get_tag_name(tag);
+			if (!s_tag)
+				s_tag = "unknown";
+			size_t len = strlen(s_tag);
+			if (delimLen+len+1 > dstSz)
+				return;
 			if (p > dst)	// before any tag except first, add delimiter
 			{
 				memcpy(p, delim, delimLen);
 				p += delimLen;
+				dstSz -= delimLen;
 			}
-			const char *s_tag = extlog_tag_name(tag);
-			if (!s_tag)
-				s_tag = "unknown";
-			size_t len = strlen(s_tag);
 			memcpy(p, s_tag, len + 1);
+			dstSz -= len + 1;
 			if (lowerCase)
 			{
 				char *pp;
@@ -450,21 +316,15 @@ static void extlog_concat_tag_names(unsigned tags, const char *delim, int lowerC
 	}
 }
 
+unsigned log_enabled_tags = 0;		// bitmask of enabled tags
+unsigned log_verbosity_level = 1;
 
-// Set of extended logging flags - the subsystem logging is enabled if corresponding bit is set
-unsigned extlog_enabled_tags = 0;		// bitmask of enabled tags
-unsigned extlog_verbosity_level = 1;	// minimum level of extlog() verbosity to be printed
-
-// initialize extlog_enabled_tags
-void extlog_init(void)
+void init_log_ex(bool enable_all_tags)
 {
-	extlog_enabled_tags = 0;
+	log_enabled_tags = L_ERR | L_IMPORTANT | L_LIFE;
 
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
-
-	if (data_cfg.log_mode == DEBUG_MODE)	// in debug mode, enable all tags
-		extlog_enabled_tags = (1 << EXTLOG_TAG_BITS) - 1;
+	if (enable_all_tags)	// in debug mode, enable all tags
+		log_enabled_tags = (1 << EXTLOG_TAG_BITS) - 1;
 	else									// otherwise, check file-flags to enable corresponding tags
 	{
 		// calculate file-flags prefix
@@ -486,10 +346,10 @@ void extlog_init(void)
 			} else
 			{
 				tag = 1 << i;
-				s_tag = extlog_tag_name(tag);
+				s_tag = get_tag_name(tag);
 			}
 			size_t l_tag = strlen(s_tag);
-			strcpy(ptr, "extlog-");
+			strcpy(ptr, "log-");
 			char *p_tag = ptr + strlen(ptr), *pp;
 			strcpy(p_tag, s_tag);
 			for (pp=p_tag; pp < p_tag + l_tag; pp++)
@@ -498,40 +358,36 @@ void extlog_init(void)
 			struct stat flag_stat;
 			if (!stat(fname, &flag_stat))
 			{
-				extlog_enabled_tags |= tag;
+				log_enabled_tags |= tag;
 				if (all)
 					break;
 			}
 		}
 	}
 
-	// TODO: possibly we'll need configurable extlog_verbosity_level, for now it's constant
+	// TODO: possibly we'll need configurable log_verbosity_level, for now it's constant
 
-	char
-		s_tags_ena[0x1000] = "",
-		s_tags_dis[0x1000] = "";
-	extlog_concat_tag_names( extlog_enabled_tags, ",", 0, s_tags_ena, sizeof s_tags_ena);
-	extlog_concat_tag_names(~extlog_enabled_tags, ",", 1, s_tags_dis, sizeof s_tags_dis);
-
-	WRITE_LOG(NULL, 0, "Extended logging enabled tags: [%s]; verbosity level: %d; disabled tags: [%s]", data_cfg.log_mode, s_tags_ena, extlog_verbosity_level, s_tags_dis);
+	char	s_tags_ena[0x1000] = "",
+			s_tags_dis[0x1000] = "";
+	concat_tag_names( log_enabled_tags, ",", 0, s_tags_ena, sizeof s_tags_ena);
+	concat_tag_names(~log_enabled_tags, ",", 1, s_tags_dis, sizeof s_tags_dis);
+	LOG(L_LIFE, "Logging enabled tags: [%s]; verbosity level: %d; disabled tags: [%s]", s_tags_ena, log_verbosity_level, s_tags_dis);
 }
 
-int extlog(unsigned tags, unsigned level, const char *src_file, int src_line, const char *src_func, char *fmt, ...)
+int write_log_ex(unsigned tags, unsigned level, const char *src_file, int src_line, const char *src_func, const char *fmt, ...)
 {
-	if (!((tags & extlog_enabled_tags) && level <= extlog_verbosity_level))
+	if (!((tags & log_enabled_tags) && level <= log_verbosity_level))
 		return 0;
-
 	char s_tags[0x1000] = "";
-	extlog_concat_tag_names(tags, ":", 0, s_tags, sizeof s_tags);
+	concat_tag_names(tags, ":", 0, s_tags, sizeof s_tags);
 #if 0  // TODO: when we have different levels indeed, we'll decide how to print them
 	char lev[0x10];
 	sprintf(lev, ":lev.%d", level);
 	strcat(s_tags, lev);
 #endif
-
 	va_list args;
 	va_start(args, fmt);
-	int rc = do_write_log(log, 1, s_tags, src_file, src_line, src_func, DEBUG_MODE, NULL, fmt, args);
+	int rc = write_log_impl(log, s_tags, !!(tags & L_ERR), src_file, src_line, src_func, NULL, fmt, args);
 	va_end(args);
 	return rc;
 }

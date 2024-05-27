@@ -37,6 +37,12 @@ int remove_bad_users_list_utility (void);
 int init_bad_users_list_if_not_exitst (void);
 void printf_bad_list_client_persistent (void);
 
-void print_message_log(char *format, ...);
+#ifndef LIBGOVERNOR
+
+void init_mysql_uidgid();
+uid_t get_mysql_uid();
+gid_t get_mysql_gid();
+
+#endif // LIBGOVERNOR
 
 #endif /* SHARED_MEMORY_H_ */

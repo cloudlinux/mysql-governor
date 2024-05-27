@@ -22,7 +22,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-//#include <cl-sentry.h> // S.K. >> Will be uncommented after Sentry native release for all platforms
 
 #include "data.h"
 #include "dbgovernor_string_functions.h"
@@ -49,13 +48,10 @@
 
 #define BUF_SIZE_III 100
 
-#define MACRO_CHECK_ZERO(x) if (!st->x._current) WRITE_LOG(NULL, 0, "WARNING!!! default " # x "  = 0", get_config_log_mode())
-#define MACRO_CHECK_ZERO_SHORT(x) if (!st->x._short) WRITE_LOG(NULL, 0, "WARNING!!! short default " # x "  = 0", get_config_log_mode())
-#define MACRO_CHECK_ZERO_MID(x) if (!st->x._mid) WRITE_LOG(NULL, 0, "WARNING!!! mid default " # x "  = 0", get_config_log_mode())
-#define MACRO_CHECK_ZERO_LONG(x) if (!st->x._long) WRITE_LOG(NULL, 0, "WARNING!!! long default " # x "  = 0", get_config_log_mode())
-
-#define CL_PYTHON_INTERPRETER   "/opt/cloudlinux/venv/bin/python3"
-#define CL_SENTRY_DAEMON        "/usr/share/lve/dbgovernor/scripts/sentry_daemon.py"
+#define MACRO_CHECK_ZERO(x)			if (!st->x._current)	LOG(L_ERR, "default " # x "  = 0")
+#define MACRO_CHECK_ZERO_SHORT(x)	if (!st->x._short)		LOG(L_ERR, "short default " # x "  = 0")
+#define MACRO_CHECK_ZERO_MID(x)		if (!st->x._mid)		LOG(L_ERR, "mid default " # x "  = 0")
+#define MACRO_CHECK_ZERO_LONG(x)	if (!st->x._long)		LOG(L_ERR, "long default " # x "  = 0")
 
 /* Lock a file region (private; public interfaces below) */
 
@@ -164,7 +160,7 @@ int createPidFile_III(const char *pidFile_III, int flags_III)
 	return 0;
 }
 
-void becameDaemon(int self_supporting)
+void becomeDaemon(int self_supporting)
 {
 	struct governor_config data_cfg;
 
@@ -193,7 +189,7 @@ void becameDaemon(int self_supporting)
 	/* Set session leader */
 	if (setsid() == -1)
 	{
-		WRITE_LOG (NULL, 0, "Can't start setsid", data_cfg.log_mode);
+		LOG(L_ERR, "Can't start setsid");
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
@@ -209,7 +205,7 @@ void becameDaemon(int self_supporting)
 		switch (fork())
 		{
 			case -1:
-				WRITE_LOG (NULL, 0, "Can't start daemon", data_cfg.log_mode);
+				LOG(L_ERR, "Can't start daemon");
 				close_log();
 				close_restrict_log();
 				close_slow_queries_log();
@@ -229,7 +225,7 @@ void becameDaemon(int self_supporting)
 	umask(0);
 	if ((chdir("/")) < 0)
 	{
-		WRITE_LOG (NULL, 0, "Child chdir error", data_cfg.log_mode);
+		LOG(L_ERR, "Child chdir error");
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
@@ -241,7 +237,7 @@ void becameDaemon(int self_supporting)
 	/* Create pid file of programm */
 	if (createPidFile_III(PID_PATH, 0) == -1)
 	{
-		WRITE_LOG (NULL, 0, "Unable to create PID file", data_cfg.log_mode);
+		LOG(L_ERR, "Unable to create PID file");
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
@@ -257,7 +253,7 @@ void becameDaemon(int self_supporting)
 	DIR * fd_dir = opendir(fd_dname);
 
 	/* Go through /proc/<cur-pid>/fd/ directory to find out
-	** all open descriptors and close them (expect of logs)
+	** all open descriptors and close them (except of logs)
 	*/
 	if (fd_dir)
 	{
@@ -332,83 +328,130 @@ void check_for_zero(stats_limit_cfg * st)
 
 #ifndef NOGOVERNOR
 
-static void governor_init_sentry(struct governor_config *cfg)
+static void print_long_cfg(FILE *f, T_LONG val)
 {
-	// Init Sentry logging
-	if (cfg->sentry_mode == SENTRY_MODE_NATIVE)
+	fprintf(f, "current = %ld", val._current);
+	if (val._short >= 0)
+		fprintf(f, ", short = %ld", val._short);
+	if (val._mid >= 0)
+		fprintf(f, ", mid = %ld", val._mid);
+	if (val._long >= 0)
+		fprintf(f, ", long = %ld", val._long);
+	fprintf(f, "\n");
+}
+
+static void print_stats_cfg(FILE *f, const stats_limit_cfg *s)
+{
+	fprintf(f, "cpu ");
+	print_long_cfg(f, s->cpu);
+	fprintf(f, "read ");
+	print_long_cfg(f, s->read);
+	fprintf(f, "write ");
+	print_long_cfg(f, s->write);
+}
+
+static void print_account_limits(gpointer key, gpointer value, gpointer user_data)
+{
+	FILE *log = get_log();
+	fprintf(log, "%s -- ", (const char *) key);
+	print_stats_cfg(log, value);
+	fprintf(log, "\n");
+}
+
+static void print_config(const void *icfg)
+{
+	const struct governor_config *cfg = (const struct governor_config *) icfg;
+	FILE *log = get_log();
+	if ((cfg->log_mode == DEBUG_MODE) && (log != NULL))
 	{
-		/*
-		// S.K. >> Will be uncommented after Sentry native release for all platforms
-		if (cfg->sentry_dsn && cfg->sentry_dsn[0] != '\0')
-		{
-			if (!cl_sentry_init(cfg->sentry_dsn, CL_SENTRY_DEBUG_INTERNALS, GOVERNOR_CUR_VER, NULL, 0))
-			{
-				fprintf(stderr, "Can't init Sentry\n");
-				fflush(stderr);
-				config_free();
-				exit(EXIT_FAILURE);
-			}
+		char buffer[512] = { 0 };
+		fprintf(log, "db_login %s\n", cfg->db_login);
+		fprintf(log, "db_password %s\n", cfg->db_password);
+		fprintf(log, "host %s\n", cfg->host);
+		fprintf(log, "log %s\n", cfg->log);
+		fprintf(log, "log_mode %s\n", mode_type_enum_to_str(cfg->log_mode, buffer, sizeof(buffer)-1));
+		fprintf(log, "restrict_log %s\n", cfg->restrict_log);
+		fprintf(log, "separator %c\n", cfg->separator);
+		fprintf(log, "level1 %u, level2 %u, level3 %u, level4 %u\n",
+			cfg->level1, cfg->level2, cfg->level3, cfg->level4);
+		fprintf(log, "timeout %u\n", cfg->timeout);
+		fprintf(log, "interval_short %u\n", cfg->interval_short);
+		fprintf(log, "interval_mid %u\n", cfg->interval_mid);
+		fprintf(log, "interval_long %u\n", cfg->interval_long);
+		fprintf(log, "restrict log format %u\n", cfg->restrict_format);
 
-			// Set custom logging tag in order to distinguish logs from different sources
-			cl_sentry_set_custom_global_tag("log-source", "sentry-native");
-		}
-		*/
-	}
-	else if (cfg->sentry_mode == SENTRY_MODE_EXTERNAL)
-	{
-		// Init external Sentry logging
-		pid_t pid;
-		if ((pid = fork()) < 0)
-		{
-			fprintf(stderr, "Failed to fork process for external Sentry daemon\n");
-			fflush(stderr);
-			config_free();
-			exit(EXIT_FAILURE);
-		}
-		else if (pid == 0)
-		{
-			// daemonize child process
-			setsid();
-			setpgid(0, 0);
+		fprintf(log, "\ndefault\n");
+		print_stats_cfg(log, &cfg->default_limit);
 
-			char *const argv[] = {(char *)CL_PYTHON_INTERPRETER, (char *)CL_SENTRY_DAEMON, NULL};
-			char *const envp[] = {NULL};
-
-			execve(CL_PYTHON_INTERPRETER, argv, envp);
-			_exit(-1);
-		}
-
-		config_set_sentry_pid(pid);
+		g_hash_table_foreach(cfg->account_limits, (GHFunc) print_account_limits, "");
+		fprintf(log, "\n");
 	}
 }
 
-static void governor_destroy_sentry()
+static void prepare_log_for_mysqld(const struct governor_config *cfg, const char *path)
 {
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
-
-	if (data_cfg.sentry_mode == SENTRY_MODE_NATIVE)
+	uid_t mysql_uid = get_mysql_uid();
+	gid_t mysql_gid = get_mysql_gid();
+	if (mysql_uid == UNINITED_UID || mysql_gid == UNINITED_GID)	// possibly not inited yet
 	{
-		/*
-		// S.K. >> Will be uncommented after Sentry native release for all platforms
-		if (data_cfg.sentry_dsn)
-		{
-			// Deinit Sentry logging
-			cl_sentry_deinit();
-		}
-		*/
+		init_mysql_uidgid();
+		mysql_uid = get_mysql_uid();
+		mysql_gid = get_mysql_gid();
 	}
-	else if (data_cfg.sentry_mode == SENTRY_MODE_EXTERNAL)
+	if (mysql_uid == UNINITED_UID || mysql_gid == UNINITED_GID)
 	{
-		if (data_cfg.sentry_pid > 0 && kill(data_cfg.sentry_pid, 0) == 0)
+		LOG(L_ERR|L_LIFE, "can't check '%s' file: possibly 'mysql' user doesn't exist. Please install MySQL and restart Governor", path);
+		goto fail;
+	}
+	mode_t required_mode = S_IRUSR|S_IWUSR|S_IRGRP;
+	struct stat st;
+	bool exists = !stat(path, &st);
+	if (exists && S_ISDIR(st.st_mode))
+	{
+		LOG(L_ERR|L_LIFE, "failed to create '%s': directory exists at this path. Please remove the directory", path);
+		goto fail;
+	}
+	bool createdNow = false;
+	if (!exists)
+	{
+		LOG(L_LIFE, "'%s' not found, creating", path);
+		int fd = open(path, O_CREAT|O_WRONLY, required_mode);
+		if (fd < 0)
 		{
-			// Terminate external Sentry daemon
-			kill(data_cfg.sentry_pid, SIGTERM);
+			LOG(L_ERR|L_LIFE, "failed to create '%s', errno=%d", path, errno);
+			goto fail;
+		}
+		close(fd);
+		exists = !stat(path, &st);
+		if (!exists)
+		{
+			LOG(L_ERR|L_LIFE, "failed to create '%s'", path);
+			goto fail;
+		}
+		createdNow = true;
+	}
+	if (st.st_uid != mysql_uid || st.st_gid != mysql_gid)
+	{
+		if (!createdNow)
+			LOG(L_LIFE, "'%s' has wrong owner, changing UID %u->%u, GID %u->%u", path, (unsigned)st.st_uid, (unsigned)mysql_uid, (unsigned)st.st_gid, (unsigned)mysql_gid);
+		if (chown(path, mysql_uid, mysql_gid))
+		{
+			LOG(L_ERR|L_LIFE, "chown() failed, errno=%d", errno);
+			goto fail;
 		}
 	}
-
-	// Reset Sentry related config to avoid dangling pinters
-	config_reset_sentry();
+	if ((st.st_mode & required_mode) != required_mode)
+	{
+		LOG(L_LIFE, "'%s' has wrong mode, changing %o->%o", path, (unsigned)st.st_mode, (unsigned)required_mode);
+		if (chmod(path, required_mode))
+		{
+			LOG(L_ERR|L_LIFE, "chmod() failed, errno=%d", errno);
+			goto fail;
+		}
+	}
+	return;
+fail:
+	LOG(L_LIFE, "make sure that '%s' file exists and has proper ownership (mysql.mysql) and permissions (0%o)", path, (unsigned)required_mode);
 }
 
 void initGovernor(void)
@@ -433,15 +476,11 @@ void initGovernor(void)
 	struct governor_config data_cfg;
 	get_config_data(&data_cfg);
 
-	// Init Sentry logging
-	governor_init_sentry(&data_cfg);
-
 	// Open error log
 	if (open_log(data_cfg.log))
 	{
 		fprintf(stderr, "Can't open log file\n");
 		fflush(stderr);
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -457,22 +496,27 @@ void initGovernor(void)
 	if (data_cfg.slow_queries_log)
 		open_slow_queries_log(data_cfg.slow_queries_log);
 
-	// Initialize extended logging flags
-	extlog_init();
+	// Setup logging - enable tags, etc.
+	init_log_ex(data_cfg.log_mode == DEBUG_MODE);
+
+	// When "mysqld" calls "libgovernor.so" functions,
+	// they try to write to a separate log, "/var/log/dbgovernor-mysqld.log".
+	// But "mysqld" doesn't have rights to create files in "/var/log/".
+	// We need to ensure that there exists such a file with proper permissisons.
+	prepare_log_for_mysqld(&data_cfg, MYSQLD_EXTLOG_PATH);
 }
 
 void trackingDaemon(void)
 {
 	int status = 0;
-	struct governor_config data_cfg;
-	becameDaemon(0);
+	becomeDaemon(0);
 
-	bg_loop: ;
+bg_loop: ;
 	config_destroy_lock();
 	config_free();
 	initGovernor();
-	
-	
+
+
 	pid_t pid_daemon = fork();
 
 	if (pid_daemon > 0)
@@ -480,8 +524,7 @@ void trackingDaemon(void)
 		// config_free();
 		wait(&status);
 
-		get_config_data(&data_cfg);
-		WRITE_LOG (NULL, 0, "Failed governor daemon, restart daemon", data_cfg.log_mode);
+		LOG(L_ERR, "Failed governor daemon, restart daemon");
 
 		int max_file_descriptor = sysconf(FOPEN_MAX), file_o;
 		struct stat buf_stat;
@@ -541,13 +584,12 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(0);
 	}
 
 #ifdef SYSTEMD_FLAG
-	becameDaemon (0);
+	becomeDaemon (0);
 	sd_notify (0, "READY=1");
 #else
 	if (data_cfg.daemon_monitor)
@@ -558,7 +600,7 @@ int main(int argc, char *argv[])
 			exit(EXIT_SUCCESS);
 	} else
 	{
-		becameDaemon(1);
+		becomeDaemon(1);
 	}
 #endif
 #else
@@ -568,11 +610,10 @@ int main(int argc, char *argv[])
 	umask (0);
 	if ((chdir ("/")) < 0)
 	{
-		WRITE_LOG (NULL, 0, "Child chdir error", data_cfg.log_mode);
+		LOG(L_ERR, "Child chdir error");
 		close_log ();
 		close_restrict_log ();
 		close_slow_queries_log ();
-		governor_destroy_sentry();
 		config_free ();
 		fprintf (stderr, "Child chdir error\n");
 		fflush (stderr);
@@ -583,11 +624,10 @@ int main(int argc, char *argv[])
 	get_config_data(&data_cfg);
 	if (init_mysql_function() < 0)
 	{
-		WRITE_LOG (NULL, 0, "Can't load mysql functions", data_cfg.log_mode);
+		LOG(L_ERR|L_MYSQL, "Can't load mysql functions");
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -597,47 +637,45 @@ int main(int argc, char *argv[])
 	{
 		get_config_data(&data_cfg);
 		if (db_connect(data_cfg.host, data_cfg.db_login, data_cfg.db_password,
-				"information_schema", argc, argv, data_cfg.log_mode) < 0)
+			"information_schema", argc, argv) < 0)
 		{
 			trying_to_connect++;
 			if (trying_to_connect > 3)
 			{
-				WRITE_LOG (NULL, 0, "Can't connect to mysql. Please check that mysql is running otherwise"
-				" check host, login and password in /etc/container/mysql-governor.xml file", data_cfg.log_mode);
+				LOG(L_ERR|L_MYSQL, "Can't connect to mysql. Please check that mysql is running otherwise"
+				" check host, login and password in /etc/container/mysql-governor.xml file");
 				/* To avoid too frequent service restart when mysql is not available */
 				sleep(60);
 				delete_mysql_function();
 				close_log();
 				close_restrict_log();
 				close_slow_queries_log();
-				governor_destroy_sentry();
 				config_free();
 				remove("/usr/share/lve/dbgovernor/governor_connected");
 				exit(EXIT_FAILURE);
 			} else
 			{
-				WRITE_LOG (NULL, 0, "Can't connect to mysql. Try to reconnect", data_cfg.log_mode);
+				LOG(L_ERR|L_MYSQL, "Can't connect to mysql. Try to reconnect");
 				/* To avoid too frequent reconnect tries when mysql is not available */
 				sleep(20);
 			}
 		} else
 		{
-			WRITE_LOG (NULL, 0, "Governor successfully connected to mysql", data_cfg.log_mode);
+			LOG(L_LIFE|L_MYSQL, "Governor successfully connected to mysql");
 			creat("/usr/share/lve/dbgovernor/governor_connected", 0600);
 			break;
 		}
 	}
 
 	get_config_data(&data_cfg);
-	if (!check_mysql_version(data_cfg.log_mode))
+	if (!check_mysql_version())
 	{
-		WRITE_LOG (NULL, 0, "Incorrect mysql version", data_cfg.log_mode);
+		LOG(L_ERR, "Incorrect mysql version");
 		db_close();
 		delete_mysql_function();
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		remove("/usr/share/lve/dbgovernor/cll_lve_installed");
 		exit(EXIT_FAILURE);
@@ -646,14 +684,12 @@ int main(int argc, char *argv[])
 		creat("/usr/share/lve/dbgovernor/cll_lve_installed", 0600);
 	}
 
-	//unfreeze_all(data_cfg.log_mode);
-	//unfreeze_lve(data_cfg.log_mode);
+	//unfreeze_all();
+	//unfreeze_lve();
 	config_add_work_user(get_work_user());
 
-	WRITE_LOG (NULL, 0, "Started",
-		data_cfg.log_mode);
-	WRITE_LOG (NULL, 0, "Governor work without LVE (%s)", data_cfg.log_mode,
-		(data_cfg.is_gpl ? "yes" : "no"));
+	LOG(L_LIFE, "Started");
+	LOG(L_LIFE, "Governor work without LVE (%s)", data_cfg.is_gpl ? "yes" : "no");
 
 	init_tid_table();
 	dbgov_init();
@@ -661,7 +697,7 @@ int main(int argc, char *argv[])
 	//Work cycle
 	create_socket();
 
-	if (!activate_plugin(data_cfg.log_mode))
+	if (!activate_plugin())
 	{
 		if (!data_cfg.is_gpl)
 		{
@@ -672,7 +708,6 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
@@ -681,27 +716,29 @@ int main(int argc, char *argv[])
 	{
 		if (init_bad_users_list() < 0)
 		{
-			WRITE_LOG (NULL, 0, "Can't init BAD list, work in monitor only mode",
-					data_cfg.log_mode);
+			LOG(L_ERR, "Can't init BAD list, work in monitor only mode");
 			get_config()->use_lve = 0;
-			governor_enable_reconn(data_cfg.log_mode);
+			governor_enable_reconn();
 		}
 		else
 		{
-			WRITE_LOG (NULL, 0, "BAD list init successfully", data_cfg.log_mode);
-			governor_enable_reconn_lve(data_cfg.log_mode);
+			LOG(L_LIFE, "BAD list init successfully");
+			governor_enable_reconn_lve();
 		}
 	}
 	else
 	{
-		WRITE_LOG (NULL, 0, "No LVE, work in monitor only mode", data_cfg.log_mode);
-		governor_enable_reconn(data_cfg.log_mode);
+		LOG(L_LIFE, "No LVE, work in monitor only mode");
+		governor_enable_reconn();
 	}
 
-	WRITE_LOG (NULL, 0, "Creating DAEMON thread ...", data_cfg.log_mode);
+	LOG(L_LIFE|L_DMN, "creating thread");
 	ret = pthread_create(&thread, NULL, get_data_from_client, NULL);
-	if (ret < 0)
+	if (ret >= 0)
+		LOG(L_LIFE|L_DMN, "thread created");
+	else
 	{
+		LOG(L_ERR|L_LIFE|L_DMN, "failed to create thread, exiting");
 		if (!data_cfg.is_gpl)
 		{
 			remove_bad_users_list();
@@ -711,20 +748,17 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+
+	LOG(L_LIFE|L_SRV, "creating thread");
+	ret = pthread_create(&thread_governor, NULL, send_governor, NULL);
+	if (ret >= 0)
+		LOG(L_LIFE|L_SRV, "thread created");
 	else
 	{
-		WRITE_LOG (NULL, 0, "DAEMON thread created", data_cfg.log_mode);
-	}
-
-	WRITE_LOG (NULL, 0, "Creating SERVICE thread ...", data_cfg.log_mode);
-	ret = pthread_create(&thread_governor, NULL, send_governor, NULL);
-	if (ret < 0)
-	{
-		WRITE_LOG (NULL, 0, "FAILED to create SERVICE thread - EXITING", data_cfg.log_mode);
+		LOG(L_ERR|L_LIFE|L_SRV, "failed to create thread, exiting");
 		pthread_cancel(thread);
 		if (!data_cfg.is_gpl)
 		{
@@ -735,20 +769,17 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+
+	LOG(L_LIFE|L_DBTOP, "creating thread");
+	ret = pthread_create(&thread_dbtop, NULL, run_server, NULL);
+	if (ret >= 0)
+		LOG(L_LIFE|L_DBTOP, "thread created");
 	else
 	{
-		WRITE_LOG (NULL, 0, "SERVICE thread created", data_cfg.log_mode);
-	}
-
-	WRITE_LOG (NULL, 0, "Creating DBTOP_SERVER thread ...", data_cfg.log_mode);
-	ret = pthread_create(&thread_dbtop, NULL, run_server, NULL);
-	if (ret < 0)
-	{
-		WRITE_LOG (NULL, 0, "FAILED to create DBTOP_SERVER thread - EXITING", data_cfg.log_mode);
+		LOG(L_ERR|L_LIFE|L_DBTOP, "failed to create thread, exiting");
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		if (!data_cfg.is_gpl)
@@ -760,19 +791,17 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+
+	LOG(L_LIFE|L_MON, "creating thread");
+	ret = pthread_create(&thread_prcd, NULL, process_data_every_second, NULL);
+	if (ret >= 0)
+		LOG(L_LIFE|L_MON, "thread created");
 	else
 	{
-		WRITE_LOG (NULL, 0, "DBTOP_SERVER thread created", data_cfg.log_mode);
-	}
-
-	ret = pthread_create(&thread_prcd, NULL, process_data_every_second, NULL);
-	if (ret < 0)
-	{
-		WRITE_LOG (NULL, 0, "FAILED to create MONITOR thread - EXITING", data_cfg.log_mode);
+		LOG(L_ERR|L_LIFE|L_MON, "failed to create thread, exiting");
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
@@ -785,20 +814,17 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
 	}
+
+	LOG(L_LIFE|L_USRMAP, "creating thread");
+	ret = pthread_create(&thread_user_map, NULL, parse_map_file_every_hour, NULL);
+	if (ret >= 0)
+		LOG(L_LIFE|L_USRMAP, "thread created");
 	else
 	{
-		WRITE_LOG (NULL, 0, "MONITOR thread created", data_cfg.log_mode);
-	}
-
-	WRITE_LOG (NULL, 0, "Creating USERMAP thread ...", data_cfg.log_mode);
-	ret = pthread_create(&thread_user_map, NULL, parse_map_file_every_hour, NULL);
-	if (ret < 0)
-	{
-		WRITE_LOG (NULL, 0, "FAILED to create USERMAP thread - EXITING", data_cfg.log_mode);
+		LOG(L_ERR|L_LIFE|L_USRMAP, "failed to create thread, exiting");
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
@@ -812,22 +838,19 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
-	}
-	else
-	{
-		WRITE_LOG (NULL, 0, "USERMAP thread created", data_cfg.log_mode);
 	}
 
 	if (data_cfg.slow_queries)
 	{
-		WRITE_LOG (NULL, 0, "Creating SLOW_QUERY thread ...", data_cfg.log_mode);
+		LOG(L_LIFE|L_SLOW, "creating thread");
 		ret = pthread_create(&thread_slow_query, NULL, parse_slow_query, NULL);
-		if (ret < 0)
+		if (ret >= 0)
+			LOG(L_LIFE|L_SLOW, "thread created");
+		else
 		{
-			WRITE_LOG (NULL, 0, "FAILED to create SLOW_QUERY thread - EXITING", data_cfg.log_mode);
+			LOG(L_ERR|L_LIFE|L_SLOW, "failed to create thread, exiting");
 			pthread_cancel(thread);
 			pthread_cancel(thread_governor);
 			pthread_cancel(thread_dbtop);
@@ -842,22 +865,19 @@ int main(int argc, char *argv[])
 			close_log();
 			close_restrict_log();
 			close_slow_queries_log();
-			governor_destroy_sentry();
 			config_free();
 			exit(EXIT_FAILURE);
-		}
-		else
-		{
-			WRITE_LOG (NULL, 0, "SLOW_QUERY thread created", data_cfg.log_mode);
 		}
 	}
 
 
-	WRITE_LOG (NULL, 0, "Creating USERMAP_ONREQ thread ...", data_cfg.log_mode);
+	LOG(L_LIFE|L_USRMAPRQ, "creating thread");
 	ret = pthread_create(&therad_renew_dbusermap, NULL, renew_map_on_request, NULL);
-	if (ret < 0)
+	if (ret >= 0)
+		LOG(L_LIFE|L_USRMAPRQ, "thread created");
+	else
 	{
-		WRITE_LOG (NULL, 0, "FAILED to create USERMAP_ONREQ thread - EXITING", data_cfg.log_mode);
+		LOG(L_ERR|L_LIFE|L_USRMAPRQ, "failed to create thread, exiting");
 		pthread_cancel(thread);
 		pthread_cancel(thread_governor);
 		pthread_cancel(thread_dbtop);
@@ -876,13 +896,8 @@ int main(int argc, char *argv[])
 		close_log();
 		close_restrict_log();
 		close_slow_queries_log();
-		governor_destroy_sentry();
 		config_free();
 		exit(EXIT_FAILURE);
-	}
-	else
-	{
-		WRITE_LOG (NULL, 0, "USERMAP_ONREQ thread created", data_cfg.log_mode);
 	}
 
 
@@ -895,7 +910,7 @@ int main(int argc, char *argv[])
 	}
 	pthread_detach(therad_renew_dbusermap);
 	pthread_join(thread, NULL);
-	WRITE_LOG (NULL, 0, "DAEMON thread finished - EXITING", data_cfg.log_mode);
+	LOG(L_LIFE|L_DMN, "thread finished, exiting");
 
 	pthread_cancel(thread_governor);
 	pthread_cancel(thread_dbtop);
@@ -915,14 +930,12 @@ int main(int argc, char *argv[])
 	free_accounts_and_users();
 	free_tid_table();
 
-	WRITE_LOG (NULL, 0, "Stopped",
-			data_cfg.log_mode);
+	LOG(L_LIFE, "Stopped");
 	db_close();
 	delete_mysql_function();
 	close_log();
 	close_restrict_log();
 	close_slow_queries_log();
-	governor_destroy_sentry();
 	config_free();
 
 	return 0;

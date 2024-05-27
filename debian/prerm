@@ -20,6 +20,7 @@ set -e
 case "$1" in
     remove)
         systemctl --no-reload disable db_governor.service >/dev/null 2>&1 || :
+        systemctl --no-reload disable governor_sentry_daemon.service >/dev/null 2>&1 || :
         systemctl stop db_governor.service >/dev/null 2>&1 || :
         if [ -e /var/run/mysql-governor-config.xml ]; then
             rm -f /var/run/mysql-governor-config.xml

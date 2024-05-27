@@ -78,28 +78,7 @@ static MODE_TYPE mode_type_str_to_enum(const char *mode_str)
 	exit(-1);
 }
 
-static SENTRY_MODE sentry_mode_str_to_enum(const char *mode_str)
-{
-	if (mode_str == NULL)
-	{
-		fprintf(stderr, "Error: mode attribute is absent\n");
-		exit(-1);
-	}
-
-	if (!strcasecmp(mode_str, "DISABLED"))
-		return SENTRY_MODE_DISABLED;
-
-	if (!strcasecmp(mode_str, "NATIVE"))
-		return SENTRY_MODE_NATIVE;
-
-	if (!strcasecmp(mode_str, "EXTERNAL"))
-		return SENTRY_MODE_EXTERNAL;
-
-	fprintf(stderr, "Error: invalid sentry_mode %s\n", mode_str);
-	exit(-1);
-}
-
-static char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, int size)
+const char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, size_t size)
 {
 	if (tp == TEST_MODE)
 	{
@@ -150,28 +129,6 @@ static char * mode_type_enum_to_str(MODE_TYPE tp, char *mode_str, int size)
 	return mode_str;
 }
 
-static char * sentry_mode_enum_to_str(SENTRY_MODE tp, char *mode_str, int size)
-{
-	if (tp == SENTRY_MODE_DISABLED)
-	{
-		snprintf(mode_str, size, "DISABLED");
-		return mode_str;
-	}
-	if (tp == SENTRY_MODE_NATIVE)
-	{
-		snprintf(mode_str, size, "NATIVE");
-		return mode_str;
-	}
-	if (tp == SENTRY_MODE_EXTERNAL)
-	{
-		snprintf(mode_str, size, "EXTERNAL");
-		return mode_str;
-	}
-
-	snprintf(mode_str, size, "INVALID");
-	return mode_str;
-}
-
 int getRestrictFormat(const char *mode)
 {
 	if (mode)
@@ -190,7 +147,7 @@ int getRestrictFormat(const char *mode)
 	return 2;
 }
 
-static char * getRestrictFormatStr(int tp, char *mode_str, int size)
+static const char *getRestrictFormatStr(int tp, char *mode_str, size_t size)
 {
 	if (tp == 0)
 	{
@@ -385,10 +342,6 @@ void config_free(void)
 			free(cfg->restrict_log);
 		if (cfg->slow_queries_log)
 			free(cfg->slow_queries_log);
-		if (cfg->sentry_dsn)
-			free(cfg->sentry_dsn);
-		if (cfg->sentry_sock)
-			free(cfg->sentry_sock);
 		free(cfg);
 	}
 }
@@ -445,31 +398,8 @@ config_init(const char *path)
 	ptr = getElemAttr(tmp_xml, "file");
 	cfg->log = strdup(ptr ? ptr : "");
 	releaseElemValue(ptr);
-
 	ptr = getElemAttr(tmp_xml, "mode");
 	cfg->log_mode = (ptr == NULL) ? ERROR_MODE : mode_type_str_to_enum(ptr);
-	releaseElemValue(ptr);
-
-	tmp_xml = FindElementWithName(xml, NULL, "sentry");
-	if (tmp_xml == NULL)
-	{
-		releaseConfigData(xml);
-		fprintf(stderr, "No sentry path\n");
-		exit(-1);
-	}
-
-	cfg->sentry_pid = -1;
-
-	ptr = getElemAttr(tmp_xml, "mode");
-	cfg->sentry_mode = (ptr == NULL) ? SENTRY_MODE_DISABLED : sentry_mode_str_to_enum(ptr);
-	releaseElemValue(ptr);
-
-	ptr = getElemAttr(tmp_xml, "dsn");
-	cfg->sentry_dsn = strdup(ptr ? ptr : "");
-	releaseElemValue(ptr);
-
-	ptr = getElemAttr(tmp_xml, "sock");
-	cfg->sentry_sock = strdup(ptr ? ptr : "");
 	releaseElemValue(ptr);
 
 	tmp_xml = FindElementWithName(xml, NULL, "intervals");
@@ -868,46 +798,6 @@ void get_config_data(struct governor_config *data)
 	rc = pthread_rwlock_unlock(&rwlock);
 }
 
-void config_reset_sentry()
-{
-	int rc = pthread_rwlock_rdlock(&rwlock);
-	cfg->sentry_mode = SENTRY_MODE_DISABLED;
-	cfg->sentry_pid = -1;
-
-	if (cfg->sentry_dsn)
-	{
-		free(cfg->sentry_dsn);
-		cfg->sentry_dsn = NULL;
-	}
-
-	if (cfg->sentry_sock)
-	{
-		free(cfg->sentry_sock);
-		cfg->sentry_sock = NULL;
-	}
-
-	rc = pthread_rwlock_unlock(&rwlock);
-}
-
-void config_set_sentry_pid(pid_t pid)
-{
-	int rc = pthread_rwlock_rdlock(&rwlock);
-	cfg->sentry_pid = pid;
-	rc = pthread_rwlock_unlock(&rwlock);
-}
-
-MODE_TYPE get_config_log_mode(void)
-{
-	int rc;
-	MODE_TYPE _log_mode;
-
-	rc = pthread_rwlock_rdlock(&rwlock);
-	_log_mode = cfg->log_mode;
-	rc = pthread_rwlock_unlock(&rwlock);
-
-	return _log_mode;
-}
-
 void reread_config(void)
 {
 	int rc;
@@ -924,11 +814,10 @@ void config_destroy_lock(void)
 	pthread_rwlock_init(&rwlock, NULL);
 }
 
-static void print_account_configs(gpointer key, gpointer value,
-		gpointer user_data)
+static void print_account_configs(gpointer key, gpointer value, gpointer user_data)
 {
 	char buffer[512] = { 0 };
-	stats_limit_cfg *ptr = (stats_limit_cfg *) value;
+	const stats_limit_cfg *ptr = (const stats_limit_cfg *) value;
 	printf("%s_CPU_CUR %ld\n", (char *) key, ptr->cpu._current);
 	printf("%s_CPU_SHORT %ld\n", (char *) key, ptr->cpu._short);
 	printf("%s_CPU_MID %ld\n", (char *) key, ptr->cpu._mid);
@@ -949,10 +838,8 @@ static void print_account_configs(gpointer key, gpointer value,
 	printf("%s_SLOW_MID %ld\n", (char *) key, ptr->slow._mid);
 	printf("%s_SLOW_LONG %ld\n", (char *) key, ptr->slow._long);
 
-	printf("%s_ACC_TP %s\n", (char *) key,
-			(ptr->account_flag ? "ACCOUNT" : "MYSQL_USER"));
-	printf("%s_MODE %s\n", (char *) key,
-			mode_type_enum_to_str(ptr->mode, buffer, 511));
+	printf("%s_ACC_TP %s\n", (char *) key, ptr->account_flag ? "ACCOUNT" : "MYSQL_USER");
+	printf("%s_MODE %s\n", (char *) key, mode_type_enum_to_str(ptr->mode, buffer, sizeof(buffer)-1));
 }
 
 void print_config_full(void)
@@ -969,20 +856,20 @@ void print_config_full(void)
 	printf("INTERVALS_LONG %d\n", cfg->interval_long);
 	if (cfg->use_lve && !(cfg->all_lve + cfg->separate_lve))
 	{
-		snprintf(buffer, 511, "Single or On");
+		snprintf(buffer, sizeof(buffer)-1, "Single or On");
 	}
 	if (cfg->use_lve && cfg->all_lve && cfg->separate_lve)
 	{
-		snprintf(buffer, 511, "All");
+		snprintf(buffer, sizeof(buffer)-1, "All");
 	}
 	if (cfg->use_lve && !cfg->all_lve && cfg->separate_lve)
 	{
-		snprintf(buffer, 511, "AbUsers");
+		snprintf(buffer, sizeof(buffer)-1, "AbUsers");
 	}
 	printf("LVE %s, USE_LVE %d, ALL_LVE %d, SEP_LVE %d IMPROVED_ACCURACY %d\n", buffer, cfg->use_lve,
 			cfg->all_lve, cfg->separate_lve, cfg->improved_accuracy);
 	printf("LOG %s, MODE %s\n", cfg->log ? cfg->log : "NULL",
-			mode_type_enum_to_str(cfg->log_mode, buffer, 511));
+			mode_type_enum_to_str(cfg->log_mode, buffer, sizeof(buffer)-1));
 	printf("RESTRICT_LEVEL_1 %d\n", cfg->level1);
 	printf("RESTRICT_LEVEL_2 %d\n", cfg->level2);
 	printf("RESTRICT_LEVEL_3 %d\n", cfg->level3);
@@ -990,7 +877,7 @@ void print_config_full(void)
 	printf("RESTRICT_TIMEOUT %d\n", cfg->timeout);
 	printf("RESTRICT_LOG %s, RESTRICT_FORMAT %s\n",
 			(cfg->restrict_log ? cfg->restrict_log : "NULL"),
-			getRestrictFormatStr(cfg->restrict_format, buffer, 511));
+			getRestrictFormatStr(cfg->restrict_format, buffer, sizeof(buffer)-1));
 	printf("RESTRICT_SCRIPT %s\n", cfg->exec_script);
 	printf("RESTRICT_KILLUSER %s\n", (cfg->killuser ? "ON" : "OFF"));
 	printf("RESTRICT_USER_MAX_CONNECTION %d\n", cfg->max_user_connections);
@@ -1002,10 +889,7 @@ void print_config_full(void)
 	printf("STATISTICMODE %s, STATISTIC_MODE_SAVEUID %s\n",
 			(cfg->statistic_mode ? "ON" : "OFF"),
 			(cfg->save_statistic_uid ? "ON" : "OFF"));
-	printf(
-			"LOGQUERIES %s\n",
-			(!cfg->logqueries_use ? "OFF" : (cfg->logqueries_use == 1 ? "ON"
-					: "BEFORE")));
+	printf("LOGQUERIES %s\n", (!cfg->logqueries_use ? "OFF" : (cfg->logqueries_use == 1 ? "ON" : "BEFORE")));
 	printf("DEBUG_USER %s\n", (cfg->debug_user ? cfg->debug_user : "NULL"));
 	printf("DAEMON_MONITOR %s\n", (cfg->daemon_monitor ? "ON" : "OFF"));
 	printf("IS_GPL %d\n", cfg->is_gpl);
@@ -1030,15 +914,8 @@ void print_config_full(void)
 	printf("DEFAULT_SLOW_MID %ld\n", cfg->default_limit.slow._mid);
 	printf("DEFAULT_SLOW_LONG %ld\n", cfg->default_limit.slow._long);
 
-	printf("DEFAULT_ACC_TP %s\n",
-			(cfg->default_limit.account_flag ? "ACCOUNT" : "MYSQL_USER"));
-	printf("DEFAULTMODE %s\n",
-			mode_type_enum_to_str(cfg->default_limit.mode, buffer, 511));
+	printf("DEFAULT_ACC_TP %s\n", (cfg->default_limit.account_flag ? "ACCOUNT" : "MYSQL_USER"));
+	printf("DEFAULTMODE %s\n", mode_type_enum_to_str(cfg->default_limit.mode, buffer, sizeof(buffer)-1));
 
-	printf("SENTRY_MODE %s\n", sentry_mode_enum_to_str(cfg->sentry_mode, buffer, 511));
-	printf("SENTRY_SOCK %s\n", cfg->sentry_sock ? cfg->sentry_sock : "NULL");
-	printf("SENTRY_DSN %s\n", cfg->sentry_dsn ? cfg->sentry_dsn : "NULL");
-
-	g_hash_table_foreach(cfg->account_limits, (GHFunc) print_account_configs,
-			"");
+	g_hash_table_foreach(cfg->account_limits, (GHFunc) print_account_configs, "");
 }

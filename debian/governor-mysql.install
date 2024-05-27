@@ -5,6 +5,7 @@
  usr/sbin/mysql_unfreeze
  usr/lib/libgovernor.so
  usr/lib/systemd/system/db_governor.service
+ usr/lib/systemd/system/governor_sentry_daemon.service
  usr/lib/systemd/system/var-lve-dbgovernor\\x2dshm.mount
  etc/container/mysql-governor.xml
  etc/container/governor_package_limit.json

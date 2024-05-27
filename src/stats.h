@@ -66,10 +66,10 @@ void free_user_stats (gpointer ignored, User_stats * us);
 
 
 /* add two stats records */
-void sum_stats (Stats * dest, Stats * nr);
+void sum_stats(Stats * dest, const Stats * nr);
 
 /* add stats record to user */
-Stats *push_stats (Stats * st, User_stats * us);
+Stats *push_stats(const Stats * st, User_stats * us);
 
 /* resets stat */
 void reset_stats (Stats * st);

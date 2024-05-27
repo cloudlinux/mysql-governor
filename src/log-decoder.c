@@ -22,7 +22,7 @@ extern struct governor_config *cfg;
 
 /*Get the value of the limit on which the restriction occurred*/
 long
-getLimitValuePeriod (Account * ac, T_LONG lm)
+getLimitValuePeriod(const Account * ac, T_LONG lm)
 {
 	switch (ac->info.field_restrict)
 	{
@@ -41,7 +41,7 @@ getLimitValuePeriod (Account * ac, T_LONG lm)
 
 /*Get the value of the parameter on which the restriction occurred*/
 long long
-getRestrictValue (Account * ac)
+getRestrictValue(const Account * ac)
 {
 	switch (ac->info.field_restrict)
 	{
@@ -59,7 +59,7 @@ getRestrictValue (Account * ac)
 
 /*Get the value of the current period parameter*/
 long long
-getCurrentRestrictValue (Account * ac)
+getCurrentRestrictValue(const Account * ac)
 {
 	switch (ac->info.field_level_restrict)
 	{
@@ -76,7 +76,7 @@ getCurrentRestrictValue (Account * ac)
 
 /*Get the value of the short period parameter*/
 long long
-getShortRestrictValue (Account * ac)
+getShortRestrictValue(const Account * ac)
 {
 	switch (ac->info.field_level_restrict)
 	{
@@ -93,7 +93,7 @@ getShortRestrictValue (Account * ac)
 
 /*Get the value of the average period parameter*/
 long long
-getMidRestrictValue (Account * ac)
+getMidRestrictValue(const Account * ac)
 {
 	switch (ac->info.field_level_restrict)
 	{
@@ -110,7 +110,7 @@ getMidRestrictValue (Account * ac)
 
 /*Get the value of the long period parameter*/
 long long
-getLongRestrictValue (Account * ac)
+getLongRestrictValue(const Account * ac)
 {
 	switch (ac->info.field_level_restrict)
 	{
@@ -127,7 +127,7 @@ getLongRestrictValue (Account * ac)
 
 /*Get the value of the limit on which the restrict passed*/
 long
-getLimitValue (Account * ac, stats_limit_cfg * lm)
+getLimitValue(const Account * ac, const stats_limit_cfg * lm)
 {
 	switch (ac->info.field_level_restrict)
 	{
@@ -143,7 +143,7 @@ getLimitValue (Account * ac, stats_limit_cfg * lm)
 }
 
 const char *
-getPeriodName (Account * ac)
+getPeriodName(const Account * ac)
 {
 	switch (ac->info.field_restrict)
 	{
@@ -161,7 +161,7 @@ getPeriodName (Account * ac)
 }
 
 const char *
-getParamName (Account * ac)
+getParamName(const Account * ac)
 {
 	switch (ac->info.field_level_restrict)
 	{
@@ -189,8 +189,8 @@ insertSystemInfo (char *buffer)
 	strlcpy (buffer, innerBuffer, _DBGOVERNOR_BUFFER_8192);
 }
 
-void
-prepareRestrictDescription (char *buffer, Account * ac, stats_limit_cfg * limit)
+const char *
+prepareRestrictDescription (char *buffer, const Account * ac, const stats_limit_cfg * limit)
 {
 	if (ac->info.field_restrict == NO_PERIOD)
 	{
@@ -206,10 +206,11 @@ prepareRestrictDescription (char *buffer, Account * ac, stats_limit_cfg * limit)
 	{
 		insertSystemInfo (buffer);
 	}
+	return buffer;
 }
 
-void
-prepareRestrictDescriptionLimit (char *buffer, Account * ac, stats_limit_cfg * limit)
+const char *
+prepareRestrictDescriptionLimit (char *buffer, const Account * ac, const stats_limit_cfg * limit)
 {
 	if (ac->info.field_restrict == NO_PERIOD)
 	{
@@ -225,23 +226,24 @@ prepareRestrictDescriptionLimit (char *buffer, Account * ac, stats_limit_cfg * l
 	{
 		insertSystemInfo (buffer);
 	}
+	return buffer;
 }
 
 /*Get a list of parameters corresponding to the period, the so-called dump*/
-stats_limit *
-getRestrictDump (Account * ac)
+const stats_limit *
+getRestrictDump(const Account * ac)
 {
 	switch (ac->info.field_restrict)
 	{
 		case CURRENT_PERIOD:
-			return (stats_limit *) & ac->current;
+			return (const stats_limit *) & ac->current;
 		case SHORT_PERIOD:
-			return (stats_limit *) & ac->short_average;
+			return (const stats_limit *) & ac->short_average;
 		case MID_PERIOD:
-			return (stats_limit *) & ac->mid_average;
+			return (const stats_limit *) & ac->mid_average;
 		case LONG_PERIOD:
-			return (stats_limit *) & ac->long_average;
+			return (const stats_limit *) & ac->long_average;
 	}
-	return (stats_limit *) NULL;
+	return (const stats_limit *) NULL;
 }
 
