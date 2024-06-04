@@ -16,15 +16,12 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-//#include <unistd.h>
-//#include <string.h>
 #include <sys/un.h>
 #include <sys/socket.h>
 
-
 #include "data.h"
 #include "governor_config.h"
+#include "version.h"
 #include "log.h"
 
 #ifndef GOVERNOR_SENTRY_TIMEOUT
@@ -319,6 +316,9 @@ static void concat_tag_names(unsigned tags, const char *delim, int lowerCase, ch
 unsigned log_enabled_tags = 0;		// bitmask of enabled tags
 unsigned log_verbosity_level = 1;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdate-time"
+
 void init_log_ex(bool enable_all_tags)
 {
 	log_enabled_tags = ALWAYS_ENABLED_LOG_TAGS;
@@ -371,8 +371,10 @@ void init_log_ex(bool enable_all_tags)
 			s_tags_dis[0x1000] = "";
 	concat_tag_names( log_enabled_tags, ",", 0, s_tags_ena, sizeof s_tags_ena);
 	concat_tag_names(~log_enabled_tags, ",", 1, s_tags_dis, sizeof s_tags_dis);
-	LOG(L_LIFE, "Logging enabled tags: [%s]; verbosity level: %d; disabled tags: [%s]", s_tags_ena, log_verbosity_level, s_tags_dis);
+	LOG(L_LIFE, "Logging enabled tags: [%s]; verbosity level: %d; disabled tags: [%s]; Governor version: %s, built at %s %s", s_tags_ena, log_verbosity_level, s_tags_dis, GOVERNOR_CUR_VER, __DATE__, __TIME__);
 }
+
+#pragma GCC diagnostic pop
 
 int write_log_ex(unsigned tags, unsigned level, const char *src_file, int src_line, const char *src_func, const char *fmt, ...)
 {
