@@ -92,22 +92,26 @@ governor-mysql (1.2-99) stable; urgency=medium
  -- Aleksandr Demeshko <ademeshko@cloudlinux.com>  Wed, 15 Nov 2023 14:00:00 +0000
 
 governor-mysql (1.2-96) stable; urgency=medium
+
   * CLOS-2058: Fixed performance issue related to governor package limits synchronization
   * CLOS-2077: Fixed KeyError exception for dbgovernor set_path_environ function
 
  -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Wed, 11 Oct 2023 14:00:00 +0000
 
 governor-mysql (1.2-94) stable; urgency=medium
+
   * CLOS-1797: Fixed package limitting synchronization for all users
 
  -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Wed, 13 Sep 2023 14:00:00 +0000
 
 governor-mysql (1.2-93) stable; urgency=medium
+
   * CLOS-1724: Fixed max_user_connection setup in mariadb104 and above
 
  -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Thu, 03 Aug 2023 14:00:00 +0000
 
 governor-mysql (1.2-92) stable; urgency=medium
+
   * MYSQLG-961: Loading mysql functions from libmariadb added
   * MYSQLG-941: Fix libmysqlclient.so.18 and libmariadb.so.3 Provides tags in mariadb102..106
   * MYSQLG-965: da_admin mysql account added into default ignore list
@@ -115,11 +119,13 @@ governor-mysql (1.2-92) stable; urgency=medium
  -- Aleksandr Demeshko <ademeshko@cloudlinux.com>  Thu, 15 Jun 2023 14:00:00 +0000
 
 governor-mysql (1.2-91) stable; urgency=medium
+
   * MYSQLG-867: Prevent removing libmysqlclient.so.18 during mysqlgovernor.py --install
 
  -- Aleksandr Demeshko <ademeshko@cloudlinux.com>  Fri, 19 May 2023 14:00:00 +0000
 
 governor-mysql (1.2-90) stable; urgency=medium
+
   * MYSQLG-929: Fixed systemd warning 'The unit file changed on disk'
   * MYSQLG-935: Added _nowraps function to exclude forced unload from lve
   * MYSQLG-863: Fix error with existing /etc/my.cnf.d.govprev
@@ -223,7 +229,7 @@ governor-mysql (1.2-77) stable; urgency=medium
   * MYSQLG-755: mysqlclient18 dependency added for cl-MariaDB106
   * MYSQLG-733: cPanel case for MariaDB 10.7, 10.8, or 10.9 added
 
- -- Alexandr Demeshko <ademeshko@cloudlinux.com> Mon 26 Sep 2022 11:06:33 +0000
+ -- Alexandr Demeshko <ademeshko@cloudlinux.com>  Mon, 26 Sep 2022 11:06:33 +0000
 
 governor-mysql (1.2-76) unstable; urgency=medium
 
