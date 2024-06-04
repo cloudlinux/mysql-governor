@@ -15,12 +15,12 @@ enum _log_tag_bitnums	// helper to assign bit number to each tag
 	#define DEFINE_LOG_TAG(tag)	_log_tag_bitnum_##tag,
 	#include "log_tags.h"
 	#undef DEFINE_LOG_TAG
-	EXTLOG_TAG_BITS
+	LOG_TAG_BITS
 };
 
 // Log tags
 // are bit flags to be OR-ed and passed to "LOG(tags, ...)".
-// They are named "L_<TAG>", and occupy EXTLOG_TAG_BITS lower bits.
+// They are named "L_<TAG>", and occupy LOG_TAG_BITS lower bits.
 enum
 {
 	#define DEFINE_LOG_TAG(tag)	L_##tag = 1 << _log_tag_bitnum_##tag,

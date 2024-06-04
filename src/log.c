@@ -274,7 +274,7 @@ static const char *tag_names[] =
 static const char *get_tag_name(unsigned tag)
 {
 	int i;
-	for (i=0; i < EXTLOG_TAG_BITS; i++)
+	for (i=0; i < LOG_TAG_BITS; i++)
 		if (tag == (1u << i))
 			return tag_names[i];
 	return NULL;
@@ -286,7 +286,7 @@ static void concat_tag_names(unsigned tags, const char *delim, int lowerCase, ch
 	*p = '\0';
 	size_t delimLen = strlen(delim);
 	int i;
-	for (i=0; i < EXTLOG_TAG_BITS; i++)
+	for (i=0; i < LOG_TAG_BITS; i++)
 	{
 		unsigned tag = 1 << i;
 		if (tags & tag)
@@ -324,7 +324,7 @@ void init_log_ex(bool enable_all_tags)
 	log_enabled_tags = ALWAYS_ENABLED_LOG_TAGS;
 
 	if (enable_all_tags)	// in debug mode, enable all tags
-		log_enabled_tags = (1 << EXTLOG_TAG_BITS) - 1;
+		log_enabled_tags = (1 << LOG_TAG_BITS) - 1;
 	else									// otherwise, check file-flags to enable corresponding tags
 	{
 		// calculate file-flags prefix
@@ -334,14 +334,14 @@ void init_log_ex(bool enable_all_tags)
 		char *ptr = fname + blen;
 		memcpy(fname, PATH_TO_GOVERNOR_PRIVATE_DIR, blen);	// without NULL
 		int i;
-		for (i=-1; i < EXTLOG_TAG_BITS; i++)
+		for (i=-1; i < LOG_TAG_BITS; i++)
 		{
 			unsigned tag = 0;
 			const char *s_tag = NULL;
 			int all = i==-1;
 			if (all)
 			{
-				tag = (1 << EXTLOG_TAG_BITS) - 1;
+				tag = (1 << LOG_TAG_BITS) - 1;
 				s_tag = "all";
 			} else
 			{
