@@ -346,7 +346,7 @@ connect_to_server_ex ()
 	}
 }
 
-int send_info(const char *username, int type)
+static int send_info(const char *username, int type)
 {
 	if (sd.socket < 0)
 		return 0;
@@ -1066,4 +1066,3 @@ int governor_is_in_lve()
 {
 	return -1;
 }
-
