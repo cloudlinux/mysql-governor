@@ -420,7 +420,7 @@ void printf_bad_users_list(void)
 	return;
 }
 
-int32_t is_user_in_bad_list_client(char *username)
+int32_t is_user_in_bad_list_client(const char *username)
 {
 	int shm_fd_clients = 0;
 	int32_t fnd = 0;
@@ -647,7 +647,7 @@ int remove_bad_users_list_client(void)
 	return 0;
 }
 
-int32_t is_user_in_bad_list_client_persistent(char *username)
+int32_t is_user_in_bad_list_client_persistent(const char *username)
 {
 	int32_t fnd = -1;
 

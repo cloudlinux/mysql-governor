@@ -346,8 +346,7 @@ connect_to_server_ex ()
 	}
 }
 
-int
-send_info (char *username, int type)
+int send_info(const char *username, int type)
 {
 	if (sd.socket < 0)
 		return 0;
@@ -407,22 +406,20 @@ send_info (char *username, int type)
 	return 0;
 }
 
-int
-send_info_begin (char *username)
+int send_info_begin(const char *username)
 {
 #ifdef TEST
 	//printf("Send begin info %s, %d, %d\n", username, sd.socket, sd.status);
 #endif
-	return send_info (username, 0);
+	return send_info(username, 0);
 }
 
-int
-send_info_end (char *username)
+int send_info_end(const char *username)
 {
 #ifdef TEST
 	//printf("Send end info %s, %d, %d\n", username, sd.socket, sd.status);
 #endif
-	return send_info (username, 1);
+	return send_info(username, 1);
 }
 
 static int
@@ -673,7 +670,7 @@ __thread uint32_t lve_cookie = 0;
 
 static const int lve_flags = ((1 << 0) | (1 << 2) | (1 << 3) | (1 << 4)); //LVE_NO_MAXENTER|LVE_SILENCE|LVE_NO_UBC|LVE_NO_KILLABLE
 
-int governor_enter_lve(uint32_t * cookie, char *username)
+int governor_enter_lve(uint32_t * cookie, const char *username)
 {
 	if (!lve_enter_flags || !lve)
 	{
@@ -856,7 +853,7 @@ static void governor_destroy_mysql_thread_info(void)
 	}
 }
 
-__attribute__((noinline)) int governor_put_in_lve(char *user)
+__attribute__((noinline)) int governor_put_in_lve(const char *user)
 {
 	if (governor_add_mysql_thread_info() < 0)
 		return -1;
@@ -883,7 +880,7 @@ __attribute__((noinline)) void governor_lve_thr_exit(void)
 	governor_remove_mysql_thread_info();
 }
 
-__attribute__((noinline)) int governor_put_in_lve_nowraps(char *user)
+__attribute__((noinline)) int governor_put_in_lve_nowraps(const char *user)
 {
 	return governor_enter_lve(&lve_cookie, user);
 }

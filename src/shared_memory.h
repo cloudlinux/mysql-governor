@@ -26,11 +26,11 @@ long get_users_list_size (void);
 void printf_bad_users_list (void);
 int delete_allusers_from_list (void);
 
-int32_t is_user_in_bad_list_client (char *username);
+int32_t is_user_in_bad_list_client(const char *username);
 int init_bad_users_list_client (void);
 int init_bad_users_list_client_without_init (void);
 int remove_bad_users_list_client (void);
-int32_t is_user_in_bad_list_client_persistent (char *username);
+int32_t is_user_in_bad_list_client_persistent(const char *username);
 int user_in_bad_list_client_show (void);
 int init_bad_users_list_utility (void);
 int remove_bad_users_list_utility (void);
