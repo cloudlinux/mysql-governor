@@ -502,7 +502,7 @@ fi
 * Tue Jun 04 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-112
 - CLOS-2705: Reverted adding of watchdog monitoring utility
 
-* Thu May 13 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-111
+* Mon May 13 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-111
 - CLOS-2645: Corrected MariaDB version detection logic for DA config
 - CLOS-2593, CLOS-2613: Added extended logging
 - CLOS-2385: Added watchdog monitoring utility to governor package
