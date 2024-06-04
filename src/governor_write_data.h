@@ -7,8 +7,8 @@
  * Author: Alexey Berezhok <alexey.berezhok@cloudlinux.com>
  */
 
-#ifndef LIBGOVERNOR_H
-#define LIBGOVERNOR_H
+#ifndef GOVERNOR_WRITE_DATA_H_
+#define GOVERNOR_WRITE_DATA_H_
 
 #include <stdint.h>
 #include <pthread.h>
@@ -73,4 +73,4 @@ int governor_is_in_lve();
 }
 #endif
 
-#endif
+#endif /* GOVERNOR_WRITE_DATA_H_ */
