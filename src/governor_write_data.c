@@ -39,6 +39,7 @@
 #include "parce_proc_fs.h"
 #include "dbgovernor_string_functions.h"
 #include "shared_memory.h"
+#include "mutex.h"
 #include "log.h"
 
 #define SEC2NANO 1000000000
@@ -764,21 +765,10 @@ void governor_lve_exit(uint32_t * cookie)
 	lve_exit(lve, cookie);
 }
 
-
-typedef struct __mysql_mutex
-{
-	pid_t key; //thread_id
-	int is_in_lve; //
-	int is_in_mutex; //mutex_lock count
-	int put_in_lve; //
-	int critical;
-	int was_in_lve; //
-} mysql_mutex;
-
 static int mysql_mutex_cmp(const void *a, const void *b)
 {
-	mysql_mutex *pa = (mysql_mutex *)a;
-	mysql_mutex *pb = (mysql_mutex *)b;
+	governor_mutex *pa = (governor_mutex *)a;
+	governor_mutex *pb = (governor_mutex *)b;
 
 	if (pa->key < pb->key)
 		return -1;
@@ -789,7 +779,7 @@ static int mysql_mutex_cmp(const void *a, const void *b)
 	return 0;
 }
 
-__thread mysql_mutex *mysql_mutex_ptr = 0;
+__thread governor_mutex *mysql_mutex_ptr = 0;
 
 static void * gv_hash = NULL;
 
@@ -797,8 +787,8 @@ static pthread_mutex_t gv_hash_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int governor_add_mysql_thread_info(void)
 {
-	mysql_mutex *mm = NULL;
-	mysql_mutex key;
+	governor_mutex *mm = NULL;
+	governor_mutex key;
 	void * ptr;
 
 	orig_pthread_mutex_lock(&gv_hash_mutex);
@@ -806,13 +796,13 @@ static int governor_add_mysql_thread_info(void)
 	ptr = tfind(&key, &gv_hash, mysql_mutex_cmp);
 	if (ptr != NULL)
 	{
-		mm = *(mysql_mutex **)ptr;
+		mm = *(governor_mutex **)ptr;
 		orig_pthread_mutex_unlock(&gv_hash_mutex);
 		mysql_mutex_ptr = mm;
 		return 0;
 	}
 
-	mm = (mysql_mutex *) calloc(1, sizeof(mysql_mutex));
+	mm = (governor_mutex *) calloc(1, sizeof(governor_mutex));
 	if (mm == NULL)
 	{
 		orig_pthread_mutex_unlock(&gv_hash_mutex);
@@ -838,15 +828,15 @@ static void governor_remove_mysql_thread_info(void)
 	orig_pthread_mutex_lock(&gv_hash_mutex);
 	if (gv_hash)
 	{
-		mysql_mutex *mm = NULL;
-		mysql_mutex key;
+		governor_mutex *mm = NULL;
+		governor_mutex key;
 		void * ptr;
 
 		key.key = gettid_p();
 		ptr = tfind(&key, &gv_hash, mysql_mutex_cmp);
 		if (ptr != NULL) {
 
-			mm = *(mysql_mutex **)ptr;
+			mm = *(governor_mutex **)ptr;
 			tdelete(&key, &gv_hash, mysql_mutex_cmp);
 			free(mm);
 		}
