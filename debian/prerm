@@ -26,6 +26,9 @@ case "$1" in
             rm -f /var/run/mysql-governor-config.xml
         fi
 
+        # Governor watchdog was introduced by CLOS-2385 in governor 1.2-111
+        # but reverted by CLOS-2705 in governor 1.2-112
+        # So let's remove cron job possibly created by 1.2-111
         if [ -e "/etc/cron.d/dbgovernor_watchdog_cron" ]; then
             rm -f /etc/cron.d/dbgovernor_watchdog_cron
         fi
