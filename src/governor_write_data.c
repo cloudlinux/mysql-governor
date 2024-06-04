@@ -779,7 +779,7 @@ static int mysql_mutex_cmp(const void *a, const void *b)
 	return 0;
 }
 
-__thread governor_mutex *mysql_mutex_ptr = 0;
+__thread governor_mutex *gov_mutex = 0;
 
 static void * gv_hash = NULL;
 
@@ -798,7 +798,7 @@ static int governor_add_mysql_thread_info(void)
 	{
 		mm = *(governor_mutex **)ptr;
 		orig_pthread_mutex_unlock(&gv_hash_mutex);
-		mysql_mutex_ptr = mm;
+		gov_mutex = mm;
 		return 0;
 	}
 
@@ -818,7 +818,7 @@ static int governor_add_mysql_thread_info(void)
 	}
 
 	orig_pthread_mutex_unlock(&gv_hash_mutex);
-	mysql_mutex_ptr = mm;
+	gov_mutex = mm;
 
 	return 0;
 }
@@ -842,7 +842,7 @@ static void governor_remove_mysql_thread_info(void)
 		}
 	}
 	orig_pthread_mutex_unlock(&gv_hash_mutex);
-	mysql_mutex_ptr = NULL;
+	gov_mutex = NULL;
 }
 
 static void governor_destroy_mysql_thread_info(void)
@@ -861,13 +861,13 @@ __attribute__((noinline)) int governor_put_in_lve(char *user)
 	if (governor_add_mysql_thread_info() < 0)
 		return -1;
 
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
 		if (!governor_enter_lve(&lve_cookie, user))
 		{
-			mysql_mutex_ptr->is_in_lve = 1;
+			gov_mutex->is_in_lve = 1;
 		}
-		mysql_mutex_ptr->is_in_mutex = 0;
+		gov_mutex->is_in_mutex = 0;
 	}
 
 	return 0;
@@ -875,10 +875,10 @@ __attribute__((noinline)) int governor_put_in_lve(char *user)
 
 __attribute__((noinline)) void governor_lve_thr_exit(void)
 {
-	if (mysql_mutex_ptr && mysql_mutex_ptr->is_in_lve == 1)
+	if (gov_mutex && gov_mutex->is_in_lve == 1)
 	{
 		governor_lve_exit(&lve_cookie);
-		mysql_mutex_ptr->is_in_lve = 0;
+		gov_mutex->is_in_lve = 0;
 	}
 	governor_remove_mysql_thread_info();
 }
@@ -897,19 +897,19 @@ __attribute__((noinline)) int pthread_mutex_lock(pthread_mutex_t *mp)
 {
 	//printf("%s mutex:%p\n", __func__, (void *)mp);
 	lock_cnt++;
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
-		if (mysql_mutex_ptr->is_in_lve == 1)
+		if (gov_mutex->is_in_lve == 1)
 		{
-			if (!mysql_mutex_ptr->critical)
+			if (!gov_mutex->critical)
 				governor_lve_exit(&lve_cookie);
-			mysql_mutex_ptr->is_in_lve = 2;
+			gov_mutex->is_in_lve = 2;
 		}
-		else if (mysql_mutex_ptr->is_in_lve > 1)
+		else if (gov_mutex->is_in_lve > 1)
 		{
-			mysql_mutex_ptr->is_in_lve++;
+			gov_mutex->is_in_lve++;
 		}
-		mysql_mutex_ptr->is_in_mutex++;
+		gov_mutex->is_in_mutex++;
 	}
 
 	return orig_pthread_mutex_lock(mp);
@@ -921,22 +921,22 @@ __attribute__((noinline)) int pthread_mutex_unlock(pthread_mutex_t *mutex)
 	unlock_cnt++;
 	int ret = orig_pthread_mutex_unlock(mutex);
 
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
-		if (mysql_mutex_ptr->is_in_lve == 2)
+		if (gov_mutex->is_in_lve == 2)
 		{
-			if(mysql_mutex_ptr->critical)
+			if(gov_mutex->critical)
 			{
-				mysql_mutex_ptr->is_in_lve = 1;
+				gov_mutex->is_in_lve = 1;
 			} else if (!governor_enter_lve_light(&lve_cookie))
 			{
-				mysql_mutex_ptr->is_in_lve = 1;
+				gov_mutex->is_in_lve = 1;
 			}
-		} else if (mysql_mutex_ptr->is_in_lve > 2)
+		} else if (gov_mutex->is_in_lve > 2)
 		{
-			mysql_mutex_ptr->is_in_lve--;
+			gov_mutex->is_in_lve--;
 		}
-		mysql_mutex_ptr->is_in_mutex--;
+		gov_mutex->is_in_mutex--;
 	}
 
 	return ret;
@@ -947,36 +947,36 @@ __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 	//printf("%s mutex:%p\n", __func__, (void *)mutex);
 	trylock_cnt++;
 	int ret = 0;
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
-		if (mysql_mutex_ptr->is_in_lve == 1)
+		if (gov_mutex->is_in_lve == 1)
 		{
-			if(!mysql_mutex_ptr->critical)
+			if(!gov_mutex->critical)
 				governor_lve_exit(&lve_cookie);
 		}
 	}
 
 	ret = orig_pthread_mutex_trylock(mutex);
 
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
 		if (ret != EBUSY)
 		{
-			if (mysql_mutex_ptr->is_in_lve == 1)
-				mysql_mutex_ptr->is_in_lve = 2;
-			else if (mysql_mutex_ptr->is_in_lve > 1)
-				mysql_mutex_ptr->is_in_lve++;
-			mysql_mutex_ptr->is_in_mutex++;
+			if (gov_mutex->is_in_lve == 1)
+				gov_mutex->is_in_lve = 2;
+			else if (gov_mutex->is_in_lve > 1)
+				gov_mutex->is_in_lve++;
+			gov_mutex->is_in_mutex++;
 		} else
 		{
-			if (mysql_mutex_ptr->is_in_lve == 1)
+			if (gov_mutex->is_in_lve == 1)
 			{
-				if (mysql_mutex_ptr->critical)
-					mysql_mutex_ptr->is_in_lve = 1;
+				if (gov_mutex->critical)
+					gov_mutex->is_in_lve = 1;
 				else if (!governor_enter_lve_light(&lve_cookie))
-					mysql_mutex_ptr->is_in_lve = 1;
+					gov_mutex->is_in_lve = 1;
 				else
-					mysql_mutex_ptr->is_in_lve = 0;
+					gov_mutex->is_in_lve = 0;
 			}
 		}
 	}
@@ -986,64 +986,64 @@ __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 __attribute__((noinline)) void governor_reserve_slot(void)
 {
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
-		if (mysql_mutex_ptr->is_in_lve == 1)
+		if (gov_mutex->is_in_lve == 1)
 		{
-			if (!mysql_mutex_ptr->critical)
+			if (!gov_mutex->critical)
 				governor_lve_exit(&lve_cookie);
-			mysql_mutex_ptr->is_in_lve = 2;
-		} else if (mysql_mutex_ptr->is_in_lve > 1)
+			gov_mutex->is_in_lve = 2;
+		} else if (gov_mutex->is_in_lve > 1)
 		{
-			mysql_mutex_ptr->is_in_lve++;
+			gov_mutex->is_in_lve++;
 		}
-		mysql_mutex_ptr->is_in_mutex++;
+		gov_mutex->is_in_mutex++;
 	}
 }
 
 __attribute__((noinline)) void governor_release_slot(void)
 {
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
-		if (mysql_mutex_ptr->is_in_lve == 2)
+		if (gov_mutex->is_in_lve == 2)
 		{
-			if (mysql_mutex_ptr->critical)
+			if (gov_mutex->critical)
 			{
-				mysql_mutex_ptr->is_in_lve = 1;
+				gov_mutex->is_in_lve = 1;
 			} else if (!governor_enter_lve_light(&lve_cookie))
 			{
-				mysql_mutex_ptr->is_in_lve = 1;
+				gov_mutex->is_in_lve = 1;
 			}
-		} else if (mysql_mutex_ptr->is_in_lve > 2)
+		} else if (gov_mutex->is_in_lve > 2)
 		{
-			mysql_mutex_ptr->is_in_lve--;
+			gov_mutex->is_in_lve--;
 		}
-		mysql_mutex_ptr->is_in_mutex--;
+		gov_mutex->is_in_mutex--;
 	}
 }
 
 __attribute__((noinline)) void governor_critical_section_begin(void)
 {
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
-		if (!mysql_mutex_ptr->critical)
-			mysql_mutex_ptr->was_in_lve = mysql_mutex_ptr->is_in_lve;
-		mysql_mutex_ptr->critical++;
+		if (!gov_mutex->critical)
+			gov_mutex->was_in_lve = gov_mutex->is_in_lve;
+		gov_mutex->critical++;
 	}
 }
 
 __attribute__((noinline)) void governor_critical_section_end(void)
 {
-	if (mysql_mutex_ptr)
+	if (gov_mutex)
 	{
-		mysql_mutex_ptr->critical--;
-		if (mysql_mutex_ptr->critical < 0)
-			mysql_mutex_ptr->critical = 0;
-		if (!mysql_mutex_ptr->critical && (mysql_mutex_ptr->was_in_lve > 1) && (mysql_mutex_ptr->is_in_lve == 1))
+		gov_mutex->critical--;
+		if (gov_mutex->critical < 0)
+			gov_mutex->critical = 0;
+		if (!gov_mutex->critical && (gov_mutex->was_in_lve > 1) && (gov_mutex->is_in_lve == 1))
 		{
 			if (!governor_enter_lve_light(&lve_cookie))
 			{
-				mysql_mutex_ptr->is_in_lve = 1;
+				gov_mutex->is_in_lve = 1;
 			}
 		}
 	}
