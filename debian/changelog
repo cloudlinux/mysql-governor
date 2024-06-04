@@ -1,9 +1,16 @@
+governor-mysql (1.2-112) stable; urgency=medium
+
+  * CLOS-2705: Reverted adding of watchdog monitoring utility
+
+ -- Alexandr Demeshko <ademeshko@cloudlinux.com>  Tue, 04 Jun 2024 10:00:00 +0000
+
 governor-mysql (1.2-111) stable; urgency=medium
 
   * CLOS-2645: Corrected MariaDB version detection logic for DA config
   * CLOS-2593, CLOS-2613: Added extended logging
   * CLOS-2385: Added watchdog monitoring utility to governor package
   * CLOS-2386: Implemented external Sentry logging mechanism
+  * CLOS-2594, CLOS-2641: Implemented logging from MySQL and uniform logging
 
  -- Timur Averianov <taverianov@cloudlinux.com>  Thu, 13 May 2024 10:00:00 +0000
 
