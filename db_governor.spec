@@ -74,14 +74,6 @@ Requires(postun): initscripts
 %description
 This package provides dbtop, db_governor utilities.
 
-%package devel
-Summary: Development header files for db_governor client applications
-Group: System Environment/Base
-
-%description devel
-This package contains the development header files necessary
-to develop db_governor client applications.
-
 %prep
 
 %setup -q
@@ -214,9 +206,6 @@ install -D -m 644 cron/lvedbgovernor-utils-cron $RPM_BUILD_ROOT%{_sysconfdir}/cr
 
 touch $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/tmp/INFO
 echo "CloudLinux" > $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/tmp/INFO
-
-mkdir -p $RPM_BUILD_ROOT%{_includedir}/
-install -D -m 644 src/governor_write_data.h $RPM_BUILD_ROOT%{_includedir}/libgovernor.h
 
 %check
 %if 0%{?with_unittests}
@@ -508,9 +497,6 @@ fi
 /var/lve/dbgovernor
 /var/lve/dbgovernor-store
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
-
-%files devel
-%{_includedir}/libgovernor.h
 
 %changelog
 * Tue Jun 04 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-112

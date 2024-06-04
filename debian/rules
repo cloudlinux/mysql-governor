@@ -32,9 +32,6 @@ override_dh_auto_install:
 	install -m 755 $(CURDIR)/debian/governor-mysql/usr/bin/dbtop $(CURDIR)/debian/tmp/usr/sbin/dbtop
 	install -m 755 $(CURDIR)/debian/governor-mysql/usr/bin/mysql_unfreeze $(CURDIR)/debian/tmp/usr/sbin/mysql_unfreeze
 	install -m 755 $(CURDIR)/debian/governor-mysql/usr/lib/libgovernor.so $(CURDIR)/debian/tmp/usr/lib/libgovernor.so
-#install dev files
-	mkdir -p $(CURDIR)/debian/tmp/usr/include/
-	install -m 644 $(CURDIR)/src/governor_write_data.h $(CURDIR)/debian/tmp/usr/include/libgovernor.h
 	mkdir -p $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/
 	mkdir -p $(CURDIR)/debian/tmp/var/lve/dbgovernor/
 	mkdir -p $(CURDIR)/debian/tmp/var/lve/dbgovernor-store/
