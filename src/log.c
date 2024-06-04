@@ -321,7 +321,7 @@ unsigned log_verbosity_level = 1;
 
 void init_log_ex(bool enable_all_tags)
 {
-	log_enabled_tags = L_ERR | L_IMPORTANT | L_LIFE;
+	log_enabled_tags = ALWAYS_ENABLED_LOG_TAGS;
 
 	if (enable_all_tags)	// in debug mode, enable all tags
 		log_enabled_tags = (1 << EXTLOG_TAG_BITS) - 1;

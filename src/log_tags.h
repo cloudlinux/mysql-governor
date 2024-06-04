@@ -1,7 +1,12 @@
+/*
+ * Copyright © Cloud Linux GmbH & Cloud Linux Software, Inc 2010-2019 All Rights Reserved
+ *
+ * Licensed under CLOUD LINUX LICENSE AGREEMENT
+ * http://cloudlinux.com/docs/LICENSE.TXT
+ *
+ */
+
 // severities:
-// (NOTE: DON'T MOVE THE FIRST TWO LINES (ERR and INFO),
-// because L_ERR and L_INFO values depend on the order, but are hardcoded in mysql patches.
-// TODO: create "governor-mysql-devel" package and make mysql dependent on it.)
 DEFINE_LOG_TAG(ERR)			// ALWAYS ENABLED
 DEFINE_LOG_TAG(INFO)		// informational
 DEFINE_LOG_TAG(IMPORTANT)	// informational, but ALWAYS ENABLED
