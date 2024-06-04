@@ -19,6 +19,7 @@ DEFINE_LOG_TAG(USRMAPRQ)	// user map on request
 DEFINE_LOG_TAG(MON)			// resource monitor
 DEFINE_LOG_TAG(SRV)			// systemd service
 DEFINE_LOG_TAG(DMN)			// daemon
+DEFINE_LOG_TAG(MUT)			// pthread_mutex_...() interception
 // activities:
 DEFINE_LOG_TAG(FRZ)			// freeze
 DEFINE_LOG_TAG(UNFRZ)		// unfreeze

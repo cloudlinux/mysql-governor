@@ -267,9 +267,11 @@ connection_with_timeout_select (int sk, struct sockaddr_un *sa, socklen_t len,
 	return 0;
 }
 
-static int
-connect_to_server_in ()
+static int connect_to_server_in()
 {
+	open_log(MYSQLD_EXTLOG_PATH);
+	init_log_ex(false);
+
 	int s, len;
 	struct sockaddr_un saun;
 	sd.socket = -1;
@@ -277,6 +279,7 @@ connect_to_server_in ()
 
 	if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
+		LOG(L_INFO, "failed to create socket to connect to mysqld");
 		return -1;
 	}
 
@@ -287,6 +290,7 @@ connect_to_server_in ()
 
 	if (connection_with_timeout_poll (s, &saun, len, 5) < 0)
 	{
+		LOG(L_INFO, "failed to connect to mysqld over socket");
 		return -2;
 	}
 	/*int rt_code;
@@ -296,9 +300,7 @@ connect_to_server_in ()
 	sd.socket = s;
 	sd.status = 1;
 
-	open_log(MYSQLD_EXTLOG_PATH);
-	init_log_ex(false);
-
+	LOG(L_INFO, "connected to mysqld over socket");
 	return 0;
 }
 
@@ -314,13 +316,15 @@ connect_to_server ()
 	if (!ret)
 		return ret;
 
-	// special processing for the first unsuccessful connect
+	// special processing for the first unsuccessful connect for CLOS-1783
 	if (not_first_connect)
 	{
 		return ret;
 	} else
 	{
 		not_first_connect = 1;
+		if (ret)
+			LOG(L_INFO, "first failure of connect to mysqld over socket is forgiven");
 		return 0;
 	}
 }
@@ -473,6 +477,7 @@ void init_libgovernor(void)
 
 		if (!orig_lock_ptr || !orig_trylock_ptr || !orig_unlock_ptr)
 		{
+			//LOG(L_ERR|L_MUT, "failed to load original pthread_mutex_...() functions: %s", dlerror());
 			fprintf(stderr, "%s dlerror:%s\n", __func__, dlerror());
 			abort();
 		}
@@ -480,6 +485,8 @@ void init_libgovernor(void)
 		orig_pthread_mutex_lock_ptr = orig_lock_ptr;
 		orig_pthread_mutex_trylock_ptr = orig_trylock_ptr;
 		orig_pthread_mutex_unlock_ptr = orig_unlock_ptr;
+
+		//LOG(L_MUT, "pthread_mutex_...() intercepted");
 	}
 }
 
