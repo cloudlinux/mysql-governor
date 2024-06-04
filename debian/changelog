@@ -100,12 +100,12 @@ governor-mysql (1.2-96) stable; urgency=medium
 governor-mysql (1.2-94) stable; urgency=medium
   * CLOS-1797: Fixed package limitting synchronization for all users
 
- -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Wed, Sep 13 2023 14:00:00 +0000
+ -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Wed, 13 Sep 2023 14:00:00 +0000
 
 governor-mysql (1.2-93) stable; urgency=medium
   * CLOS-1724: Fixed max_user_connection setup in mariadb104 and above
 
- -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Thu, Aug 03 2023 14:00:00 +0000
+ -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Thu, 03 Aug 2023 14:00:00 +0000
 
 governor-mysql (1.2-92) stable; urgency=medium
   * MYSQLG-961: Loading mysql functions from libmariadb added
@@ -223,7 +223,7 @@ governor-mysql (1.2-77) stable; urgency=medium
   * MYSQLG-755: mysqlclient18 dependency added for cl-MariaDB106
   * MYSQLG-733: cPanel case for MariaDB 10.7, 10.8, or 10.9 added
 
- -- Alexandr Demeshko <ademeshko@cloudlinux.com> Mon Sep 26 2022 11:06:33 +0000
+ -- Alexandr Demeshko <ademeshko@cloudlinux.com> Mon 26 Sep 2022 11:06:33 +0000
 
 governor-mysql (1.2-76) unstable; urgency=medium
 
