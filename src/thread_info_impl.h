@@ -24,6 +24,13 @@
 // governor_destroy_mysql_thread_info() - cleans up the global hash; to be called at process de-initialization
 
 
+static __thread governor_mutex *gov_mutex = NULL;	// main purpose of the header
+
+// global "thread id" -> "Governor mutex" hash:
+#include <search.h>				// tsearch() function family
+static void *gv_hash = NULL;	// to be accessed using tsearch() and relatives
+static pthread_mutex_t gv_hash_mutex = PTHREAD_MUTEX_INITIALIZER;	// protect 'gv_hash' accessed from multiple threads
+
 static int mysql_mutex_cmp(const void *a, const void *b)	// for tsearch() family
 {
 	const governor_mutex *pa = (const governor_mutex*)a, *pb = (const governor_mutex*)b;
@@ -32,13 +39,6 @@ static int mysql_mutex_cmp(const void *a, const void *b)	// for tsearch() family
 		pa->key > pb->key ?  1 :
 		0;
 }
-
-static __thread governor_mutex *gov_mutex = NULL;	// main purpose of the header
-
-// global "thread id" -> "Governor mutex" hash:
-#include <search.h>				// tsearch() function family
-static void *gv_hash = NULL;	// to be accessed using tsearch() and relatives
-static pthread_mutex_t gv_hash_mutex = PTHREAD_MUTEX_INITIALIZER;	// protect 'gv_hash' accessed from multiple threads
 
 static int governor_add_mysql_thread_info(void)
 {
