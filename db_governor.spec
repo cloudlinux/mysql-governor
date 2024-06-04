@@ -44,12 +44,14 @@ BuildRequires: cloudlinux-venv
 BuildRequires: systemd
 BuildRequires: systemd-devel
 %endif
+%if 0%{?with_unittests}
 %if 0%{?rhel} == 7
 BuildRequires: mariadb-libs
 BuildRequires: mariadb
 %else
 BuildRequires: mysql-libs
 BuildRequires: mysql
+%endif
 %endif
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Conflicts: db-governor
@@ -217,10 +219,12 @@ mkdir -p $RPM_BUILD_ROOT%{_includedir}/
 install -D -m 644 src/governor_write_data.h $RPM_BUILD_ROOT%{_includedir}/libgovernor.h
 
 %check
+%if 0%{?with_unittests}
 ls -l /usr/bin/mysql
 /usr/bin/mysql -V
 echo "****Start unittests for python code"
 PYTHONPATH=install:install/scripts:. %{cl_venv_path}/bin/pytest tests/py/
+%endif
 
 %pre
 /sbin/service db_governor stop > /dev/null 2>&1 || :
