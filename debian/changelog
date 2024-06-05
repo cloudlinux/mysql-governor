@@ -214,17 +214,6 @@ governor-mysql (1.2-78) stable; urgency=medium
 
  -- Sergey Kozhekin <skozhekin@cloudlinux.com>  Fri, 04 Nov 2022 09:00:00 +0000
 
-governor-mysql (1.2-77) stable; urgency=medium
-
-  * MYSQLG-734: Restrict logging enabled
-  * MYSQLG-756: Governor package limits utility added
-  * MYSQLG-757: Custom configuration files restored before starting mariadb service
-  * MYSQLG-725: Added governor script processing of real location of mysql socket and data dir
-  * MYSQLG-755: mysqlclient18 dependency added for cl-MariaDB106
-  * MYSQLG-733: cPanel case for MariaDB 10.7, 10.8, or 10.9 added
-
- -- Alexandr Demeshko <ademeshko@cloudlinux.com> Mon, 26 Sep 2022 11:06:33 +0000
-
 governor-mysql (1.2-76) unstable; urgency=medium
 
   * MYSQLG-726: MariaDB 10.6 support added
