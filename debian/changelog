@@ -223,7 +223,7 @@ governor-mysql (1.2-77) stable; urgency=medium
   * MYSQLG-755: mysqlclient18 dependency added for cl-MariaDB106
   * MYSQLG-733: cPanel case for MariaDB 10.7, 10.8, or 10.9 added
 
- -- Alexandr Demeshko <ademeshko@cloudlinux.com> Mon 26 Sep 2022 11:06:33 +0000
+ -- Alexandr Demeshko <ademeshko@cloudlinux.com> Mon, 26 Sep 2022 11:06:33 +0000
 
 governor-mysql (1.2-76) unstable; urgency=medium
 
