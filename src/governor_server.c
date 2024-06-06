@@ -271,7 +271,7 @@ get_data_from_client (void *data)
 			fds->fd = get_soket ();
 			fds->events = POLLIN;
 		}
-		for (i = 0; (i < nfds) && (ret); i++)	// POTENTIAL ENDLESS LOOP if ret<0
+		for (i=0; i < nfds && ret > 0; i++)
 		{
 #ifdef TEST
 			//printf("Check index %d revents %d nfds %d\n", i, (fds + i)->revents, nfds);
