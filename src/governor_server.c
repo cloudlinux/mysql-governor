@@ -76,17 +76,12 @@ declsighandler (void)
 }
 
 void
-create_socket (void)
+create_socket(void)
 {
-	int i, s, len;
-	struct sockaddr_un saun;
-	int ret;
-	int opt = 1;
 	struct governor_config data_cfg;
+	get_config_data(&data_cfg);
 
-	get_config_data (&data_cfg);
-
-	if ((global_socket = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if ((global_socket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
 		LOG(L_ERR, "Can't create socket");
 		close_log ();
@@ -94,7 +89,8 @@ create_socket (void)
 		exit (EXIT_FAILURE);
 	}
 
-	if (setsockopt (global_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt) < 0)
+	int opt = 1;
+	if (setsockopt(global_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt) < 0)
 	{
 		LOG(L_ERR, "Can't change socket options");
 		close_log ();
@@ -102,29 +98,30 @@ create_socket (void)
 		exit (EXIT_FAILURE);
 	}
 
+	unlink(MYSQL_SOCK_ADDRESS);
+
+	struct sockaddr_un saun;
 	saun.sun_family = AF_UNIX;
-	strcpy (saun.sun_path, MYSQL_SOCK_ADDRESS);
+	strlcpy(saun.sun_path, MYSQL_SOCK_ADDRESS, sizeof(saun.sun_path));
+	size_t len = sizeof(saun.sun_family) + strlen(saun.sun_path);
 
-	unlink (MYSQL_SOCK_ADDRESS);
-	len = sizeof (saun.sun_family) + strlen (saun.sun_path);
-
-	if (bind (global_socket, (struct sockaddr *) &saun, len) < 0)
+	if (bind(global_socket, (struct sockaddr *) &saun, len) < 0)
 	{
 		LOG(L_ERR, "Can't bind to socket address %s", SOCK_ADDRESS);
-		close_log ();
-		close_restrict_log ();
+		close_log();
+		close_restrict_log();
 		exit (EXIT_FAILURE);
 	}
 
-	if (listen (global_socket, 32) < 0)
+	if (listen(global_socket, 32) < 0)
 	{
 		LOG(L_ERR, "Can't listen on socket");
-		close_log ();
-		close_restrict_log ();
+		close_log();
+		close_restrict_log();
 		exit (EXIT_FAILURE);
 	}
 
-	declsighandler ();
+	declsighandler();
 }
 
 int
@@ -165,7 +162,6 @@ process_data_every_second (void *data)
 {
 	LOG(L_LIFE|L_MON, "thread begin");
 
-	char buffer[_DBGOVERNOR_BUFFER_2048];
 	double old_tm = 0.0, new_tm = 0.0;
 	struct timespec cur_tm;
 
@@ -215,15 +211,9 @@ get_data_from_client (void *data)
 	LOG(L_LIFE|L_DMN, "thread begin");
 
 	struct governor_config data_cfg;
-	int ret;
-	int timeout = 1000;
-	struct sockaddr_un fsaun;
-	struct timespec cur_tm;
-	double old_tm = 0.0, new_tm = 0.0;
-	int fromlen = sizeof (fsaun);
-	nfds = 1;
-
 	get_config_data (&data_cfg);
+
+	nfds = 1;
 	fds = (struct pollfd *) calloc (1, nfds * sizeof (struct pollfd));
 	fds->fd = get_soket ();
 	fds->events = POLLIN;
@@ -238,6 +228,8 @@ get_data_from_client (void *data)
 	sigaction (SIGTERM, &sa, 0);
 	sigaction (SIGKILL, &sa, 0);
 	int sync = 1;
+
+	int timeout = 1000;	// 1 second
 
 	for (;;)
 	{
@@ -254,7 +246,7 @@ get_data_from_client (void *data)
 		//print_tid_data();
 #endif
 		//Wait max 1 second
-		ret = poll (fds, nfds, timeout);
+		int ret = poll (fds, nfds, timeout);
 #ifdef TEST
 		//printf("Get count of events %d\n", ret);
 #endif
@@ -279,7 +271,7 @@ get_data_from_client (void *data)
 			fds->fd = get_soket ();
 			fds->events = POLLIN;
 		}
-		for (i = 0; (i < nfds) && (ret); i++)
+		for (i = 0; (i < nfds) && (ret); i++)	// POTENTIAL ENDLESS LOOP if ret<0
 		{
 #ifdef TEST
 			//printf("Check index %d revents %d nfds %d\n", i, (fds + i)->revents, nfds);
@@ -305,9 +297,9 @@ get_data_from_client (void *data)
 					fds = fds_tmp;
 				}
 
-				(fds + nfds)->fd = accept (global_socket,
-							(struct sockaddr *) &fsaun,
-							&fromlen);
+				struct sockaddr_un from;
+				socklen_t fromlen = sizeof(from);
+				(fds + nfds)->fd = accept(global_socket, (struct sockaddr *) &from, &fromlen);
 #ifdef TEST
 				//printf("Get accept descriptor %d\n", i, (fds + nfds)->fd);
 #endif
@@ -484,18 +476,17 @@ get_data_from_client (void *data)
 					{
 						if (!data_cfg.improved_accuracy)
 						{
-							tid_table tbl_buff;
-							memset (&tbl_buff, 0, sizeof (tid_table));
-							tid_table *tbl = get_tid_data (message.tid, &tbl_buff);
 							//This tid use another user. This strange
-							/*if ((tbl != NULL)
-								&& (!strncmp(tbl_buff.username, message.username,
-								USERNAMEMAXLEN))) {
+							/*
+							tid_table tbl_buff;
+							memset (&tbl_buff, 0, sizeof(tid_table));
+							tid_table *tbl = get_tid_data(message.tid, &tbl_buff);
+							if (tbl && !strncmp(tbl_buff.username, message.username, USERNAMEMAXLEN))
+							{
 								if (data_cfg.log_mode == DEBUG_MODE)
-								LOG(L_ERR,
-								"Lost TID user info. User name %s",
-								tbl->username);
-								} */
+									LOG(L_ERR, "Lost TID user info. User name %s", tbl->username);
+							}
+							*/
 							add_new_tid_data (&message, (fds + i)->fd);
 						}
 						else

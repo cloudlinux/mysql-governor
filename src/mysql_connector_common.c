@@ -80,12 +80,11 @@ db_connect_common (MYSQL ** internal_db, const char *host,
 {
 	const char *groups_client[] = { "client", "mysqld", "dbgovernor", NULL };
 	//const char *groups_server[] = { "mysqld", "client", NULL };
-	int i, option_index = 0;
+	int option_index = 0;
 	char c;
-	char *hst = NULL;
+	char *hst __attribute__((unused)) = NULL;
 	char *user = NULL;
 	char *password = NULL;
-	int db_connection_method = 0;
 	my_bool reconnect = 1;
 
 	struct governor_config data_cfg;
@@ -869,7 +868,6 @@ log_user_queries(const char *user_name)
 
 	res = (*_mysql_store_result) (mysql_do_command);
 	counts = (*_mysql_num_rows) (res);
-	int tek_r = 0;
 
 	if (create_dir () && counts > 0)
 	{

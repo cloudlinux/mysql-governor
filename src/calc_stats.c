@@ -99,8 +99,7 @@ free_accounts_and_users (void)
 	free_user_account_table ();
 }
 
-Stats *
-add_new_stats (username_t username, Stats * st, long long tick_id)
+Stats *add_new_stats(const username_t username, const Stats * st, long long tick_id)
 {
 	User_stats *us = (User_stats *) g_hash_table_lookup (users, username);
 	struct governor_config data_cfg;
@@ -167,7 +166,7 @@ tick_empty_users (gpointer key, User_stats * us, void *data)
 void
 calc_acc_stats (gpointer key, Account * ac, gpointer data)
 {
-	send_to_glib_info *internal_info = (send_to_glib_info *) data;
+	send_to_glib_info *internal_info __attribute__((unused)) = (send_to_glib_info *) data;	// cookie, passed through g_hash_table_foreach()
 
 	int i = 0;
 	const User_stats *us = (const User_stats *) g_ptr_array_index (ac->users, i++);
@@ -537,7 +536,6 @@ account_analyze_limit (gpointer * key, Account * ac, void *data)
 {
 	stats_limit_cfg cfg_buf;
 	stats_limit_cfg *sl = config_get_account_limit (ac->id, &cfg_buf);
-	int restrict_period = 0;
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 
@@ -586,7 +584,6 @@ account_analyze (gpointer * key, Account * ac, void *data)
 {
 	stats_limit_cfg cfg_buf;
 	stats_limit_cfg *sl = config_get_account_limit (ac->id, &cfg_buf);
-	int restrict_period = 0;
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 
@@ -648,8 +645,8 @@ add_user_stats_from_counter (gpointer key, Stat_counters * item,
 							item->tm, &st, *in_tm);
 	if (internal_info->dbg && !strncmp(internal_info->dbg, (const char *)key, strlen(internal_info->dbg)))
 		LOG_RESTRICT("step 1: counters c %f, r %llu, w %llu, tm %f", item->s.cpu, item->s.read, item->s.write, (*in_tm - item->tm));
-	add_new_stats ((char *) key, &st, get_current_tick ());
-	reset_counters ((char *) key);
+	add_new_stats((const char *) key, &st, get_current_tick());
+	reset_counters((const char *) key);
 }
 
 static int
@@ -1233,7 +1230,7 @@ dbctl_restrict_set (gpointer key, Account * ac, void *data)
 	{
 		stats_limit_cfg cfg_buf;
 		stats_limit_cfg *sl = config_get_account_limit (ac->id, &cfg_buf);
-		int restrict_period = 0, timeout_coeff = 0;
+		int timeout_coeff = 0;
 		GOVERNORS_FIELD_NAME _cur =
 		is_stat_overlimit_current (&ac->current, sl);
 		time_t now;

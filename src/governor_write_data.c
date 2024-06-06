@@ -106,7 +106,7 @@ static int
 connection_with_timeout_poll (int sk, struct sockaddr_un *sa, socklen_t len,
 				int timeout)
 {
-	int flags = 0, error = 0, ret = 0, error_len = sizeof (error), current_size = 0, index = 0;
+	int flags = 0, error = 0, ret = 0, error_len = sizeof (error);
 	int nfds = 1;
 	int ts;
 

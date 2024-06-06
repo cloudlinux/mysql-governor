@@ -122,15 +122,10 @@ void found_tag_data_destroyed(gpointer data)
 
 void ReadCfg(char *file_name, char *tag)
 {
-	char *key_ = NULL, *val_ = NULL;
-	char *key_l = NULL, *val_l = NULL;
-	DbCtlFoundTag *found_tag = NULL;
-	DbCtlLimitAttr *dbctl_l_attr = NULL;
 	FoundTag = g_ptr_array_new();
 
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	void *tmp_xml = NULL, *tmp_xml_attr = NULL, *tmp_xml_limit = NULL;
-	const char *ptr;
 	xml_data *xml = parseConfigData(file_name, xml_parse_error,
 			MAX_XML_PATH - 1);
 	if (xml == NULL)
@@ -141,7 +136,7 @@ void ReadCfg(char *file_name, char *tag)
 
 	for (tmp_xml = getNextChild(xml->root, tag, NULL); tmp_xml; tmp_xml = getNextChild(xml->root, tag, tmp_xml))
 	{
-		found_tag = (DbCtlFoundTag *) malloc(sizeof(DbCtlFoundTag));
+		DbCtlFoundTag *found_tag = (DbCtlFoundTag *) malloc(sizeof(DbCtlFoundTag));
 		strncpy(found_tag->tag, tag, sizeof(found_tag->tag) - 1);
 		found_tag->attr = g_hash_table_new_full(g_str_hash, g_str_equal,
 				(GDestroyNotify) found_tag_key_destroyed,
@@ -156,7 +151,7 @@ void ReadCfg(char *file_name, char *tag)
 		found_tag->limit_attr = g_ptr_array_new();
 		for (tmp_xml_limit = getNextChild(tmp_xml, "limit", NULL); tmp_xml_limit; tmp_xml_limit = getNextChild(tmp_xml, "limit", tmp_xml_limit))
 		{
-			dbctl_l_attr = (DbCtlLimitAttr *) calloc(1, sizeof(DbCtlLimitAttr));
+			DbCtlLimitAttr *dbctl_l_attr = (DbCtlLimitAttr *) calloc(1, sizeof(DbCtlLimitAttr));
 			const char *attr_value = NULL;
 			attr_value = getElemAttr(tmp_xml_limit, "name");
 			if (attr_value)
@@ -209,7 +204,7 @@ GetCfg(void)
 
 void FreeCfg(void)
 {
-	int i = 0, j = 0;
+	int i = 0;
 	for (; i < FoundTag->len; i++)
 	{
 		DbCtlFoundTag *found_tag_ = g_ptr_array_index (FoundTag, i);
@@ -217,6 +212,7 @@ void FreeCfg(void)
 			g_hash_table_destroy(found_tag_->attr);
 		if (found_tag_->limit_attr)
 		{
+			int j = 0;
 			for (j = 0; j < found_tag_->limit_attr->len; j++)
 			{
 				DbCtlLimitAttr *ptr =
@@ -349,21 +345,15 @@ GetLimitsForUsers(GPtrArray * tags, DbCtlLimitAttr * cpu_def,
 			int flag, int raw, int json)
 {
 	char mb_buffer[SIZEOF_OUTPUT_BUFFER] = { 0 };
-	int i = 0, cnt_line = 1;
+	int i = 0;
 
 	DbCtlPrintList *print_list_t = NULL;
 	GList *arr_print_list = NULL;
 	for (; i < (cpu_def ? tags->len : 1); i++)
 	{
-		char *buffer_name = (char *) alloca (16 * sizeof (char)), *buffer_data =
-				(char *) alloca (90 * sizeof (char));
 		DbCtlFoundTag *found_tag_ = g_ptr_array_index (tags, i);
 		char *name = cpu_def ? GetUserName(found_tag_->attr) : "default";
 		char *mode = cpu_def ? GetAttr(found_tag_->attr, "mode") : "monitor";
-		char digit_buf_c[G_ASCII_DTOSTR_BUF_SIZE];
-		char digit_buf_s[G_ASCII_DTOSTR_BUF_SIZE];
-		char digit_buf_m[G_ASCII_DTOSTR_BUF_SIZE];
-		char digit_buf_l[G_ASCII_DTOSTR_BUF_SIZE];
 
 		if (strcmp(mode, "ignore") != 0)
 		{

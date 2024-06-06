@@ -105,11 +105,7 @@ pid_t regionIsLocked_III(int fd_III, int type_III, int whence_III,
 
 int createPidFile_III(const char *pidFile_III, int flags_III)
 {
-	char buffer[_DBGOVERNOR_BUFFER_2048];
-	int fd;
-	char buf[BUF_SIZE_III];
-
-	fd = open(pidFile_III, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	int fd = open(pidFile_III, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if (fd == -1)
 	{
 		return -1;
@@ -149,8 +145,10 @@ int createPidFile_III(const char *pidFile_III, int flags_III)
 		return -1;
 	}
 
+	char buf[BUF_SIZE_III];
 	snprintf(buf, BUF_SIZE_III, "%ld\n", (long) getpid());
-	if (write(fd, buf, strlen(buf)) != strlen(buf))
+	size_t bufLen = strlen(buf);
+	if (write(fd, buf, bufLen) != bufLen)
 	{
 		close(fd);
 		return -1;

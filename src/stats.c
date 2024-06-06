@@ -89,12 +89,10 @@ save_stats (Stats * dst, Stats * st)
 Stats *
 push_stats(const Stats * st, User_stats * us)
 {
-	int size, i;
-	Stats *old;
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 
-	old = fifo_stats_push (us->stats, st);
+	Stats *old = fifo_stats_push (us->stats, st);
 	fifo_stats_avg (us->stats, &us->long_average, data_cfg.interval_long);
 	fifo_stats_avg (us->stats, &us->mid_average, data_cfg.interval_mid);
 	fifo_stats_avg (us->stats, &us->short_average, data_cfg.interval_short);
@@ -105,13 +103,10 @@ push_stats(const Stats * st, User_stats * us)
 Stats *
 refresh_stats (Stats * st, User_stats * us)
 {
-	char output_data[_DBGOVERNOR_BUFFER_8192];
-	int size, i;
-	Stats *old_value;
 	struct governor_config data_cfg;
 	get_config_data (&data_cfg);
 
-	old_value = fifo_stats_refresh_last (us->stats, st);
+	Stats *old_value = fifo_stats_refresh_last (us->stats, st);
 	fifo_stats_avg (us->stats, &us->long_average, data_cfg.interval_long);
 	fifo_stats_avg (us->stats, &us->mid_average, data_cfg.interval_mid);
 	fifo_stats_avg (us->stats, &us->short_average, data_cfg.interval_short);

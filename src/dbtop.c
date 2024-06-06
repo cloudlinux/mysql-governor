@@ -278,7 +278,7 @@ void
 printString2 (char *str, int attr, int len, int endline)
 {
 	static int idx = 0;
-	int screen_height, screen_weight;
+	int screen_height __attribute__((unused)), screen_weight;
 
 	getmaxyx (stdscr, screen_height, screen_weight);
 	if ((screen_weight - 1) == 0)
@@ -318,7 +318,7 @@ void
 printString (char *str, int attr, int len, int endline)
 {
 	static int x_counter = 0;
-	int screen_height, screen_weight, counter;
+	int screen_height __attribute__((unused)), screen_weight;
 
 	getmaxyx (stdscr, screen_height, screen_weight);
 	if (x_counter >= (screen_weight - 1))
@@ -331,7 +331,6 @@ printString (char *str, int attr, int len, int endline)
 	}
 	int isend = 0;
 	int ln = (str_real_len (str) > len) ? len : str_real_len (str);
-	int spaces = len - ln;
 	int index = 0;
 	int string_counter = 0;
 	chtype ch;
@@ -480,7 +479,6 @@ getRestrictChar (GOVERNORS_PERIOD_NAME restrict_level)
 void
 print_account_screen1 (const Account * ac)
 {
-	int x, y;
 	char buf[1024];
 	char stringBuf[1024];
 
@@ -631,19 +629,13 @@ colorize (void)
 void
 printOneScreen (void)
 {
-	const GList *l;
-	const Account *tmp;
-	int i, j;
-	int screen_height, screen_weight, counter;
-	//char header_buf[512];
-	//char header_buf[ COLS ];
+	int screen_height, screen_weight __attribute__((unused));
 
 	clear ();
 	getmaxyx (stdscr, screen_height, screen_weight);
-	//char header_buf[ getW() ];
-	char header_buf[1024];
 	if (screen_view == 5)
 	{
+		int j;
 		for (j = 0; j < HELP_LEN; j++)
 		{
 			printw ("%s", help[j]);
@@ -651,33 +643,34 @@ printOneScreen (void)
 	}
 	else
 	{
-		counter = 0;
+		int counter = 0;
 		printHeader ();
 
+		const GList *l;
 		for (l = accounts; l; l = l->next)
 		{
-			tmp = (const Account *) l->data;
-			if ((tmp->info.field_level_restrict == NORESTRICT_PARAM)
-				&& (tmp->info.field_restrict == NO_PERIOD))
+			const Account *acc = (const Account *) l->data;
+			if ((acc->info.field_level_restrict == NORESTRICT_PARAM)
+				&& (acc->info.field_restrict == NO_PERIOD))
 			{
 				if (is_colorize)
 					attron (COLOR_PAIR (2));
 			}
-			else if (tmp->info.field_restrict != NO_PERIOD)
+			else if (acc->info.field_restrict != NO_PERIOD)
 			{
 				if (is_colorize)
 					attron (COLOR_PAIR (3));
 			}
 
-			print_account_screen1 (tmp);
+			print_account_screen1 (acc);
 
-			if ((tmp->info.field_level_restrict == NORESTRICT_PARAM)
-				&& (tmp->info.field_restrict == NO_PERIOD))
+			if ((acc->info.field_level_restrict == NORESTRICT_PARAM)
+				&& (acc->info.field_restrict == NO_PERIOD))
 			{
 				if (is_colorize)
 					attroff (COLOR_PAIR (2));
 			}
-			else if (tmp->info.field_restrict != NO_PERIOD)
+			else if (acc->info.field_restrict != NO_PERIOD)
 			{
 				if (is_colorize)
 					attroff (COLOR_PAIR (3));
@@ -693,8 +686,7 @@ printOneScreen (void)
 void
 printHeader (void)
 {
-	int screen_height, screen_weight;
-	char header_buf[1024];
+	int screen_height __attribute__((unused)), screen_weight;
 
 	clear ();
 	getmaxyx (stdscr, screen_height, screen_weight);
@@ -703,12 +695,12 @@ printHeader (void)
 	if (is_colorize)
 		attron (COLOR_PAIR (1));
 
-	sprintf (header_buf,
+	char header_buf[1024];
+	sprintf(header_buf,
 		" +User%c          .+cpu(%%)  %c         . +read(B/s)%c        . +write(B/s)   %c . CAUSE    ",
 		sort_type == 3 ? '*' : ' ', !sort_type ? '*' : ' ', sort_type
 		== 1 ? '*' : ' ', sort_type == 2 ? '*' : ' ');
-	printString (header_buf, (is_colorize) ? A_NORMAL : A_REVERSE, getW (),
-			NEWLINE);
+	printString (header_buf, (is_colorize) ? A_NORMAL : A_REVERSE, getW(), NEWLINE);
 	if (is_colorize)
 		attroff (COLOR_PAIR (1));
 }
@@ -753,20 +745,16 @@ print_account_screen1_no_curses (const Account * ac)
 void
 printOneScreenNoCurses (void)
 {
-	const GList *l;
-	const Account *tmp;
-	char header_buf[512];
-
 	printf
 		("  User            . cpu(%%)             .  read(B/s)          .  write(B/s)      . CAUSE  \n");
 
 	sort_type = 3;
 	sort_accounts ();
+	const GList *l;
 	for (l = accounts; l; l = l->next)
 	{
-		tmp = (const Account *) l->data;
-
-		print_account_screen1_no_curses (tmp);
+		const Account *acc = (const Account *) l->data;
+		print_account_screen1_no_curses(acc);
 	}
 }
 

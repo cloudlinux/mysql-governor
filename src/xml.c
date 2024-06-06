@@ -327,7 +327,6 @@ void *setNodeWithAttr(xml_data *data, void *node, const char *nodeName,
  */
 void *setAttr(void *node, const char *attrName, const char *value)
 {
-	xmlNodePtr parent = (xmlNodePtr) node;
 	if (!attrName || !node)
 		return (void *) NULL;
 	xmlAttrPtr addressNode = NULL;

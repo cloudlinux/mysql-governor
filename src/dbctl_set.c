@@ -178,7 +178,6 @@ void *setLimitAttr(void *limit, const char *s)
 		return limit;
 
 	SplitStr *data = NULL;
-	int res = 0;
 	const char *slowAttr = getElemAttr(limit, "name");
 	if (cnt = split(&data, s, ','))
 	{

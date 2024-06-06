@@ -209,7 +209,6 @@ print_list (FILE * in, int flag, int non_priv, int raw)
 		sizeof (write_def.l_long) - 1);
 	FreeCfg ();
 
-	DbCtlLimitAttr limit_attr_def;
 	ReadCfg ((non_priv?DUPLICATE_CONFIG_PATH:CONFIG_PATH), "user");
 	GPtrArray *tags = addMemoryUser (in, GetCfg ());
 	GetLimitsForUsers (tags, &cpu_def, &read_def, &write_def, flag, raw, 0);
@@ -220,7 +219,6 @@ print_list (FILE * in, int flag, int non_priv, int raw)
 static void
 print_json (FILE * in, int flag)
 {
-	int raw = 1;
 	int non_priv = 1;
 	DbCtlLimitAttr cpu_def, read_def, write_def;
 	if (access(CONFIG_PATH, R_OK) == 0)
@@ -249,7 +247,6 @@ print_json (FILE * in, int flag)
 	strncpy (write_def.l_long,    GetLimitAttr (found_tag_->limit_attr, "write", "long"),    sizeof (write_def.l_long)    - 1);
 	FreeCfg ();
 
-	DbCtlLimitAttr limit_attr_def;
 	ReadCfg ((non_priv?DUPLICATE_CONFIG_PATH:CONFIG_PATH), "user");
 	GPtrArray *tags = addMemoryUser (in, GetCfg ());
 	GetLimitsForUsers (tags, &cpu_def, &read_def, &write_def, flag, 1, 1);
@@ -278,10 +275,8 @@ get_restrict_level (GOVERNORS_PERIOD_NAME restrict_level)
 	return ch;
 }
 
-char *
-read_restrict_reriod (Account * ac)
+const char *read_restrict_reriod(const Account *ac)
 {
-	char ch;
 	if (ac->info.field_restrict == NO_PERIOD)
 	{
 		return "";
@@ -303,10 +298,8 @@ read_restrict_reriod (Account * ac)
 	return "";
 }
 
-char *
-read_restrict_reason (Account * ac)
+const char *read_restrict_reason(const Account *ac)
 {
-	char ch;
 	if (ac->info.field_restrict == NO_PERIOD)
 	{
 		return "";
@@ -336,8 +329,6 @@ get_time_to_end (const Account * ac)
 void
 print_list_rest (FILE * in)
 {
-	char stringBuf[1024];
-
 	GList *ac = NULL;
 	GList *list = read_info (in);
 

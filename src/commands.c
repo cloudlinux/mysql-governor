@@ -280,7 +280,6 @@ send_commands (Command * cmd, void *data)
 
 	if (cmd)
 	{
-		Account *user_info = NULL;
 		unsigned max_user_conn = 0;
 
 		if (max_user_conn_table == NULL)
@@ -422,8 +421,6 @@ send_commands_cycle (void)
 		return;
 	}
 
-	int ret;
-	pthread_t thread;
 	if (!is_send_command_cycle)
 	{
 		is_send_command_cycle = 1;
@@ -432,6 +429,7 @@ send_commands_cycle (void)
 		{
 			LOG(L_MON, "after send_command_copy_list() list_len==%d>1, so create a thread to send",
 				g_list_length (command_list_send));
+			pthread_t thread;
 			pthread_create (&thread, NULL, send_commands_cycle_in, NULL);
 			pthread_detach (thread);
 		}
