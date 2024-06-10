@@ -44,14 +44,9 @@ get_mb_str(char *s, char *buf, int flag)
 	return buf;
 }
 
-char *
-GetAttr(GHashTable * attr, char *name_attr)
+const char *GetAttr(const GHashTable *attr, const char *name_attr)
 {
-	char *value = NULL;
-	if (value = (char *) g_hash_table_lookup(attr, name_attr))
-		return value;
-	else
-		return NULL;
+	return (const char*)g_hash_table_lookup((GHashTable*)attr, name_attr);
 }
 
 char *
@@ -78,24 +73,14 @@ GetLimitAttr(GPtrArray * limit_attr, char *name_limit, char *name_attr)
 	return "0";
 }
 
-char *
-GetUserName(GHashTable * attr)
+const char *GetUserName(const GHashTable *attr)
 {
-	char *value = NULL;
-	if (value = (char *) g_hash_table_lookup(attr, "name"))
-		return value;
-	else
-		return NULL;
+	return (const char*)g_hash_table_lookup((GHashTable*)attr, "name");
 }
 
-char *
-GetUserMysqlName(GHashTable * attr)
+const char *GetUserMysqlName(const GHashTable *attr)
 {
-	char *value = NULL;
-	if (value = (char *) g_hash_table_lookup(attr, "mysql_name"))
-		return value;
-	else
-		return NULL;
+	return (const char*)g_hash_table_lookup((GHashTable*)attr, "mysql_name");
 }
 
 xml_data *ParseXmlCfg(char *file_name)
@@ -351,9 +336,9 @@ GetLimitsForUsers(GPtrArray * tags, DbCtlLimitAttr * cpu_def,
 	GList *arr_print_list = NULL;
 	for (; i < (cpu_def ? tags->len : 1); i++)
 	{
-		DbCtlFoundTag *found_tag_ = g_ptr_array_index (tags, i);
-		char *name = cpu_def ? GetUserName(found_tag_->attr) : "default";
-		char *mode = cpu_def ? GetAttr(found_tag_->attr, "mode") : "monitor";
+		const DbCtlFoundTag *found_tag_ = g_ptr_array_index(tags, i);
+		const char *name = cpu_def ? GetUserName(found_tag_->attr) : "default";
+		const char *mode = cpu_def ? GetAttr(found_tag_->attr, "mode") : "monitor";
 
 		if (strcmp(mode, "ignore") != 0)
 		{

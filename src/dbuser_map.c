@@ -148,37 +148,36 @@ get_map_file (struct governor_config *data_cfg)
 
 			if (username_key)
 			{
-				UserMap *UserMap_ = NULL;
-				UserMap_
-					= (UserMap *) g_hash_table_lookup (userMap, username_key);
+				UserMap *userMap_ = NULL;
+				userMap_ = (UserMap*)g_hash_table_lookup(userMap, username_key);
 
-				if (UserMap_ == NULL)
+				if (userMap_ == NULL)
 				{
-					UserMap_ = (UserMap *) g_malloc (sizeof (UserMap));
+					userMap_ = (UserMap *) g_malloc (sizeof (UserMap));
 
 					for (l = 0; l < USERNAMEMAXLEN; l++)
 					{
-						UserMap_->username[l] = 0;
-						UserMap_->account_name[l] = 0;
+						userMap_->username[l] = 0;
+						userMap_->account_name[l] = 0;
 					}
-					UserMap_->uid = 0;
+					userMap_->uid = 0;
 
-					strncpy (UserMap_->username, username,
-						sizeof (UserMap_->username) - 1);
-					strncpy (UserMap_->account_name, account_name,
-						sizeof (UserMap_->account_name) - 1);
+					strncpy (userMap_->username, username,
+						sizeof (userMap_->username) - 1);
+					strncpy (userMap_->account_name, account_name,
+						sizeof (userMap_->account_name) - 1);
 					int tmp_uid = data_cfg->separate_lve ? atoi (uid) : BAD_LVE;
 
-					LOG(L_USRMAP, "Added user %s account %s with uid %d", UserMap_->username, UserMap_->account_name, tmp_uid);
+					LOG(L_USRMAP, "Added user %s account %s with uid %d", userMap_->username, userMap_->account_name, tmp_uid);
 
 					if (tmp_uid >= 1)
 					{
-						UserMap_->uid = tmp_uid;
-						g_hash_table_insert (userMap, username_key, UserMap_);
+						userMap_->uid = tmp_uid;
+						g_hash_table_insert (userMap, username_key, userMap_);
 					}
 					else
 					{
-						g_free (UserMap_);
+						g_free (userMap_);
 						g_free (username_key);
 					}
 				}
@@ -259,30 +258,26 @@ find_uid (gpointer key, UserMap * um, void *data)
 	return (strcmp (um->username, (char *) data) == 0);
 }
 
-int
-get_uid (const username_t u)
+int get_uid(const username_t u)
 {
-	UserMap *UserMap_ = NULL;
+	UserMap *userMap_ = NULL;
 	if (userMap)
 	{
-		UserMap_
-			= (UserMap *) g_hash_table_find (userMap, (GHRFunc) find_uid, (gpointer)u);
+		userMap_ = (UserMap*)g_hash_table_find(userMap, (GHRFunc) find_uid, (gpointer)u);
 	}
 
-	return UserMap_ ? UserMap_->uid : BAD_LVE;
+	return userMap_ ? userMap_->uid : BAD_LVE;
 }
 
-char *
-get_account (username_t u)
+char *get_account(const username_t u)
 {
-	UserMap *UserMap_ = NULL;
+	UserMap *userMap_ = NULL;
 	if (userMap)
 	{
-		UserMap_
-			= (UserMap *) g_hash_table_find (userMap, (GHRFunc) find_uid, u);
+		userMap_ = (UserMap*)g_hash_table_find(userMap, (GHRFunc) find_uid, (gpointer)u);
 	}
 
-	return UserMap_ ? (char *) UserMap_->account_name : NULL;
+	return userMap_ ? (char *) userMap_->account_name : NULL;
 }
 
 int

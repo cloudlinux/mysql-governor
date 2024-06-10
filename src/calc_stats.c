@@ -112,11 +112,9 @@ Stats *add_new_stats(const username_t username, const Stats * st, long long tick
 
 	if (data_cfg.debug_user && !us->account->need_dbg)
 	{
-		int len = strlen (data_cfg.debug_user);
-		if (!strncmp (data_cfg.debug_user, us->account->id, len))
-		{
+		size_t len = strlen(data_cfg.debug_user);
+		if (!strncmp(data_cfg.debug_user, us->account->id, len))
 			us->account->need_dbg = 1;
-		}
 	}
 	/*if(check_if_user_restricted(username, accounts) && data_cfg.use_lve){
 		return NULL;
@@ -126,12 +124,12 @@ Stats *add_new_stats(const username_t username, const Stats * st, long long tick
 	{
 		if (us->tick == tick_id)
 		{
-			stt = refresh_stats (st, us);
+			stt = refresh_stats(st, us);
 		}
 		else
 		{
-			us->tick = get_current_tick ();
-			stt = push_stats (st, us);
+			us->tick = get_current_tick();
+			stt = push_stats(st, us);
 		}
 	}
 	//pthread_mutex_unlock(&mtx_account);
@@ -1184,18 +1182,14 @@ get_accounts (void)
 }
 
 //-----------------------------------------------------------------------------
-int
-comapre_users_name (char *username, Account * ac)
+int comapre_users_name(const char *username, const Account *ac)
 {
-	int i = 0;
-	User_stats *us = NULL;
-	for (i = 0; i < ac->users->len; i++)
+	int i;
+	for (i=0; i < ac->users->len; i++)
 	{
-		us = g_ptr_array_index (ac->users, i);
-		if (!strncmp (us->id, username, USERNAMEMAXLEN))
-		{
+		const User_stats *us = g_ptr_array_index(ac->users, i);
+		if (!strncmp(us->id, username, USERNAMEMAXLEN))
 			return 0;
-		}
 	}
 	return 1;
 }

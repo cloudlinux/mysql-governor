@@ -53,25 +53,7 @@ typedef struct _sock_data
 } sock_data;
 sock_data sd = { -1, 0 };
 
-static int
-try_lock2 (pthread_mutex_t * mtx)
-{
-	int tries = 0, rc = 0;
-	while (tries < 10)
-	{
-		rc = pthread_mutex_trylock (mtx);
-		if (rc == 0)
-			return 0;
-		if (rc == EBUSY)
-			tries++;
-		else
-			return -1;
-	}
-	return -1;
-}
-
-static int
-try_lock (pthread_mutex_t * mtx)
+static int try_lock(pthread_mutex_t *mtx)
 {
 	int rc = pthread_mutex_trylock (mtx);
 
@@ -100,11 +82,9 @@ try_lock (pthread_mutex_t * mtx)
 	return rc;
 }
 
-static int close_sock_in ();
+static int close_sock_in();
 
-static int
-connection_with_timeout_poll (int sk, struct sockaddr_un *sa, socklen_t len,
-				int timeout)
+static int connection_with_timeout_poll(int sk, struct sockaddr_un *sa, socklen_t len, int timeout)
 {
 	int flags = 0, error = 0, ret = 0, error_len = sizeof (error);
 	int nfds = 1;
@@ -188,75 +168,6 @@ connection_with_timeout_poll (int sk, struct sockaddr_un *sa, socklen_t len,
 		close (sk);
 		errno = error;
 		return -1;
-	}
-
-	/*if(fcntl(sk, F_SETFL, flags) < 0) {
-		close(sk);
-		return -1;
-		} */
-
-	return 0;
-}
-
-static int
-connection_with_timeout_select (int sk, struct sockaddr_un *sa, socklen_t len,
-				int timeout)
-{
-	int flags = 0, error = 0, ret = 0, error_len = sizeof (error);
-	fd_set read_set, write_set;
-	struct timeval ts;
-
-	ts.tv_sec = timeout;
-	ts.tv_usec = 0;
-
-	FD_ZERO (&read_set);
-	FD_SET (sk, &read_set);
-	write_set = read_set;
-
-	if ((flags = fcntl (sk, F_GETFL, 0)) < 0)
-		return -1;
-
-	if (fcntl (sk, F_SETFL, flags | O_NONBLOCK) < 0)
-		return -1;
-
-	if ((ret = connect (sk, (struct sockaddr *) sa, len)) < 0)
-		if (errno != EINPROGRESS)
-			return -1;
-
-	if (ret != 0)
-	{
-		if ((ret = select (sk + 1, &read_set, &write_set, NULL, &ts)) < 0)
-		{
-			close (sk);
-			return -1;
-		}
-		if (ret == 0)
-		{
-			close (sk);
-			errno = ETIMEDOUT;
-			return -1;
-		}
-
-		if (FD_ISSET (sk, &read_set) || FD_ISSET (sk, &write_set))
-		{
-			if (getsockopt (sk, SOL_SOCKET, SO_ERROR, &error, &error_len) < 0)
-			{
-				close (sk);
-				return -1;
-			}
-		}
-		else
-		{
-			close (sk);
-			return -1;
-		}
-
-		if (error)
-		{
-			close (sk);
-			errno = error;
-			return -1;
-		}
 	}
 
 	/*if(fcntl(sk, F_SETFL, flags) < 0) {

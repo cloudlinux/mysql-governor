@@ -352,7 +352,7 @@ int add_user_to_list(const char *username, int is_all)
 }
 #endif // LIBGOVERNOR
 
-int delete_user_from_list(char *username)
+int delete_user_from_list(const char *username)
 {
 	if (!bad_list || (bad_list == MAP_FAILED))
 		return -1;

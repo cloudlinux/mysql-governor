@@ -14,30 +14,25 @@
 
 static GHashTable *user_account_table;
 
-int
-check_if_user_restricted (username_t username, GHashTable * accounts)
+int check_if_user_restricted(const username_t username, const GHashTable *accounts)
 {
-	struct user_account *ua = get_user_account (username);
-	Account *ac = NULL;
-	ac = g_hash_table_lookup (accounts, ua->account);
-	return (ac->timeout > 0);
+	const struct user_account *ua = get_user_account(username);
+	const Account *ac = g_hash_table_lookup((GHashTable*)accounts, ua->account);
+	return ac->timeout > 0;
 }
 
-User_stats *
-add_user_stats (username_t username, GHashTable * accounts,
-		GHashTable * users)
+User_stats *add_user_stats(const username_t username, GHashTable *accounts, GHashTable *users)
 {
-	struct user_account *ua = get_user_account (username);
-	Account *ac = NULL;
-	ac = g_hash_table_lookup (accounts, ua->account);
+	struct user_account *ua = get_user_account(username);
+	Account *ac = g_hash_table_lookup(accounts, ua->account);
 	if (!ac)
-		{
-		g_hash_table_insert (accounts, ua->account, ac =
-				init_account (ua->account));
-		}
-	User_stats *us = init_user_stats (ua->username, ac);
-	g_hash_table_insert (users, (gpointer) ua->username, us);
-	g_ptr_array_add (ac->users, us);
+	{
+		ac = init_account(ua->account);
+		g_hash_table_insert(accounts, ua->account, ac);
+	}
+	User_stats *us = init_user_stats(ua->username, ac);
+	g_hash_table_insert(users, (gpointer) ua->username, us);
+	g_ptr_array_add(ac->users, us);
 	return us;
 }
 
@@ -54,8 +49,7 @@ free_user_account_table (void)
 	g_hash_table_unref (user_account_table);
 }
 
-struct user_account *
-get_user_account (username_t username)
+struct user_account *get_user_account(const username_t username)
 {
 	struct user_account *ua =
 		g_hash_table_lookup (user_account_table, username);
@@ -74,7 +68,7 @@ get_user_account (username_t username)
 			char *ptr = NULL;
 			if (lock_read_map () == 0)
 			{
-				ptr = get_account (username);
+				ptr = get_account(username);
 				unlock_rdwr_map ();
 			}
 			if (ptr == NULL)

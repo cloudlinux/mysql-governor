@@ -112,10 +112,10 @@ addMemoryUser (FILE * in, GPtrArray * tags)
 		int found_user = 0, i = 0;
 		for (; i < Tags->len; i++)
 		{
-			DbCtlFoundTag *found_tag_ = g_ptr_array_index (Tags, i);
-			char *name_list = GetUserName (found_tag_->attr);
+			const DbCtlFoundTag *found_tag_ = g_ptr_array_index(Tags, i);
+			const char *name_list = GetUserName(found_tag_->attr);
 			if (name_list)
-				if (strcmp (name_list, _ac->id) == 0)
+				if (strcmp(name_list, _ac->id) == 0)
 					found_user++;
 		}
 

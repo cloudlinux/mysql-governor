@@ -62,9 +62,8 @@ void remove_tid_data (pid_t tid);
 void process_tid_data (GHFunc func, gpointer user_data);
 void add_new_tid_data2 (pid_t tid, tid_table * tbl);
 void remove_tid_data_by_fd (int fd);
-void reset_counters (char *username);
-void increment_counters (char *username, double cpu, long long read,
-			 long long write, double tm);
+void reset_counters(const char *username);
+void increment_counters(const char *username, double cpu, long long read, long long write, double tm);
 GHashTable *get_counters_table (void);
 void add_tid_to_bad_list (pid_t pid);
 long get_tid_size (void);

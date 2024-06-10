@@ -43,21 +43,8 @@ extern M_mysql_real_escape_string;
 extern M_mysql_ping;
 
 /* 
-  MYSQLG-849 - it seems that MySQL contains a bug, and killed QUERY request in this state can stuck for days 
-  That's why we exclude this state from state_to_kill and include it into state_to_no_kill
+  See MYSQLG-849
 */
-static const char *state_to_kill[] =
-{
-	"Copying to tmp table",
-	"Copying to group table",
-	"Copying to tmp table on disk",
-	/*  "removing tmp table", */
-	"Sending data",
-	"Sorting for group",
-	"Sorting for order",
-	NULL
-};
-
 static const char *state_to_no_kill[] =
 {
 	"removing tmp table",
@@ -65,21 +52,11 @@ static const char *state_to_no_kill[] =
 };
 
 static int
-is_request_in_state_to_kill (char *s)
-{
-	int i;
-	for (i=0; state_to_kill[i] != NULL; ++i)
-		if (!strncmp (s, state_to_kill[i], _DBGOVERNOR_BUFFER_256))
-			return 1;
-	return 0;
-}
-
-static int
 is_request_in_state_to_no_kill (char *s)
 {
 	int i;
-	for (i=0; state_to_no_kill[i] != NULL; ++i)
-		if (!strncmp (s, state_to_no_kill[i], _DBGOVERNOR_BUFFER_256))
+	for (i=0; state_to_no_kill[i]; ++i)
+		if (!strncmp(s, state_to_no_kill[i], _DBGOVERNOR_BUFFER_256))
 			return 1;
 	return 0;
 }
@@ -158,8 +135,7 @@ parse_slow_query (void *data)
 					long slow_time = is_user_ignored (User);
 					if (slow_time > 0 &&
 						strncasecmp (f_str, Info, f_str_sz - 1) == 0
-						/*&& is_request_in_state_to_kill(State) */
-						&& ! is_request_in_state_to_no_kill(State)
+						&& !is_request_in_state_to_no_kill(State)
 						)
 					{
 						LOG(L_SLOW, "is SELECT; Id=%d, Time=%d, slow_time=%d", atoi(Id), atoi(Time), slow_time);

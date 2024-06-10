@@ -145,10 +145,10 @@ run_dbtop_command (void *data)
 */
 void *handle_client_connect(void *fd)
 {
-	int ns = (int) ((intptr_t) fd), result;
+	int ns = (int) ((intptr_t) fd);
 
 	client_type_t ctt;
-	result = read (ns, &ctt, sizeof (client_type_t));
+	int result = read(ns, &ctt, sizeof(client_type_t));
 	switch (result)
 	{
 		case 0:
@@ -277,17 +277,15 @@ dbctl_restrict_set_safe(GHashTable *accounts_hash, DbCtlCommand *command)
     This function is called from handle_client_connect, open file descriptor is passed as a pointer.
     handle_client_connect expects that this function will close file descriptor
 */
-static void *
-run_dbctl_command (void *data)
+static void *run_dbctl_command(void *data)
 {
-	int result;
 	intptr_t ns = (intptr_t) data;
 
 	DbCtlCommand command;
-	result = read (ns, &command, sizeof (DbCtlCommand));
+	int result = read(ns, &command, sizeof(DbCtlCommand));
 
 	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
+	get_config_data(&data_cfg);
 
 	if (command.command == REREAD_CFG)
 	{
