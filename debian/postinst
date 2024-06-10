@@ -67,15 +67,10 @@ do_install_or_upgrade() {
 
     [ -e /dev/shm/governor_bad_users_list ] && rm /dev/shm/governor_bad_users_list 2>&1 >/dev/null || :
 
-    # Governor watchdog was introduced by CLOS-2385 in governor 1.2-111
-    # but reverted by CLOS-2705 in governor 1.2-112
-    # So let's remove cron job possibly created by 1.2-111
-    if [ -e /etc/cron.d/dbgovernor_watchdog_cron ]; then
-        rm /etc/cron.d/dbgovernor_watchdog_cron
-    fi
-
-    if [ -e "/usr/share/lve/dbgovernor/sentry_dsn" ]; then
-        rm -f /usr/share/lve/dbgovernor/sentry_dsn
+    if [ -e "/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" ]; then
+        echo "15 */12 * * * root /usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" > /etc/cron.d/dbgovernor_watchdog_cron
+        chmod 644 /etc/cron.d/dbgovernor_watchdog_cron
+        chown root:root /etc/cron.d/dbgovernor_watchdog_cron
     fi
 }
 

@@ -1,5 +1,5 @@
 %define g_version   1.2
-%define g_release   112
+%define g_release   114
 %define g_key_library 13
 
 %if %{undefined _unitdir}
@@ -186,6 +186,7 @@ install -D -m 755 install/scripts/sentry_daemon.py $RPM_BUILD_ROOT/usr/share/lve
 install -D -m 755 install/scripts/detect-cpanel-mysql-version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 install -D -m 755 install/scripts/cpanel-mysql-url-detect.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
 install -D -m 755 install/scripts/set_cpanel_mysql_version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm
+install -D -m 755 install/scripts/dbgovernor_watchdog.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py
 install -D -m 755 install/scripts/mysql_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/mysql_hook
 install -D -m 755 install/scripts/map_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/map_hook
 install -D -m 755 install/scripts/sync_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sync_hook
@@ -194,6 +195,7 @@ install -D -m 644 logrotate/mysql-governor $RPM_BUILD_ROOT/etc/logrotate.d/mysql
 install -D -m 644 install/utils/cloudlinux.versions $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/cloudlinux.versions
 install -D -m 644 install/utils/dbgovernor $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/db_governor
 install -D -m 600 install/list_problem_files.txt $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/
+install -D -m 600 install/sentry_dsn $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/sentry_dsn
 
 install -D -m 755 install/utils/mysql_export $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/mysql_export
 
@@ -367,15 +369,12 @@ if [ -e "/etc/container/dbgovernor-libcheck" ]; then
         fi
 fi
 
-# Governor watchdog was introduced by CLOS-2385 in governor 1.2-111
-# but reverted by CLOS-2705 in governor 1.2-112
-# So let's remove cron job possibly created by 1.2-111
-if [ -e /etc/cron.d/dbgovernor_watchdog_cron ]; then
-    rm /etc/cron.d/dbgovernor_watchdog_cron
-fi
-
-if [ -e "/usr/share/lve/dbgovernor/sentry_dsn" ]; then
-    rm -f /usr/share/lve/dbgovernor/sentry_dsn
+if [ $1 -gt 0 ] ; then
+    if [ -e "/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" ]; then
+        echo "15 */12 * * * root /usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" > /etc/cron.d/dbgovernor_watchdog_cron
+        chmod 644 /etc/cron.d/dbgovernor_watchdog_cron
+        chown root:root /etc/cron.d/dbgovernor_watchdog_cron
+    fi
 fi
 
 %preun
@@ -398,15 +397,10 @@ if [ $1 -eq 1 -o $1 -eq 0 ] ; then
  fi
 fi
 
-# Governor watchdog was introduced by CLOS-2385 in governor 1.2-111
-# but reverted by CLOS-2705 in governor 1.2-112
-# So let's remove cron job possibly created by 1.2-111
-if [ -e "/etc/cron.d/dbgovernor_watchdog_cron" ]; then
-    rm -f /etc/cron.d/dbgovernor_watchdog_cron
-fi
-
-if [ -e "/usr/share/lve/dbgovernor/sentry_dsn" ]; then
-    rm -f /usr/share/lve/dbgovernor/sentry_dsn
+if [ $1 -eq 0 ]; then
+    if [ -e "/etc/cron.d/dbgovernor_watchdog_cron" ]; then
+        rm -f /etc/cron.d/dbgovernor_watchdog_cron
+    fi
 fi
 
 %postun
@@ -499,6 +493,9 @@ fi
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
 
 %changelog
+* Mon Jun 10 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> 1.2-114
+- CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval
+
 * Tue Jun 04 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-112
 - CLOS-2705: Reverted adding of watchdog monitoring utility
 
