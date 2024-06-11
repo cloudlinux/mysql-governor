@@ -1665,7 +1665,5 @@ def get_supported_mysqls(ubuntu, cl_num, panel):
                       )
     if not ubuntu and panel == 'cPanel':
         mysqls_list = list(filter(lambda x: x != 'mariadb104', mysqls_list))
-        if cl_num < 8:
-            mysqls_list = list(filter(lambda x: x != 'mariadb1011', mysqls_list))
 
     return mysqls_list
