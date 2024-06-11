@@ -1,6 +1,7 @@
 governor-mysql (1.2-113) stable; urgency=medium
 
   * CLOS-2706: Removed MariaDB1011 support exclusion for cPanel on CL7
+  * CLOS-2653: Deprecated outdated mysql/mariadb/percona versions
 
  -- Alexandr Demeshko <ademeshko@cloudlinux.com>  Tue, 11 Jun 2024 10:00:00 +0000
 
