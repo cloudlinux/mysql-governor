@@ -86,27 +86,25 @@ static int close_sock_in();
 
 static int connection_with_timeout_poll(int sk, struct sockaddr_un *sa, socklen_t len, int timeout)
 {
-	int flags = 0, error = 0, ret = 0, error_len = sizeof (error);
-	int nfds = 1;
-	int ts;
+	int ret = 0;
 
-	ts = timeout * 1000;
+	int ts = timeout * 1000;
+
 	struct pollfd fds[1];
-
-	memset (fds, 0, sizeof (fds));
-
+	int nfds = 1;
+	memset(fds, 0, sizeof(fds));
 	fds[0].fd = sk;
 	fds[0].events = POLLOUT;
 
+	int flags = 0;
 	if ((flags = fcntl (sk, F_GETFL, 0)) < 0)
 		return -1;
-
 	if (fcntl (sk, F_SETFL, flags | O_NONBLOCK) < 0)
 		return -1;
 
 	if ((ret = connect (sk, (struct sockaddr *) sa, len)) < 0)
-		if ((errno != EINPROGRESS) && (errno != EINTR))
-		return -1;
+		if (errno != EINPROGRESS && errno != EINTR)
+			return -1;
 
 	int is_eintr = 0;
 	do
@@ -158,14 +156,16 @@ static int connection_with_timeout_poll(int sk, struct sockaddr_un *sa, socklen_
 		return -1;
 	}
 
-	if (getsockopt (sk, SOL_SOCKET, SO_ERROR, &error, &error_len) < 0)
+	int error = 0;
+	socklen_t error_len = sizeof(error);
+	if (getsockopt(sk, SOL_SOCKET, SO_ERROR, &error, &error_len) < 0)
 	{
-		close (sk);
+		close(sk);
 		return -1;
 	}
 	if (error)
 	{
-		close (sk);
+		close(sk);
 		errno = error;
 		return -1;
 	}
@@ -183,23 +183,22 @@ static int connect_to_server_in()
 	open_log(MYSQLD_EXTLOG_PATH);
 	init_log_ex(false);
 
-	int s, len;
-	struct sockaddr_un saun;
 	sd.socket = -1;
 	sd.status = 0;
 
+	int s;
 	if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
 		LOG(L_INFO, "failed to create socket to connect to mysqld");
 		return -1;
 	}
 
+	struct sockaddr_un saun;
 	saun.sun_family = AF_UNIX;
-	strncpy (saun.sun_path, MYSQL_SOCK_ADDRESS, sizeof (saun.sun_path) - 1);
+	strlcpy(saun.sun_path, MYSQL_SOCK_ADDRESS, sizeof(saun.sun_path));
+	socklen_t len = sizeof(struct sockaddr_un);
 
-	len = sizeof (struct sockaddr_un);
-
-	if (connection_with_timeout_poll (s, &saun, len, 5) < 0)
+	if (connection_with_timeout_poll(s, &saun, len, 5) < 0)
 	{
 		LOG(L_INFO, "failed to connect to mysqld over socket");
 		return -2;

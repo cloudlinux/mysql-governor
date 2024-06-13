@@ -19,7 +19,7 @@ void free_commands_list (void);
 void account_unrestrict (Account * ac);
 void account_restrict(Account *ac, const stats_limit_cfg *limit);
 void send_commands_cycle (void);
-void send_commands (Command * cmd, void *data);
+void send_commands(const Command *cmd, void *data);
 void *send_governor (void *data);
 void restore_all_max_user_conn(MODE_TYPE debug_mode);
 

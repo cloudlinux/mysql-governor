@@ -814,29 +814,27 @@ lve_connection(const char *user_name)
 }
 
 //LOGGER USER QUERIES
-int
-create_dir (void)
+int create_dir(void)
 {
-	char tek_day_dir[11];
-	GDate *date = g_date_new ();
-	const time_t timestamp = time (NULL);
-	g_date_set_time_t (date, timestamp);
+	GDate *date = g_date_new();
+	const time_t timestamp = time(NULL);
+	g_date_set_time_t(date, timestamp);
 
-	if (g_mkdir_with_parents (PATH_TO_LOG_USER_QUERIES, 0755) == 0)
+	if (g_mkdir_with_parents(PATH_TO_LOG_USER_QUERIES, 0755) == 0)
 	{
-		if (g_chdir (PATH_TO_LOG_USER_QUERIES) == 0)
+		if (g_chdir(PATH_TO_LOG_USER_QUERIES) == 0)
 		{
-			sprintf (tek_day_dir, "%d-%d-%d", g_date_get_year (date),
-				g_date_get_month (date), g_date_get_day (date));
-			if (g_mkdir_with_parents (tek_day_dir, 0755) == 0)
+			char tek_day_dir[100];
+			sprintf(tek_day_dir, "%d-%d-%d", g_date_get_year(date), g_date_get_month(date), g_date_get_day(date));
+			if (g_mkdir_with_parents(tek_day_dir, 0755) == 0)
 			{
-				g_date_free (date);
-				if (g_chdir (tek_day_dir) == 0)
+				g_date_free(date);
+				if (g_chdir(tek_day_dir) == 0)
 					return 1;
 			}
 		}
 	}
-	g_date_free (date);
+	g_date_free(date);
 	return 0;
 }
 

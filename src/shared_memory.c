@@ -580,7 +580,8 @@ int init_bad_users_list_client(void)
 
 	if (first || need_truncate)
 	{
-		ftruncate(shm_fd_clients_global, sizeof(shm_structure));
+		if (ftruncate(shm_fd_clients_global, sizeof(shm_structure)))
+			LOG(L_ERR, "ftruncate() failed, errno=%d", errno);
 
 		if (sem_init(&bad_list_clients_global->sem, 1, 1) < 0)
 		{

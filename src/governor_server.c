@@ -32,6 +32,7 @@
 #include "calc_stats.h"
 #include "tick_generator.h"
 #include "commands.h"
+#include "dbgovernor_string_functions.h"
 
 #define SEC2NANO 1000000000
 
@@ -103,7 +104,7 @@ create_socket(void)
 	struct sockaddr_un saun;
 	saun.sun_family = AF_UNIX;
 	strlcpy(saun.sun_path, MYSQL_SOCK_ADDRESS, sizeof(saun.sun_path));
-	size_t len = sizeof(saun.sun_family) + strlen(saun.sun_path);
+	socklen_t len = sizeof(saun.sun_family) + strlen(saun.sun_path);
 
 	if (bind(global_socket, (struct sockaddr *) &saun, len) < 0)
 	{

@@ -38,7 +38,7 @@
 
 void accept_connections (int s);
 static void *run_writer (void *data);
-static void *run_dbctl_command (void *data);
+static void *run_dbctl_command(void *data);
 void send_account (const char *key, Account * ac, FILE * out);
 
 void *
@@ -177,18 +177,14 @@ void *handle_client_connect(void *fd)
 	return NULL;
 }
 
-void
-accept_connections (int s)
+void accept_connections(int s)
 {
-	struct sockaddr_un fsaun;
-	int fromlen = sizeof (fsaun);
-	pthread_t thread;
-
 	while (1)
 	{
-		int ns;
-
-		if ((ns = accept (s, (struct sockaddr *) &fsaun, &fromlen)) < 0)
+		struct sockaddr_un from;
+		socklen_t fromlen = sizeof(from);
+		int ns = accept(s, (struct sockaddr*)&from, &fromlen);
+		if (ns < 0)
 		{
 			if (errno == EINTR)
 			{
@@ -203,8 +199,11 @@ accept_connections (int s)
 			}
 		}
 		intptr_t accept_socket = (intptr_t) ns;
-		pthread_create (&thread, NULL, handle_client_connect, (void*) accept_socket);
-		pthread_detach (thread);
+		pthread_t thread;
+		if (pthread_create(&thread, NULL, handle_client_connect, (void*) accept_socket))
+			LOG(L_ERR|L_DBTOP, "failed to create client thread");
+		else
+			pthread_detach(thread);
 	}
 }
 
@@ -282,7 +281,8 @@ static void *run_dbctl_command(void *data)
 	intptr_t ns = (intptr_t) data;
 
 	DbCtlCommand command;
-	int result = read(ns, &command, sizeof(DbCtlCommand));
+	if (read(ns, &command, sizeof(DbCtlCommand)) != sizeof(DbCtlCommand))
+		LOG(L_ERR|L_DBTOP, "failed to read command");
 
 	struct governor_config data_cfg;
 	get_config_data(&data_cfg);

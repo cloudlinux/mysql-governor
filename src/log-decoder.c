@@ -53,6 +53,8 @@ getRestrictValue(const Account * ac)
 			return getMidRestrictValue (ac);
 		case LONG_PERIOD:
 			return getLongRestrictValue (ac);
+		case NO_PERIOD:
+			break;
 	}
 	return -1;
 }
@@ -176,17 +178,15 @@ getParamName(const Account * ac)
 	}
 }
 
-void
-insertSystemInfo (char *buffer)
+void insertSystemInfo(char *buffer)
 {
 	char loadavg[GETSYSINFO_MAXFILECONTENT];
 	char vmstat[GETSYSINFO_MAXFILECONTENT];
-	char innerBuffer[_DBGOVERNOR_BUFFER_8192];
-	getloadavggov (loadavg);
-	getvmstat (vmstat);
-	snprintf (innerBuffer, _DBGOVERNOR_BUFFER_8192, "%s loadavg(%s) vmstat(%s)",
-			buffer, loadavg, vmstat);
-	strlcpy (buffer, innerBuffer, _DBGOVERNOR_BUFFER_8192);
+	char innerBuffer[_DBGOVERNOR_BUFFER_8192 + 0x100];
+	getloadavggov(loadavg);
+	getvmstat(vmstat);
+	snprintf(innerBuffer, sizeof(innerBuffer), "%s loadavg(%s) vmstat(%s)", buffer, loadavg, vmstat);
+	strlcpy(buffer, innerBuffer, _DBGOVERNOR_BUFFER_8192);
 }
 
 const char *
@@ -230,19 +230,20 @@ prepareRestrictDescriptionLimit (char *buffer, const Account * ac, const stats_l
 }
 
 /*Get a list of parameters corresponding to the period, the so-called dump*/
-const stats_limit *
-getRestrictDump(const Account * ac)
+const stats_limit *getRestrictDump(const Account *ac)
 {
 	switch (ac->info.field_restrict)
 	{
 		case CURRENT_PERIOD:
-			return (const stats_limit *) & ac->current;
+			return &ac->current;
 		case SHORT_PERIOD:
-			return (const stats_limit *) & ac->short_average;
+			return &ac->short_average;
 		case MID_PERIOD:
-			return (const stats_limit *) & ac->mid_average;
+			return &ac->mid_average;
 		case LONG_PERIOD:
-			return (const stats_limit *) & ac->long_average;
+			return &ac->long_average;
+		case NO_PERIOD:
+			break;
 	}
 	return (const stats_limit *) NULL;
 }

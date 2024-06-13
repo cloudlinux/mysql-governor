@@ -11,7 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-
+#include <errno.h>
+#include "log.h"
 #include "getsysinfo.h"
 
 #define LOADAVG_DATA "/proc/loadavg"
@@ -25,18 +26,17 @@ chomp (char *s)
 	*s = 0;
 }
 
-void
-getloadavggov (char *buffer)
+void getloadavggov(char *buffer)
 {
-	FILE *stat = NULL;
-	strcpy (buffer, "");
-	stat = fopen (LOADAVG_DATA, "r");
+	strcpy(buffer, "");
+	FILE *stat = fopen(LOADAVG_DATA, "r");
 	if (stat)
 	{
-		fgets (buffer, GETSYSINFO_MAXFILECONTENT, stat);
-		fclose (stat);
+		if (fgets(buffer, GETSYSINFO_MAXFILECONTENT, stat))
+			LOG(L_MON, "fgets() failed, errno=%d", errno);	// TODO: make it L_ERR when we have log rotation
+		fclose(stat);
 	}
-	chomp (buffer);
+	chomp(buffer);
 }
 
 void

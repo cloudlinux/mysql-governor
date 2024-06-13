@@ -272,11 +272,10 @@ destroy_key(gpointer key)
 	free (key);
 }
 
-void
-send_commands (Command * cmd, void *data)
+void send_commands(const Command *cmd, void *data)
 {
 	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
+	get_config_data(&data_cfg);
 
 	if (cmd)
 	{
@@ -320,8 +319,8 @@ send_commands (Command * cmd, void *data)
 				//lve_connection(cmd->username, data_cfg.log_mode);
 				if (data_cfg.logqueries_use == 1)
 					log_user_queries(cmd->username);
+				break;
 			}
-			break;
 
 			case UNFREEZE:
 			{
@@ -350,8 +349,12 @@ send_commands (Command * cmd, void *data)
 						is_any_flush = 1;
 					}
 				}
+				break;
 			}
-			break;
+
+			case SLOWQUERY:
+			case EXIT:
+				break;
 		}
 	}
 }
@@ -427,11 +430,12 @@ send_commands_cycle (void)
 		send_command_copy_list ();
 		if (g_list_length (command_list_send) > 1) // for now list starts with empty element, so no work if length==1
 		{
-			LOG(L_MON, "after send_command_copy_list() list_len==%d>1, so create a thread to send",
-				g_list_length (command_list_send));
+			LOG(L_MON, "after send_command_copy_list() list_len==%d>1, so create a thread to send", g_list_length(command_list_send));
 			pthread_t thread;
-			pthread_create (&thread, NULL, send_commands_cycle_in, NULL);
-			pthread_detach (thread);
+			if (pthread_create(&thread, NULL, send_commands_cycle_in, NULL))
+				LOG(L_MON, "failed to create client thread");	// TODO: add L_ERR after log rotation support
+			else
+				pthread_detach(thread);
 		}
 		else
 		{

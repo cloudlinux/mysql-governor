@@ -304,21 +304,26 @@ static int check_liblve(void)
 	}
 }
 
-stats_limit_cfg *
-config_get_account_limit(const char *account_id, stats_limit_cfg * cfgin)
+stats_limit_cfg *config_get_account_limit(const char *account_id, stats_limit_cfg *cfgin)
 {
 	int rc = pthread_rwlock_rdlock(&rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_rdlock()=%d", rc);
 
-	stats_limit_cfg *ptr = g_hash_table_lookup(cfg->account_limits, account_id);
+	const stats_limit_cfg *ptr = g_hash_table_lookup(cfg->account_limits, account_id);
 	if (ptr)
 	{
 		memcpy(cfgin, ptr, sizeof(stats_limit_cfg));
 		rc = pthread_rwlock_unlock(&rwlock);
+		if (rc)
+			LOG(L_ERR, "pthread_rwlock_unlock()=%d", rc);
 		return cfgin;
 	}
-
 	memcpy(cfgin, &cfg->default_limit, sizeof(stats_limit_cfg));
+
 	rc = pthread_rwlock_unlock(&rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_unlock()=%d", rc);
 	return cfgin;
 }
 
@@ -791,21 +796,25 @@ get_config(void)
 
 void get_config_data(struct governor_config *data)
 {
-	int rc;
-
-	rc = pthread_rwlock_rdlock(&rwlock);
+	int rc = pthread_rwlock_rdlock(&rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_rdlock()=%d", rc);
 	*data = *cfg;
 	rc = pthread_rwlock_unlock(&rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_unlock()=%d", rc);
 }
 
 void reread_config(void)
 {
-	int rc;
-
-	rc = pthread_rwlock_wrlock(&rwlock);
+	int rc = pthread_rwlock_wrlock(&rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_wrlock()=%d", rc);
 	config_free();
 	config_init(CONFIG_PATH);
 	rc = pthread_rwlock_unlock(&rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_unlock()=%d", rc);
 }
 
 void config_destroy_lock(void)

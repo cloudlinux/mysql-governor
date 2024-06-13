@@ -37,7 +37,7 @@
 
 void printHeader (void);
 void *screen_regenerate (void);
-char *print_formatted_user_name (char *name, char *buf);
+char *print_formatted_user_name(const char *name, char *buf);
 
 static void
 dumpstack (FILE * f)
@@ -455,6 +455,8 @@ _copy_to_showed_accounts (Account * ac)
 char
 getRestrictChar (GOVERNORS_PERIOD_NAME restrict_level)
 {
+	if (restrict_level == 1000)
+		return 'R';
 	char ch;
 	switch (restrict_level)
 	{
@@ -467,9 +469,6 @@ getRestrictChar (GOVERNORS_PERIOD_NAME restrict_level)
 		case 2:
 			ch = '3';
 			break;
-		case 1000:
-			ch = 'R';
-			break;
 		default:
 			ch = '4';
 	}
@@ -479,42 +478,43 @@ getRestrictChar (GOVERNORS_PERIOD_NAME restrict_level)
 void
 print_account_screen1 (const Account * ac)
 {
-	char buf[1024];
 	char stringBuf[1024];
+	char buf[sizeof(stringBuf) + 0x100];
 
-	memset (buf, 0, sizeof (buf));
-	memset (stringBuf, 0, sizeof (stringBuf));
-	snprintf (stringBuf, 1024, "%s", print_formatted_user_name (ac->id, buf));
-	printf ("%-18s ", stringBuf);
-	printString (buf, A_BOLD, 17, NONEWLINE);
+	memset(buf, 0, sizeof(buf));
+	memset(stringBuf, 0, sizeof(stringBuf));
+	snprintf(stringBuf, sizeof(stringBuf), "%s", print_formatted_user_name(ac->id, buf));
+	printf("%-18s ", stringBuf);
+	printString(buf, A_BOLD, 17, NONEWLINE);
 
-	memset (buf, 0, sizeof (buf));
-	memset (stringBuf, 0, sizeof (stringBuf));
-	sprintf (buf, "%d/%d/%d ", (int) ceil (fabs (ac->current.cpu * 100.0)),
-		(int) ceil (fabs (ac->mid_average.cpu * 100.0)),
-		(int) ceil (fabs (ac->long_average.cpu * 100.0)));
-	printString (buf, A_NORMAL, 20, NONEWLINE);
+	memset(buf, 0, sizeof(buf));
+	memset(stringBuf, 0, sizeof(stringBuf));
+	sprintf(buf, "%d/%d/%d ",
+		(int) ceil(fabs(ac->current.cpu * 100.0)),
+		(int) ceil(fabs(ac->mid_average.cpu * 100.0)),
+		(int) ceil(fabs(ac->long_average.cpu * 100.0)));
+	printString(buf, A_NORMAL, 20, NONEWLINE);
 
-	memset (buf, 0, sizeof (buf));
-	memset (stringBuf, 0, sizeof (stringBuf));
-	formatIntString (stringBuf, 3, "/", ac->current.read, ac->mid_average.read, ac->long_average.read);
-	sprintf (buf, "%-19s ", stringBuf);
-	printString (buf, A_NORMAL, 19, NONEWLINE);
+	memset(buf, 0, sizeof(buf));
+	memset(stringBuf, 0, sizeof(stringBuf));
+	formatIntString(stringBuf, 3, "/", ac->current.read, ac->mid_average.read, ac->long_average.read);
+	sprintf(buf, "%-19s ", stringBuf);
+	printString(buf, A_NORMAL, 19, NONEWLINE);
 
-	memset (buf, 0, sizeof (buf));
-	memset (stringBuf, 0, sizeof (stringBuf));
-	formatIntString (stringBuf, 3, "/", ac->current.write, ac->mid_average.write, ac->long_average.write);
-	sprintf (buf, "%-17s ", stringBuf);
-	printString (buf, A_NORMAL, 17, NONEWLINE);
+	memset(buf, 0, sizeof(buf));
+	memset(stringBuf, 0, sizeof(stringBuf));
+	formatIntString(stringBuf, 3, "/", ac->current.write, ac->mid_average.write, ac->long_average.write);
+	sprintf(buf, "%-17s ", stringBuf);
+	printString(buf, A_NORMAL, 17, NONEWLINE);
 
-	memset (buf, 0, sizeof (buf));
-	memset (stringBuf, 0, sizeof (stringBuf));
-	getRestrictInfo (ac, stringBuf);
+	memset(buf, 0, sizeof(buf));
+	memset(stringBuf, 0, sizeof(stringBuf));
+	getRestrictInfo(ac, stringBuf);
 	if (ac->info.field_restrict != NO_PERIOD)
-		sprintf (buf, "%c/%s%d", getRestrictChar (ac->restricted), stringBuf, getTimeToEnd (ac));
+		sprintf(buf, "%c/%s%d", getRestrictChar(ac->restricted), stringBuf, getTimeToEnd(ac));
 	else
-		strcpy (buf, "-");
-	printString (buf, A_NORMAL, 24, NEWLINE);
+		strcpy(buf, "-");
+	printString(buf, A_NORMAL, 24, NEWLINE);
 }
 
 void
@@ -705,10 +705,9 @@ printHeader (void)
 		attroff (COLOR_PAIR (1));
 }
 
-char *
-print_formatted_user_name (char *name, char *buf)
+char *print_formatted_user_name(const char *name, char *buf)
 {
-	strlcpy (buf, name, USERNAMEMAXLEN);
+	strlcpy(buf, name, USERNAMEMAXLEN);
 	int i;
 	for (i = 0; i < USERNAMEMAXLEN; i++)
 		if (buf[i] > 0 && buf[i] < 32)
@@ -716,30 +715,27 @@ print_formatted_user_name (char *name, char *buf)
 	return buf;
 }
 
-void
-print_account_screen1_no_curses (const Account * ac)
+void print_account_screen1_no_curses(const Account *ac)
 {
-	char buf[1024];
 	char stringBuf[1024];
-	snprintf (stringBuf, 1024, "%s", print_formatted_user_name (ac->id, buf));
-	printf ("%-18s ", stringBuf);
-	sprintf (stringBuf, "%d/%d/%d ",
-		(int) ceil (fabs (ac->current.cpu * 100.0)),
-		(int) ceil (fabs (ac->mid_average.cpu * 100.0)),
-		(int) ceil (fabs (ac->long_average.cpu * 100.0)));
-	printf ("%-20s ", stringBuf);
-	formatIntString (stringBuf, 3, "/", ac->current.read, ac->mid_average.read,
-			ac->long_average.read);
+	char buf[sizeof(stringBuf) + 0x100];
+	snprintf(stringBuf, sizeof(stringBuf), "%s", print_formatted_user_name(ac->id, buf));
+	printf("%-18s ", stringBuf);
+	sprintf(stringBuf, "%d/%d/%d ",
+		(int) ceil(fabs(ac->current.cpu * 100.0)),
+		(int) ceil(fabs(ac->mid_average.cpu * 100.0)),
+		(int) ceil(fabs(ac->long_average.cpu * 100.0)));
+	printf("%-20s ", stringBuf);
+	formatIntString(stringBuf, 3, "/", ac->current.read, ac->mid_average.read, ac->long_average.read);
 	printf ("%-21s ", stringBuf);
-	formatIntString (stringBuf, 3, "/", ac->current.write,
-			ac->mid_average.write, ac->long_average.write);
+	formatIntString(stringBuf, 3, "/", ac->current.write, ac->mid_average.write, ac->long_average.write);
 	printf ("%-18s ", stringBuf);
-	getRestrictInfo (ac, stringBuf);
+	getRestrictInfo(ac, stringBuf);
 	if (ac->info.field_restrict != NO_PERIOD)
-		sprintf (buf, "%c/%s%d", getRestrictChar (ac->restricted), stringBuf, getTimeToEnd (ac));
+		sprintf(buf, "%c/%s%d", getRestrictChar(ac->restricted), stringBuf, getTimeToEnd(ac));
 	else
-		strcpy (buf, "-");
-	printf ("%s\n", buf);
+		strcpy(buf, "-");
+	printf("%s\n", buf);
 }
 
 void

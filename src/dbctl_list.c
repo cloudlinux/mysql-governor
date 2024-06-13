@@ -293,6 +293,8 @@ const char *read_restrict_reriod(const Account *ac)
 				return "mid";
 			case LONG_PERIOD:
 				return "long";
+			case NO_PERIOD:
+				break;
 		}
 	}
 	return "";
@@ -314,6 +316,9 @@ const char *read_restrict_reason(const Account *ac)
 				return "read";
 			case WRITE_PARAM:
 				return "write";
+			case NORESTRICT_PARAM:
+			case NORESTRICT_PARAM2:
+				break;
 		}
 	}
 	return "";

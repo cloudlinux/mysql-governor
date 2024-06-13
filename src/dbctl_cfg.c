@@ -282,10 +282,10 @@ static void PrepareLimitsForOutput(DbCtlPrintList *print_list_t, int flag, const
 		snprintf(buffer_cpu, 24, "%d/%d/%d/%d", cpu_curr, //cpu
 				cpu_short, cpu_mid, cpu_long);
 		gchar *tmp_param[4] = { 0 };
-		tmp_param[0] = g_strdup_printf("%i", read_curr);
-		tmp_param[1] = g_strdup_printf("%i", read_short);
-		tmp_param[2] = g_strdup_printf("%i", read_mid);
-		tmp_param[3] = g_strdup_printf("%i", read_long);
+		tmp_param[0] = g_strdup_printf("%lld", read_curr);
+		tmp_param[1] = g_strdup_printf("%lld", read_short);
+		tmp_param[2] = g_strdup_printf("%lld", read_mid);
+		tmp_param[3] = g_strdup_printf("%lld", read_long);
 		snprintf(buffer_read, 28, "%s/%s/%s/%s",
 				(read_curr < 1 && read_curr!=-1) ? "<1" : tmp_param[0],
 				(read_short < 1 && read_short!=-1) ? "<1" : tmp_param[1],
@@ -295,10 +295,10 @@ static void PrepareLimitsForOutput(DbCtlPrintList *print_list_t, int flag, const
 		g_free(tmp_param[1]);
 		g_free(tmp_param[2]);
 		g_free(tmp_param[3]);
-		tmp_param[0] = g_strdup_printf("%i", write_curr);
-		tmp_param[1] = g_strdup_printf("%i", write_short);
-		tmp_param[2] = g_strdup_printf("%i", write_mid);
-		tmp_param[3] = g_strdup_printf("%i", write_long);
+		tmp_param[0] = g_strdup_printf("%lld", write_curr);
+		tmp_param[1] = g_strdup_printf("%lld", write_short);
+		tmp_param[2] = g_strdup_printf("%lld", write_mid);
+		tmp_param[3] = g_strdup_printf("%lld", write_long);
 
 		snprintf(buffer_write, 28, "%s/%s/%s/%s",
 				(write_curr < 1 && write_curr!=-1) ? "<1" : tmp_param[0],
