@@ -840,48 +840,41 @@ create_dir (void)
 	return 0;
 }
 
-void
-log_user_queries(const char *user_name)
+void log_user_queries(const char *user_name)
 {
-	char buffer[_DBGOVERNOR_BUFFER_8192];
-	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
-	char user_name_alloc[USERNAMEMAXLEN * 2];
-	char file_name[USERNAMEMAXLEN + 1 + 10];
-
-	unsigned long counts;
-	unsigned long *lengths;
-	MYSQL_RES *res;
-	MYSQL_ROW row;
-	FILE *log_queries;
-	const time_t timestamp = time (NULL);
-
 	if (mysql_do_command == NULL)
 		return;
 
-	(*_mysql_real_escape_string) (mysql_do_command, user_name_alloc, user_name, strlen(user_name));
-	snprintf (sql_buffer, _DBGOVERNOR_BUFFER_8192, QUERY_GET_PROCESSLIST_INFO);
+	const time_t timestamp = time(NULL);
+
+	char user_name_alloc[USERNAMEMAXLEN * 2];
+	(*_mysql_real_escape_string)(mysql_do_command, user_name_alloc, user_name, strlen(user_name));
+	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
+	snprintf(sql_buffer, sizeof(sql_buffer), QUERY_GET_PROCESSLIST_INFO);
 	if (db_mysql_exec_query (sql_buffer, &mysql_do_command))
 	{
 		LOG(L_ERR|L_MYSQL, "Get show processlist failed");
 		return;
 	}
 
-	res = (*_mysql_store_result) (mysql_do_command);
-	counts = (*_mysql_num_rows) (res);
+	MYSQL_RES *res = (*_mysql_store_result) (mysql_do_command);
+	unsigned long counts = (*_mysql_num_rows) (res);
 
 	if (create_dir () && counts > 0)
 	{
-		snprintf (file_name, USERNAMEMAXLEN + 1 + 10, "%s.%lld", user_name, timestamp);
-		log_queries = fopen (file_name, "w");
-		if (log_queries != NULL)
+		char file_name[USERNAMEMAXLEN + 1 + 10];
+		snprintf(file_name, sizeof(file_name), "%s.%lld", user_name, (long long)timestamp);
+		FILE *log_queries = fopen(file_name, "w");
+		if (log_queries)
 		{
+			MYSQL_ROW row;
 			while ((row = (*_mysql_fetch_row) (res)))
 			{
-				if (strcmp (row[1], user_name) == 0)
+				if (strcmp(row[1], user_name) == 0)
 				{
-					lengths = (*_mysql_fetch_lengths) (res);
-					db_mysql_get_string (buffer, row[7], lengths[7],
-								_DBGOVERNOR_BUFFER_8192);
+					char buffer[_DBGOVERNOR_BUFFER_8192];
+					const unsigned long *lengths = (*_mysql_fetch_lengths) (res);
+					db_mysql_get_string (buffer, row[7], lengths[7], _DBGOVERNOR_BUFFER_8192);
 					fprintf (log_queries, "%s\n", buffer);
 				}
 			}

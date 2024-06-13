@@ -148,8 +148,7 @@ get_map_file (struct governor_config *data_cfg)
 
 			if (username_key)
 			{
-				UserMap *userMap_ = NULL;
-				userMap_ = (UserMap*)g_hash_table_lookup(userMap, username_key);
+				UserMap *userMap_ = (UserMap*)g_hash_table_lookup(userMap, username_key);
 
 				if (userMap_ == NULL)
 				{
@@ -252,20 +251,16 @@ parse_map_file_every_hour (void *data)
 	return NULL;
 }
 
-gboolean
-find_uid (gpointer key, UserMap * um, void *data)
+gboolean find_uid(gpointer key, const UserMap *um, const void *data)
 {
-	return (strcmp (um->username, (char *) data) == 0);
+	return strcmp(um->username, (const char*)data) == 0;
 }
 
 int get_uid(const username_t u)
 {
 	UserMap *userMap_ = NULL;
 	if (userMap)
-	{
 		userMap_ = (UserMap*)g_hash_table_find(userMap, (GHRFunc) find_uid, (gpointer)u);
-	}
-
 	return userMap_ ? userMap_->uid : BAD_LVE;
 }
 
@@ -273,27 +268,21 @@ char *get_account(const username_t u)
 {
 	UserMap *userMap_ = NULL;
 	if (userMap)
-	{
 		userMap_ = (UserMap*)g_hash_table_find(userMap, (GHRFunc) find_uid, (gpointer)u);
-	}
-
 	return userMap_ ? (char *) userMap_->account_name : NULL;
 }
 
-int
-lock_read_map (void)
+int lock_read_map(void)
 {
 	return pthread_rwlock_rdlock (&map_rw_lock);
 }
 
-int
-lock_write_map (void)
+int lock_write_map(void)
 {
 	return pthread_rwlock_wrlock (&map_rw_lock);
 }
 
-int
-unlock_rdwr_map (void)
+int unlock_rdwr_map(void)
 {
 	return pthread_rwlock_unlock (&map_rw_lock);
 }

@@ -28,11 +28,11 @@ int get_map_file(struct governor_config *data_cfg);
 int get_uid(const username_t u);
 char *get_account(const username_t u);
 
-int lock_read_map (void);
-int lock_write_map (void);
-int unlock_rdwr_map (void);
+int lock_read_map(void);
+int lock_write_map(void);
+int unlock_rdwr_map(void);
 
-void *parse_map_file_every_hour (void *data);
-void trim (char *s);
+void *parse_map_file_every_hour(void *data);
+void trim(char *s);
 
 #endif /* __DBUSER_MAP__ */

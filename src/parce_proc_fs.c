@@ -130,7 +130,7 @@ try_file_to_buffer (char *buffer, const char *format, ...)
 static unsigned long long get_scaled_iostat(const char *buffer, const char *key)
 {
 	unsigned long long value = 0;
-	const char *ptr = strstr (buffer, key);
+	const char *ptr = strstr(buffer, key);
 	if (ptr)
 	{
 		ptr += strlen(key);

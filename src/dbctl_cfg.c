@@ -22,25 +22,17 @@
 GPtrArray *FoundTag = NULL;
 #define SIZEOF_OUTPUT_BUFFER 512
 
-char *
-get_mb_str(char *s, char *buf, int flag)
+static const char *get_mb_str(const char *s, char *buf, int flag)
 {
 	long long divider = 1024 * 1024;
 	if (flag == 1)
-	{
 		divider = 1024;
-	} else if (flag == 2)
-	{
+	else if (flag == 2)
 		divider = 1;
-	}
-	long long mb = (atoll(s));
-	if(mb != -1)
-	{
-		mb = mb / divider;
-	}
-
-	snprintf(buf, SIZEOF_OUTPUT_BUFFER - 1, "%lld", (mb < -1 ? 0 : mb));
-
+	long long mb = atoll(s);
+	if (mb != -1)
+		mb /= divider;
+	snprintf(buf, SIZEOF_OUTPUT_BUFFER - 1, "%lld", mb < -1 ? 0 : mb);
 	return buf;
 }
 
@@ -49,14 +41,13 @@ const char *GetAttr(const GHashTable *attr, const char *name_attr)
 	return (const char*)g_hash_table_lookup((GHashTable*)attr, name_attr);
 }
 
-char *
-GetLimitAttr(GPtrArray * limit_attr, char *name_limit, char *name_attr)
+const char *GetLimitAttr(const GPtrArray *limit_attr, const char *name_limit, const char *name_attr)
 {
-	int i = 0;
+	int i;
 
-	for (; i < limit_attr->len; i++)
+	for (i=0; i < limit_attr->len; i++)
 	{
-		DbCtlLimitAttr *attr = g_ptr_array_index (limit_attr, i);
+		const DbCtlLimitAttr *attr = g_ptr_array_index(limit_attr, i);
 		if (strcmp(attr->l_name, name_limit) == 0)
 		{
 			if (strcmp(name_attr, "current") == 0)
@@ -254,14 +245,14 @@ static void PrepareLimitsForOutput(DbCtlPrintList *print_list_t, int flag, const
 	if (flag)
 	{
 		gchar *tmp_param[8] = { 0 };
-		tmp_param[0] = g_strdup_printf("%i", read_curr);
-		tmp_param[1] = g_strdup_printf("%i", read_short);
-		tmp_param[2] = g_strdup_printf("%i", read_mid);
-		tmp_param[3] = g_strdup_printf("%i", read_long);
-		tmp_param[4] = g_strdup_printf("%i", write_curr);
-		tmp_param[5] = g_strdup_printf("%i", write_short);
-		tmp_param[6] = g_strdup_printf("%i", write_mid);
-		tmp_param[7] = g_strdup_printf("%i", write_long);
+		tmp_param[0] = g_strdup_printf("%lld", read_curr);
+		tmp_param[1] = g_strdup_printf("%lld", read_short);
+		tmp_param[2] = g_strdup_printf("%lld", read_mid);
+		tmp_param[3] = g_strdup_printf("%lld", read_long);
+		tmp_param[4] = g_strdup_printf("%lld", write_curr);
+		tmp_param[5] = g_strdup_printf("%lld", write_short);
+		tmp_param[6] = g_strdup_printf("%lld", write_mid);
+		tmp_param[7] = g_strdup_printf("%lld", write_long);
 		print_list_t->name = g_strdup_printf("%s", name);
 		print_list_t->data = g_strdup_printf(
 				"\t%d/%d/%d/%d\t%s/%s/%s/%s\t%s/%s/%s/%s", cpu_curr,
