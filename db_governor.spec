@@ -510,7 +510,6 @@ fi
 
 %changelog
 * Tue Jun 11 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-113
-- CLOS-2706: Removed MariaDB1011 support exclusion for cPanel on CL7
 - CLOS-2653: Deprecated outdated mysql/mariadb/percona versions
 
 * Tue Jun 04 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-112

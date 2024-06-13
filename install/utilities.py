@@ -1659,5 +1659,10 @@ def get_supported_mysqls(ubuntu, cl_num, panel):
                       )
     if not ubuntu and panel == 'cPanel':
         mysqls_list = list(filter(lambda x: x != 'mariadb104', mysqls_list))
+        # cPanel supports MariaDB 10.11 only starting from version 114, and this version was released for CL8+ only
+        # The last cPanel version for CL7 is 110.
+        # That's why clMariaDB 10.11 is not supported on CL7+cPanel
+        if cl_num < 8:
+            mysqls_list = list(filter(lambda x: x != 'mariadb1011', mysqls_list))
 
     return mysqls_list

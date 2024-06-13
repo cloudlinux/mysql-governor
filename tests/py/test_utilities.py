@@ -130,7 +130,7 @@ cpanel_cl6_mysqls_types = ['auto',
 cpanel_cl7_mysqls_types = ['auto',
     'mysql56', 'mysql57', 'mysql80',
     'mariadb102', 'mariadb103',
-    'mariadb105', 'mariadb106', "mariadb1011" ]
+    'mariadb105', 'mariadb106' ]
 
 cpanel_cl8_mysqls_types = ['auto',
     'mysql56', 'mysql57', 'mysql80',
