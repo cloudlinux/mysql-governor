@@ -39,7 +39,6 @@
 #include "parce_proc_fs.h"
 #include "dbgovernor_string_functions.h"
 #include "shared_memory.h"
-#include "mutex.h"
 #include "log.h"
 
 #define SEC2NANO 1000000000
@@ -679,13 +678,136 @@ void governor_lve_exit(uint32_t * cookie)
 	lve_exit(lve, cookie);
 }
 
-// The following header implements Governor LVE thread info.
-// It exposes:
+// Implementation of Governor LVE thread info,
+// global "thread id" -> "Governor mutex" hash,
+// based on tsearch() function family.
+//
+// Inside libgovernor.so, it was used one day in governor_put_in_lve() and governor_lve_thr_exit().
+// That change caused problems (possibly not related to this functionality) and was retracted.
+// Currently governor_put_in_lve() and governor_lve_thr_exit() are not called from the patches.
+//
 // 'gov_mutex' thread-local variable - "Governor mutex", our LVE-related thread info
 // governor_add_mysql_thread_info() - initializes 'gov_mutex' for the calling thread; then stores it in the global, process-scope hash "thread id" -> "its Governor mutex"
 // governor_remove_mysql_thread_info() - deletes 'gov_mutex' for the calling thread; also removes it from the global hash
 // governor_destroy_mysql_thread_info() - cleans up the global hash; to be called at process de-initialization
-#include "thread_info_impl.h"
+
+typedef struct __governor_mutex
+{
+	pid_t key; 				// thread_id
+	int is_in_lve;
+	int is_in_mutex;		// mutex_lock count
+	int unused_put_in_lve;	// see long comment below about governor_setlve_mysql_thread_info()
+	int critical;
+	int was_in_lve;
+} governor_mutex;
+
+/*
+The only use of "put_in_lve" member was observed in this function,
+defined in MysQL/MariaDB patches but never called, at least since 2016:
+
+void governor_setlve_mysql_thread_info(pid_t thread_id)
+{
+	pid_t *buf = NULL;
+	mysql_mutex *mm = nullptr;
+	pthread_mutex_lock(&mtx_mysql_lve_mutex_governor_ptr);
+	if (mysql_lve_mutex_governor)
+	{
+		buf = (pid_t *)((intptr_t)thread_id);
+		mm = (mysql_mutex *) my_hash_search(mysql_lve_mutex_governor, (uchar *) buf, sizeof(buf));
+		if (mm)
+		{
+			if (!mm->is_in_lve)
+				mm->put_in_lve = 1;
+		}
+	}
+	pthread_mutex_unlock(&mtx_mysql_lve_mutex_governor_ptr);
+}
+
+Looked like an unfinished or abandoned idea.
+It was used in tests, though, but it's only written and printed there, and no decisions are taken based on its value.
+
+Member renamed "put_in_lve" -> "unused_put_in_lve", instead of deleting - for cl-MySQL/Governor bidirectional binary compatibility.
+Function definition removed from MySQL patches.
+*/
+
+static __thread governor_mutex *gov_mutex = NULL;	// main purpose of the header
+
+static void *gv_hash = NULL;	// to be accessed using tsearch() and relatives
+static pthread_mutex_t gv_hash_mutex = PTHREAD_MUTEX_INITIALIZER;	// protect 'gv_hash' accessed from multiple threads
+
+static int mysql_mutex_cmp(const void *a, const void *b)	// for tsearch() family
+{
+	const governor_mutex *pa = (const governor_mutex*)a, *pb = (const governor_mutex*)b;
+	return
+		pa->key < pb->key ? -1 :
+		pa->key > pb->key ?  1 :
+		0;
+}
+
+static int governor_add_mysql_thread_info(void)
+{
+	governor_mutex key;
+	key.key = gettid_p();
+
+	orig_pthread_mutex_lock(&gv_hash_mutex);
+	const void *ptr = tfind(&key, &gv_hash, mysql_mutex_cmp);
+	if (ptr)
+	{
+		gov_mutex = *(governor_mutex *const*)ptr;
+		orig_pthread_mutex_unlock(&gv_hash_mutex);
+		return 0;
+	}
+
+	governor_mutex *mm = (governor_mutex*)calloc(1, sizeof(governor_mutex));
+	if (!mm)
+	{
+		orig_pthread_mutex_unlock(&gv_hash_mutex);
+		return -1;
+	}
+	mm->key = key.key;
+
+	if (!tsearch(mm, &gv_hash, mysql_mutex_cmp))
+	{
+		free(mm);
+		orig_pthread_mutex_unlock(&gv_hash_mutex);
+		return -1;
+	}
+
+	orig_pthread_mutex_unlock(&gv_hash_mutex);
+	gov_mutex = mm;
+	return 0;
+}
+
+static void governor_remove_mysql_thread_info(void)
+{
+	orig_pthread_mutex_lock(&gv_hash_mutex);
+	if (gv_hash)
+	{
+		governor_mutex key;
+		key.key = gettid_p();
+		const void *ptr = tfind(&key, &gv_hash, mysql_mutex_cmp);
+		if (ptr)
+		{
+			governor_mutex *mm = *(governor_mutex *const*)ptr;
+			tdelete(&key, &gv_hash, mysql_mutex_cmp);
+			free(mm);
+		}
+	}
+	orig_pthread_mutex_unlock(&gv_hash_mutex);
+	gov_mutex = NULL;
+}
+
+static void governor_destroy_mysql_thread_info(void)
+{
+	if (gv_hash)
+	{
+		orig_pthread_mutex_lock(&gv_hash_mutex);
+		tdestroy(gv_hash, free);
+		gv_hash = NULL;
+		orig_pthread_mutex_unlock(&gv_hash_mutex);
+	}
+}
+
 
 // not called from the current patches
 __attribute__((noinline)) int governor_put_in_lve(const char *user)
