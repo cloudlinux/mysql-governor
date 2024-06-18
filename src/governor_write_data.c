@@ -368,6 +368,7 @@ static int void_pthread_mutex_func(pthread_mutex_t *mutex)
 	return 0;
 }
 
+// for OBSOMUT
 void init_libgovernor(void)
 {
 	if (!orig_pthread_mutex_lock_ptr && !orig_pthread_mutex_trylock_ptr && !orig_pthread_mutex_unlock_ptr)
@@ -445,6 +446,7 @@ static unsigned int lock_cnt = 0;
 static unsigned int unlock_cnt = 0;
 static unsigned int trylock_cnt = 0;
 
+// for OBSOMUT
 void fini_libgovernor(void)
 {
 }
@@ -678,28 +680,82 @@ void governor_lve_exit(uint32_t * cookie)
 	lve_exit(lve, cookie);
 }
 
-// Implementation of Governor LVE thread info,
-// global "thread id" -> "Governor mutex" hash,
-// based on tsearch() function family.
+//**************************************************************************************************
+// OBSOMUT (=='OBSOlete governor thread-local MUTex') {{{
 //
-// Inside libgovernor.so, it was used one day in governor_put_in_lve() and governor_lve_thr_exit().
-// That change caused problems (possibly not related to this functionality) and was retracted.
-// Currently governor_put_in_lve() and governor_lve_thr_exit() are not called from the patches.
+// History:
+// This mechanism was long used to support thread info for Full LVE mode in MySQL/MariaDB patches.
+// It was recognized as overly complex and problematic during patch refactoring (CLOS-2697),
+// is no more utilized by the modern refactored patches,
+// and retains here only for compatibility of the current libgovernor with old cl-MySQL/cl-MariaDB versions.
 //
-// 'gov_mutex' thread-local variable - "Governor mutex", our LVE-related thread info
-// governor_add_mysql_thread_info() - initializes 'gov_mutex' for the calling thread; then stores it in the global, process-scope hash "thread id" -> "its Governor mutex"
-// governor_remove_mysql_thread_info() - deletes 'gov_mutex' for the calling thread; also removes it from the global hash
-// governor_destroy_mysql_thread_info() - cleans up the global hash; to be called at process de-initialization
+// Principle:
+// The structure of a few integers is allocated dynamically for a thread.
+// Those integers are mostly of 'semi-boolean' nature -
+// that is, 0 means 'false', but different positive values denote different states within 'true':
+// 'outside mutex or mutex depth', 'are we in critical sections and how deep', etc.
+// The structure address is stored in a thread-local pointer,
+// and is also memorized in a 'thread id' -> 'pointer' map, protected by its own guard mutex.
+// The purpose of it all is the very idea of the Full mode:
+// having mutex lock()/unlock() API intercepted somehow, recognize the outermost mutex,
+// and if the thread is in LVE at the lock() moment, exit LVE temporarily for the duration of mutex ownership,
+// to avoid being frozen by LVE while holding global resources.
+// OBSOMUT is activated by obsomut_add_thread_info(), which sets the main thread state variable, 'obsomut_mutex_ptr'.
+// Once it became active, some functions below, exported from libgovernor, update that state.
+// Finally, the state is taken into account in our pthread_mutex_...() substitutes,
+// installed through init_libgovernor()/fini_libgovernor() .so callbacks.
+//
+// Why obsolete:
+// Most patches contained OBSOMUT immediately in their code, using MySQL/MariaDB's native hash.h/.c as map implementation.
+// It was analyzed during the refactoring, and very little left of it - a single 'LVE+mutex depth' counter.
+// The map appeared not needed (probably planned for heap deallocation, but right before exiting mysqld)
+// and causing potential performance problems -
+// collisions due to unimplemented (constant) hash function and locking the map guard mutex.
+// The state system was overly complex due to support of 'critical_section' pair of primitives, which are of doubtful need (CLOS-2734).
+// The selective regard for native pthread_mutex_...() return result also causes confusion.
+// So, OBSOMUT has gone from the refactored patches.
+// But the below OBSOMUT implementation, residing inside libgovernor.so,
+// using tsearch() function family for map implementation (instead of MySQL hash.c),
+// still remains for the older cl-MySQL/cl-MariaDB - those calling governor_put_in_lve()/governor_lve_thr_exit().
+// Of the modern patches, probably only 'govlve_mariadb_10_6_18.patch' was using it recently,
+// but it's superseded by 'cl_lve_mariadb_10_6_18.patch'.
+//
+// It's very important to note, that our custom pthread_mutex_...() functions regard only libgovernor-residing thread info.
+// They don't see any thread info maintained in the patch itself.
+// That is, they do additional custom job only for OBSOMUT - i.e., for some very old patches calling governor_put_in_lve()/governor_lve_thr_exit().
+// If we knew we don't ever need to serve those old patches with libgovernor,
+// we could remove our pthread_mutex_...() subsitutes and our init_libgovernor()/fini_libgovernor() used to inject them.
+//
+// Yet once: all patches fall into two categories:
+// - Old ones, calling governor_put_in_lve():
+//      they WILL use OBSOMUT from libgovernor.so.
+//      they DON'T NEED to implement their own thread info - OBSOMUT or any other.
+//      they DON'T NEED intercepting mutex lock()/unlock() using macros. If they do intercept, they count each lock() and unlock() twice - which looks bad, but shouldn't cause bugs.
+// - Old ones, NOT calling governor_put_in_lve(), plus all new ones:
+//      they will NOT use OBSOMUT from libgovernor.so.
+//      they DO NEED to implement their thread own info, and most certainly they have it as old hash.cc-based OBSOMUT.
+//      they DO NEED intercepting mutex lock()/unlock() using macros, otherwise they don't track lock()/unlock() at all.
 
-typedef struct __governor_mutex
+typedef struct __obsomut_mutex
 {
 	pid_t key; 				// thread_id
 	int is_in_lve;
 	int is_in_mutex;		// mutex_lock count
-	int unused_put_in_lve;	// see long comment below about governor_setlve_mysql_thread_info()
+	int put_in_lve;			// see long comment below about governor_setlve_mysql_thread_info()
 	int critical;
 	int was_in_lve;
-} governor_mutex;
+} obsomut_mutex;
+
+static int obsomut_mutex_cmp(const void *a, const void *b)	// for tsearch() family
+{
+	const obsomut_mutex *pa = (const obsomut_mutex*)a;
+	const obsomut_mutex *pb = (const obsomut_mutex*)b;
+	if (pa->key < pb->key)
+		return -1;
+	if (pa->key > pb->key)
+		return 1;
+	return 0;
+}
 
 /*
 The only use of "put_in_lve" member was observed in this function,
@@ -725,213 +781,218 @@ void governor_setlve_mysql_thread_info(pid_t thread_id)
 
 Looked like an unfinished or abandoned idea.
 It was used in tests, though, but it's only written and printed there, and no decisions are taken based on its value.
-
-Member renamed "put_in_lve" -> "unused_put_in_lve", instead of deleting - for cl-MySQL/Governor bidirectional binary compatibility.
-Function definition removed from MySQL patches.
 */
 
-static __thread governor_mutex *gov_mutex = NULL;	// main purpose of the header
+static __thread obsomut_mutex *obsomut_mutex_ptr = NULL;
 
-static void *gv_hash = NULL;	// to be accessed using tsearch() and relatives
-static pthread_mutex_t gv_hash_mutex = PTHREAD_MUTEX_INITIALIZER;	// protect 'gv_hash' accessed from multiple threads
+static void *obsomut_hash = NULL;	// to be accessed using tsearch() and relatives
+static pthread_mutex_t obsomut_hash_mutex = PTHREAD_MUTEX_INITIALIZER;	// protect 'obsomut_hash' accessed from multiple threads
 
-static int mysql_mutex_cmp(const void *a, const void *b)	// for tsearch() family
+static int obsomut_add_thread_info(void)
 {
-	const governor_mutex *pa = (const governor_mutex*)a, *pb = (const governor_mutex*)b;
-	return
-		pa->key < pb->key ? -1 :
-		pa->key > pb->key ?  1 :
-		0;
-}
+	obsomut_mutex *mm = NULL;
+	obsomut_mutex key;
+	void *ptr;
 
-static int governor_add_mysql_thread_info(void)
-{
-	governor_mutex key;
+	orig_pthread_mutex_lock(&obsomut_hash_mutex);
 	key.key = gettid_p();
-
-	orig_pthread_mutex_lock(&gv_hash_mutex);
-	const void *ptr = tfind(&key, &gv_hash, mysql_mutex_cmp);
-	if (ptr)
+	ptr = tfind(&key, &obsomut_hash, obsomut_mutex_cmp);
+	if (ptr != NULL)
 	{
-		gov_mutex = *(governor_mutex *const*)ptr;
-		orig_pthread_mutex_unlock(&gv_hash_mutex);
+		mm = *(obsomut_mutex *const*)ptr;
+		orig_pthread_mutex_unlock(&obsomut_hash_mutex);
+		obsomut_mutex_ptr = mm;
 		return 0;
 	}
 
-	governor_mutex *mm = (governor_mutex*)calloc(1, sizeof(governor_mutex));
-	if (!mm)
+	mm = (obsomut_mutex*)calloc(1, sizeof(obsomut_mutex));
+	if (mm == NULL)
 	{
-		orig_pthread_mutex_unlock(&gv_hash_mutex);
+		orig_pthread_mutex_unlock(&obsomut_hash_mutex);
 		return -1;
 	}
 	mm->key = key.key;
 
-	if (!tsearch(mm, &gv_hash, mysql_mutex_cmp))
+	if (!tsearch(mm, &obsomut_hash, obsomut_mutex_cmp))
 	{
 		free(mm);
-		orig_pthread_mutex_unlock(&gv_hash_mutex);
+		orig_pthread_mutex_unlock(&obsomut_hash_mutex);
 		return -1;
 	}
 
-	orig_pthread_mutex_unlock(&gv_hash_mutex);
-	gov_mutex = mm;
+	orig_pthread_mutex_unlock(&obsomut_hash_mutex);
+	obsomut_mutex_ptr = mm;
 	return 0;
 }
 
-static void governor_remove_mysql_thread_info(void)
+static void obsomut_remove_thread_info(void)
 {
-	orig_pthread_mutex_lock(&gv_hash_mutex);
-	if (gv_hash)
+	orig_pthread_mutex_lock(&obsomut_hash_mutex);
+	if (obsomut_hash)
 	{
-		governor_mutex key;
+		obsomut_mutex *mm = NULL;
+		obsomut_mutex key;
+		const void *ptr;
+
 		key.key = gettid_p();
-		const void *ptr = tfind(&key, &gv_hash, mysql_mutex_cmp);
-		if (ptr)
+		ptr = tfind(&key, &obsomut_hash, obsomut_mutex_cmp);
+		if (ptr != NULL)
 		{
-			governor_mutex *mm = *(governor_mutex *const*)ptr;
-			tdelete(&key, &gv_hash, mysql_mutex_cmp);
+			mm = *(obsomut_mutex *const*)ptr;
+			tdelete(&key, &obsomut_hash, obsomut_mutex_cmp);
 			free(mm);
 		}
 	}
-	orig_pthread_mutex_unlock(&gv_hash_mutex);
-	gov_mutex = NULL;
+	orig_pthread_mutex_unlock(&obsomut_hash_mutex);
+	obsomut_mutex_ptr = NULL;
 }
 
-static void governor_destroy_mysql_thread_info(void)
+static void obsomut_destroy_all_thread_info(void)
 {
-	if (gv_hash)
+	if (obsomut_hash)
 	{
-		orig_pthread_mutex_lock(&gv_hash_mutex);
-		tdestroy(gv_hash, free);
-		gv_hash = NULL;
-		orig_pthread_mutex_unlock(&gv_hash_mutex);
+		orig_pthread_mutex_lock(&obsomut_hash_mutex);
+		tdestroy(obsomut_hash, free);
+		obsomut_hash = NULL;
+		orig_pthread_mutex_unlock(&obsomut_hash_mutex);
 	}
 }
+//**************************************************************************************************
+// }}} OBSOMUT
+//**************************************************************************************************
 
 
-// not called from the current patches
+
+
+
+// OBSOLETE: not called from the current patches
 __attribute__((noinline)) int governor_put_in_lve(const char *user)
 {
-	if (governor_add_mysql_thread_info() < 0)
+	if (obsomut_add_thread_info() < 0)
 		return -1;
 
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
 		if (!governor_enter_lve(&lve_cookie, user))
 		{
-			gov_mutex->is_in_lve = 1;
+			obsomut_mutex_ptr->is_in_lve = 1;
 		}
-		gov_mutex->is_in_mutex = 0;
+		obsomut_mutex_ptr->is_in_mutex = 0;
 	}
 
 	return 0;
 }
 
-// not called from the current patches
+// OBSOLETE: called rarely - e.g., from 'govlve_mariadb_10_6_18.patch', but to be replaced by 'governor_lve_exit' after patch refactoring
 __attribute__((noinline)) void governor_lve_thr_exit(void)
 {
-	if (gov_mutex && gov_mutex->is_in_lve == 1)
+	if (obsomut_mutex_ptr && obsomut_mutex_ptr->is_in_lve == 1)
 	{
 		governor_lve_exit(&lve_cookie);
-		gov_mutex->is_in_lve = 0;
+		obsomut_mutex_ptr->is_in_lve = 0;
 	}
-	governor_remove_mysql_thread_info();
+	obsomut_remove_thread_info();
 }
 
+// OBSOLETE: not loaded by most current patches (yet NOT ALL checked)
 __attribute__((noinline)) int governor_put_in_lve_nowraps(const char *user)
 {
 	return governor_enter_lve(&lve_cookie, user);
 }
 
+// OBSOLETE: not loaded by most current patches (yet NOT ALL checked)
 __attribute__((noinline)) void governor_lve_thr_exit_nowraps(void)
 {
 	governor_lve_exit(&lve_cookie);
 }
 
+// for OBSOMUT
 __attribute__((noinline)) int pthread_mutex_lock(pthread_mutex_t *mp)
 {
 	//printf("%s mutex:%p\n", __func__, (void *)mp);
 	lock_cnt++;
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
-		if (gov_mutex->is_in_lve == 1)
+		if (obsomut_mutex_ptr->is_in_lve == 1)
 		{
-			if (!gov_mutex->critical)
+			if (!obsomut_mutex_ptr->critical)
 				governor_lve_exit(&lve_cookie);
-			gov_mutex->is_in_lve = 2;
+			obsomut_mutex_ptr->is_in_lve = 2;
 		}
-		else if (gov_mutex->is_in_lve > 1)
+		else if (obsomut_mutex_ptr->is_in_lve > 1)
 		{
-			gov_mutex->is_in_lve++;
+			obsomut_mutex_ptr->is_in_lve++;
 		}
-		gov_mutex->is_in_mutex++;
+		obsomut_mutex_ptr->is_in_mutex++;
 	}
 
 	return orig_pthread_mutex_lock(mp);
 }
 
+// for OBSOMUT
 __attribute__((noinline)) int pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
 	//printf("%s mutex:%p\n", __func__, (void *)mutex);
-	unlock_cnt++;
+	unlock_cnt++;	// not used anywhere
 	int ret = orig_pthread_mutex_unlock(mutex);
 
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
-		if (gov_mutex->is_in_lve == 2)
+		if (obsomut_mutex_ptr->is_in_lve == 2)
 		{
-			if(gov_mutex->critical)
+			if(obsomut_mutex_ptr->critical)
 			{
-				gov_mutex->is_in_lve = 1;
+				obsomut_mutex_ptr->is_in_lve = 1;
 			} else if (!governor_enter_lve_light(&lve_cookie))
 			{
-				gov_mutex->is_in_lve = 1;
+				obsomut_mutex_ptr->is_in_lve = 1;
 			}
-		} else if (gov_mutex->is_in_lve > 2)
+		} else if (obsomut_mutex_ptr->is_in_lve > 2)
 		{
-			gov_mutex->is_in_lve--;
+			obsomut_mutex_ptr->is_in_lve--;
 		}
-		gov_mutex->is_in_mutex--;
+		obsomut_mutex_ptr->is_in_mutex--;
 	}
 
 	return ret;
 }
 
+// for OBSOMUT
 __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
 	//printf("%s mutex:%p\n", __func__, (void *)mutex);
 	trylock_cnt++;
 	int ret = 0;
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
-		if (gov_mutex->is_in_lve == 1)
+		if (obsomut_mutex_ptr->is_in_lve == 1)
 		{
-			if(!gov_mutex->critical)
+			if(!obsomut_mutex_ptr->critical)
 				governor_lve_exit(&lve_cookie);
 		}
 	}
 
 	ret = orig_pthread_mutex_trylock(mutex);
 
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
 		if (ret != EBUSY)
 		{
-			if (gov_mutex->is_in_lve == 1)
-				gov_mutex->is_in_lve = 2;
-			else if (gov_mutex->is_in_lve > 1)
-				gov_mutex->is_in_lve++;
-			gov_mutex->is_in_mutex++;
+			if (obsomut_mutex_ptr->is_in_lve == 1)
+				obsomut_mutex_ptr->is_in_lve = 2;
+			else if (obsomut_mutex_ptr->is_in_lve > 1)
+				obsomut_mutex_ptr->is_in_lve++;
+			obsomut_mutex_ptr->is_in_mutex++;
 		} else
 		{
-			if (gov_mutex->is_in_lve == 1)
+			if (obsomut_mutex_ptr->is_in_lve == 1)
 			{
-				if (gov_mutex->critical)
-					gov_mutex->is_in_lve = 1;
+				if (obsomut_mutex_ptr->critical)
+					obsomut_mutex_ptr->is_in_lve = 1;
 				else if (!governor_enter_lve_light(&lve_cookie))
-					gov_mutex->is_in_lve = 1;
+					obsomut_mutex_ptr->is_in_lve = 1;
 				else
-					gov_mutex->is_in_lve = 0;
+					obsomut_mutex_ptr->is_in_lve = 0;
 			}
 		}
 	}
@@ -939,87 +1000,99 @@ __attribute__((noinline)) int pthread_mutex_trylock(pthread_mutex_t *mutex)
 	return ret;
 }
 
+// OBSOLETE: called rarely - e.g., from 'govlve_mariadb_10_6_18.patch', but to be replaced by the implementation inside patch code after patch refactoring
 __attribute__((noinline)) void governor_reserve_slot(void)
 {
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
-		if (gov_mutex->is_in_lve == 1)
+		if (obsomut_mutex_ptr->is_in_lve == 1)
 		{
-			if (!gov_mutex->critical)
+			if (!obsomut_mutex_ptr->critical)
 				governor_lve_exit(&lve_cookie);
-			gov_mutex->is_in_lve = 2;
-		} else if (gov_mutex->is_in_lve > 1)
+			obsomut_mutex_ptr->is_in_lve = 2;
+		} else if (obsomut_mutex_ptr->is_in_lve > 1)
 		{
-			gov_mutex->is_in_lve++;
+			obsomut_mutex_ptr->is_in_lve++;
 		}
-		gov_mutex->is_in_mutex++;
+		obsomut_mutex_ptr->is_in_mutex++;
 	}
 }
 
+// OBSOLETE: called rarely - e.g., from 'govlve_mariadb_10_6_18.patch', but to be replaced by the implementation inside patch code after patch refactoring
 __attribute__((noinline)) void governor_release_slot(void)
 {
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
-		if (gov_mutex->is_in_lve == 2)
+		if (obsomut_mutex_ptr->is_in_lve == 2)
 		{
-			if (gov_mutex->critical)
+			if (obsomut_mutex_ptr->critical)
 			{
-				gov_mutex->is_in_lve = 1;
+				obsomut_mutex_ptr->is_in_lve = 1;
 			} else if (!governor_enter_lve_light(&lve_cookie))
 			{
-				gov_mutex->is_in_lve = 1;
+				obsomut_mutex_ptr->is_in_lve = 1;
 			}
-		} else if (gov_mutex->is_in_lve > 2)
+		} else if (obsomut_mutex_ptr->is_in_lve > 2)
 		{
-			gov_mutex->is_in_lve--;
+			obsomut_mutex_ptr->is_in_lve--;
 		}
-		gov_mutex->is_in_mutex--;
+		obsomut_mutex_ptr->is_in_mutex--;
 	}
 }
 
+// OBSOLETE: called rarely - e.g., from 'govlve_mariadb_10_6_18.patch', but to be replaced by the implementation inside patch code after patch refactoring.
+// Moreover, the very need for "critical section" API is under evaluation (CLOS-2734),
+// and even if it proves needed, we can use a patch code implementation, preferred in almost all modern patches.
 __attribute__((noinline)) void governor_critical_section_begin(void)
 {
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
-		if (!gov_mutex->critical)
-			gov_mutex->was_in_lve = gov_mutex->is_in_lve;
-		gov_mutex->critical++;
+		if (!obsomut_mutex_ptr->critical)
+			obsomut_mutex_ptr->was_in_lve = obsomut_mutex_ptr->is_in_lve;
+		obsomut_mutex_ptr->critical++;
 	}
 }
 
+// OBSOLETE: called rarely - e.g., from 'govlve_mariadb_10_6_18.patch', but to be replaced by the implementation inside patch code after patch refactoring.
+// Moreover, the very need for "critical section" API is under evaluation (CLOS-2734),
+// and even if it proves needed, we can use a patch code implementation, preferred in almost all modern patches.
 __attribute__((noinline)) void governor_critical_section_end(void)
 {
-	if (gov_mutex)
+	if (obsomut_mutex_ptr)
 	{
-		gov_mutex->critical--;
-		if (gov_mutex->critical < 0)
-			gov_mutex->critical = 0;
-		if (!gov_mutex->critical && (gov_mutex->was_in_lve > 1) && (gov_mutex->is_in_lve == 1))
+		obsomut_mutex_ptr->critical--;
+		if (obsomut_mutex_ptr->critical < 0)
+			obsomut_mutex_ptr->critical = 0;
+		if (!obsomut_mutex_ptr->critical && (obsomut_mutex_ptr->was_in_lve > 1) && (obsomut_mutex_ptr->is_in_lve == 1))
 		{
 			if (!governor_enter_lve_light(&lve_cookie))
 			{
-				gov_mutex->is_in_lve = 1;
+				obsomut_mutex_ptr->is_in_lve = 1;
 			}
 		}
 	}
 }
 
+// OBSOLETE: loaded by some current patches, but never called
 void governor_destroy(void)
 {
-	governor_destroy_mysql_thread_info();
+	obsomut_destroy_all_thread_info();
 	governor_destroy_lve();
 	close_sock();
 }
 
+// OBSOLETE: loaded by some current patches, but never called
 void governor_lve_exit_null(void)
 {
 }
 
+// OBSOLETE: loaded by some current patches, but never called
 int governor_lve_enter_pid(pid_t pid)
 {
 	return 0;
 }
 
+// OBSOLETE: loaded by some current patches, but never called
 int governor_is_in_lve()
 {
 	return -1;
