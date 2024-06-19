@@ -179,9 +179,6 @@ static int connection_with_timeout_poll(int sk, struct sockaddr_un *sa, socklen_
 
 static int connect_to_server_in()
 {
-	open_log(MYSQLD_EXTLOG_PATH);
-	init_log_ex(false);
-
 	sd.socket = -1;
 	sd.status = 0;
 
@@ -368,11 +365,18 @@ static int void_pthread_mutex_func(pthread_mutex_t *mutex)
 	return 0;
 }
 
-// for OBSOMUT
 void init_libgovernor(void)
 {
+	open_log(MYSQLD_EXTLOG_PATH);
+	init_log_ex(false);
+
+	LOG(L_LIFE, "init()");
+
+	// for OBSOMUT
 	if (!orig_pthread_mutex_lock_ptr && !orig_pthread_mutex_trylock_ptr && !orig_pthread_mutex_unlock_ptr)
 	{
+		LOG(L_INFO, "intercepting pthread_mutex_...()");
+
 		pthread_mutex_func_t orig_lock_ptr = NULL;
 		pthread_mutex_func_t orig_trylock_ptr = NULL;
 		pthread_mutex_func_t orig_unlock_ptr = NULL;
@@ -387,7 +391,7 @@ void init_libgovernor(void)
 
 		if (!orig_lock_ptr || !orig_trylock_ptr || !orig_unlock_ptr)
 		{
-			//LOG(L_ERR|L_MUT, "failed to load original pthread_mutex_...() functions: %s", dlerror());
+			LOG(L_ERR, "failed to load original pthread_mutex_...() functions: %s", dlerror());
 			fprintf(stderr, "%s dlerror:%s\n", __func__, dlerror());
 			abort();
 		}
@@ -396,7 +400,7 @@ void init_libgovernor(void)
 		orig_pthread_mutex_trylock_ptr = orig_trylock_ptr;
 		orig_pthread_mutex_unlock_ptr = orig_unlock_ptr;
 
-		//LOG(L_MUT, "pthread_mutex_...() intercepted");
+		LOG(L_INFO, "pthread_mutex_...() intercepted");
 	}
 }
 
@@ -449,6 +453,7 @@ static unsigned int trylock_cnt = 0;
 // for OBSOMUT
 void fini_libgovernor(void)
 {
+	LOG(L_LIFE, "fini()");
 }
 
 static void *lve_library_handle = NULL;
@@ -480,7 +485,7 @@ int governor_load_lve_library ()
 		init_lve = (void *(*)(void *, void *)) dlsym(lve_library_handle, "init_lve");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			LOG(L_ERR, "dlerror after dlsym(init_lve) ret (%s); init_lve(%p) errno %d", error_dl, init_lve, errno);
+			LOG(L_ERR|L_LVE, "dlerror after dlsym(init_lve) ret (%s); init_lve(%p) errno %d", error_dl, init_lve, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -492,7 +497,7 @@ int governor_load_lve_library ()
 		destroy_lve = (int (*)(void *)) dlsym(lve_library_handle, "destroy_lve");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			LOG(L_ERR, "dlerror after dlsym(destroy_lve) ret (%s); destroy_lve(%p) errno %d", error_dl, destroy_lve, errno);
+			LOG(L_ERR|L_LVE, "dlerror after dlsym(destroy_lve) ret (%s); destroy_lve(%p) errno %d", error_dl, destroy_lve, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -504,7 +509,7 @@ int governor_load_lve_library ()
 		lve_enter_flags = (int (*)(void *, uint32_t, uint32_t *, int)) dlsym(lve_library_handle, "lve_enter_flags");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			LOG(L_ERR, "dlerror after dlsym(lve_enter_flags) ret (%s); lve_enter_flags(%p) errno %d", error_dl, lve_enter_flags, errno);
+			LOG(L_ERR|L_LVE, "dlerror after dlsym(lve_enter_flags) ret (%s); lve_enter_flags(%p) errno %d", error_dl, lve_enter_flags, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -516,7 +521,7 @@ int governor_load_lve_library ()
 		lve_exit = (int (*)(void *, uint32_t *)) dlsym(lve_library_handle, "lve_exit");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			LOG(L_ERR, "dlerror after dlsym(lve_exit) ret (%s); lve_exit(%p) errno %d", error_dl, lve_exit, errno);
+			LOG(L_ERR|L_LVE, "dlerror after dlsym(lve_exit) ret (%s); lve_exit(%p) errno %d", error_dl, lve_exit, errno);
 			init_lve = NULL;
 			destroy_lve = NULL;
 			lve_enter_flags = NULL;
@@ -528,7 +533,7 @@ int governor_load_lve_library ()
 		is_in_lve = (int (*)(void *)) dlsym(lve_library_handle, "is_in_lve");
 		if ((error_dl = dlerror ()) != NULL)
 		{
-			LOG(L_ERR, "dlerror after dlsym(is_in_lve) ret (%s); is_in_lve(%p) errno %d", error_dl, is_in_lve, errno);
+			LOG(L_ERR|L_LVE, "dlerror after dlsym(is_in_lve) ret (%s); is_in_lve(%p) errno %d", error_dl, is_in_lve, errno);
 			is_in_lve = NULL;
 			break;
 		}
@@ -549,12 +554,12 @@ int governor_init_lve(void)
 		{
 			lve = init_lve (malloc, free);
 			if (!lve)
-				LOG(L_ERR, "init_lve failed: errno %d", errno);
+				LOG(L_ERR|L_LVE, "init_lve failed: errno %d", errno);
 		}
 	}
 	else
 	{
-		LOG(L_ERR, "init_lve is not initialized");
+		LOG(L_ERR|L_LVE, "init_lve is not initialized");
 	}
 
 	if (lve == NULL)
@@ -592,7 +597,7 @@ int governor_enter_lve(uint32_t * cookie, const char *username)
 {
 	if (!lve_enter_flags || !lve)
 	{
-		LOG(L_FRZ, "(%s) FAILED - LVE is not inited %p-%p", username, lve_enter_flags, lve);
+		LOG(L_LVE, "(%s) FAILED - LVE is not inited %p-%p", username, lve_enter_flags, lve);
 		return -1;
 	}
 
@@ -604,16 +609,16 @@ int governor_enter_lve(uint32_t * cookie, const char *username)
 	int container_lve = is_user_in_bad_list_client_persistent(username);
 	if (container_lve < 0)
 	{
-		LOG(L_ERR|L_FRZ, "(%s) FAILED - is_user_in_bad_list_client_persistent FAILED", username);
+		LOG(L_ERR|L_LVE, "(%s) FAILED - is_user_in_bad_list_client_persistent FAILED", username);
 		return -1;
 	}
 	if (container_lve == 0)
 	{
-		LOG(L_FRZ, "(%s) NO NEED as is_user_in_bad_list_client_persistent cannot find it", username);
+		LOG(L_LVE, "(%s) NO NEED as is_user_in_bad_list_client_persistent cannot find it", username);
 		return 1;
 	}
 
-	LOG(L_FRZ, "(%s) is_user_in_bad_list_client_persistent FOUND it - %d - before lve_enter_flags call", username, container_lve);
+	LOG(L_LVE, "(%s) is_user_in_bad_list_client_persistent FOUND it - %d - before lve_enter_flags call", username, container_lve);
 	errno = 0;
 	int rc = lve_enter_flags(lve, container_lve, cookie, lve_flags);
 	int keep_errno = errno;
@@ -624,14 +629,14 @@ int governor_enter_lve(uint32_t * cookie, const char *username)
 					//lve_exit(lve, cookie);
 					//return -1;
 			lve_uid = container_lve;
-			LOG(L_FRZ, "(%s) ALREADY IN LVE as lve_enter_flags(%d) ret %d with errno==EPERM", username, container_lve, rc);
+			LOG(L_LVE, "(%s) ALREADY IN LVE as lve_enter_flags(%d) ret %d with errno==EPERM", username, container_lve, rc);
 			return 0;
 		}
-		LOG(L_ERR|L_FRZ, "(%s) FAILED as lve_enter_flags(%d) ret %d with errno %d (no EPERM)", username, container_lve, rc, keep_errno);
+		LOG(L_ERR|L_LVE, "(%s) FAILED as lve_enter_flags(%d) ret %d with errno %d (no EPERM)", username, container_lve, rc, keep_errno);
 		return -1;
 	}
 	lve_uid = container_lve;
-	LOG(L_FRZ, "(%s) lve_enter_flags(%d) ENTERED INTO LVE", username, container_lve, rc, keep_errno, EPERM);
+	LOG(L_LVE, "(%s) lve_enter_flags(%d) ENTERED INTO LVE", username, container_lve, rc, keep_errno, EPERM);
 	return 0;
 }
 
@@ -639,13 +644,13 @@ int governor_enter_lve_light(uint32_t * cookie)
 {
 	if (!lve_enter_flags || !lve)
 	{
-		LOG(L_FRZ, "LVE is not inited %p-%p", lve_enter_flags, lve);
+		LOG(L_LVE, "LVE is not inited %p-%p", lve_enter_flags, lve);
 		return -1;
 	}
 
 	if (!lve_uid)
 	{
-		LOG(L_FRZ, "NO NEED as lve_uid %d", lve_uid);
+		LOG(L_LVE, "NO NEED as lve_uid %d", lve_uid);
 		return 1;
 	}
 
@@ -658,13 +663,13 @@ int governor_enter_lve_light(uint32_t * cookie)
 		{	//if already inside LVE
 			//lve_exit(lve, cookie);
 			//return -1;
-			LOG(L_FRZ, "lve_enter_flags(%d) failed with code %d, but errno==EPERM - already in LVE", lve_uid, rc);
+			LOG(L_LVE, "lve_enter_flags(%d) failed with code %d, but errno==EPERM - already in LVE", lve_uid, rc);
 			return 0;
 		}
-		LOG(L_ERR|L_FRZ, "lve_enter_flags(%d) failed with code %d and errno %d - FAILED", lve_uid, rc, keep_errno);
+		LOG(L_ERR|L_LVE, "lve_enter_flags(%d) failed with code %d and errno %d - FAILED", lve_uid, rc, keep_errno);
 		return -1;
 	}
-	LOG(L_FRZ, "lve_enter_flags(%d) OK", lve_uid);
+	LOG(L_LVE, "lve_enter_flags(%d) OK", lve_uid);
 	return 0;
 }
 
@@ -672,11 +677,11 @@ void governor_lve_exit(uint32_t * cookie)
 {
 	if (!lve_exit || !lve)
 	{
-		LOG(L_UNFRZ, "LVE is not inited %p-%p", lve_exit, lve);
+		LOG(L_LVE, "LVE is not inited %p-%p", lve_exit, lve);
 		return;
 	}
 
-	LOG(L_UNFRZ, "(uid %d)", lve_uid);
+	LOG(L_LVE, "(uid %d)", lve_uid);
 	lve_exit(lve, cookie);
 }
 

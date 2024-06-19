@@ -13,6 +13,8 @@ rpmbuild -bb db_governor.spec
 #yum reinstall -y /root/rpmbuild/RPMS/noarch/governor-mysql-lvepatch-1.2-112.el8.cloudlinux.noarch.rpm
 cd -
 
+#exit
+
 # .patch -> mysql-...modified/
 cd /home/gerrit/mysql-5.0
 rm -rf mysql-8.0.37.modified
@@ -34,7 +36,7 @@ rpmbuild -bb mysql.spec
 cd -
 
 yum reinstall -y /root/rpmbuild/RPMS/x86_64/governor-mysql-1.2-112.el8.cloudlinux.x86_64.rpm
-yum reinstall -y /root/rpmbuild/RPMS/x86_64/cl-MySQL80-server-8.0.37-3.el8.cloudlinux.x86_64.rpm
+yum reinstall -y /root/rpmbuild/RPMS/x86_64/cl-MySQL80-server-8.0.37-1.el8.cloudlinux.x86_64.rpm
 
 pytest --noconftest --exitfirst ../QA/c-projects/governor_pytest/tst_extended_logging.py
 
