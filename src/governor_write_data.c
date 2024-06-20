@@ -454,6 +454,7 @@ static unsigned int trylock_cnt = 0;
 void fini_libgovernor(void)
 {
 	LOG(L_LIFE, "fini()");
+	close_log();
 }
 
 static void *lve_library_handle = NULL;
