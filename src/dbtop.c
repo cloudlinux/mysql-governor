@@ -422,7 +422,7 @@ formatIntString (char *buffer, int amount, char *delim, ...)
 			strcat (buffer, data);
 		}
 	}
-	va_end (vl);
+	va_end(vl);	// don't ever return from function before va_end() - undefined behaviour!
 }
 
 void

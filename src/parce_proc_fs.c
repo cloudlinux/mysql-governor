@@ -105,11 +105,11 @@ try_file_to_buffer (char *buffer, const char *format, ...)
 	ssize_t len;
 	va_list pa;
 
-	va_start (pa, format);
+	va_start(pa, format);
 
-	vsnprintf (path, sizeof path, format, pa);
+	vsnprintf(path, sizeof path, format, pa);
 
-	va_end (pa);
+	va_end(pa);		// don't ever return from function before va_end() - undefined behaviour!
 
 	buffer[0] = '\0';
 

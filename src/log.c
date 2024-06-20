@@ -154,15 +154,10 @@ int close_slow_queries_log()
 	return 0;
 }
 
-static int write_log_impl(FILE *f, const char *tags, bool error, const char *src_file, int src_line, const char *src_func, const Stats *limits, const char *fmt, va_list args)
+static int format_log_msg(char *buf, size_t bufSz, bool error, bool pid_tid, bool nano_time, const char *tags, const char *src_file, int src_line, const char *src_func, const Stats *limits, const char *fmt, va_list args)
 {
-	if (f == NULL)
-		return -1;
-
-	bool verbose = src_file && src_line != -1 && src_func;
-
-	char s[0x1000], *p = s;
-	size_t pSz = sizeof(s);
+	char *p = buf;
+	size_t pSz = bufSz;
 	int rc = 0;
 	#define INC_P \
 		do {\
@@ -177,24 +172,24 @@ static int write_log_impl(FILE *f, const char *tags, bool error, const char *src
 	struct tm timeinfo;
 	if (!clock_gettime(CLOCK_REALTIME, &ts) && localtime_r(&ts.tv_sec, &timeinfo) && strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeinfo) > 0)
 	{
-		if (verbose)
+		if (nano_time)
 		{
 			char ns[0x10] = "";
-			snprintf(ns, sizeof(ns), ".%09lld", (long long)ts.tv_nsec);
+			snprintf(ns, sizeof(ns), ".%09ld", (long)ts.tv_nsec);
 			strcat(timestamp, ns);
 		}
 	} else
 		strcpy(timestamp, "unknown time");
 	rc = snprintf(p, pSz, "[%s]", timestamp);
 	INC_P;
-	if (verbose)
+	if (pid_tid)
 	{
-		rc = snprintf(p, pSz, " [%ld:%ld]", (long)getpid(), (long)gettid_p());
+		rc = snprintf(p, pSz, " [%lu:%lu]", (unsigned long)getpid(), (unsigned long)gettid_p());
 		INC_P;
 	}
 	rc = snprintf(p, pSz, error ? "!" : " ");
 	INC_P;
-	if (verbose)
+	if (src_file && src_line != -1 && src_func)
 	{
 		// According to man 3 basename, GNU version of basename is selected by defining _GNU_SOURCE + not including libgen.h
 		rc = snprintf(p, pSz, "[%s:%d:%s] ", basename(src_file), src_line, src_func);
@@ -224,13 +219,6 @@ static int write_log_impl(FILE *f, const char *tags, bool error, const char *src
 	if (pSz < 2)
 		return EIO;
 	strncpy(p, "\n", pSz);
-
-	rc = fputs(s, f);
-	if (rc < 0)
-		return EIO;
-	if (fflush(f))
-		return errno;
-
 	return 0;
 }
 
@@ -238,11 +226,16 @@ int write_log_simple(FILE *f, const Stats *limits, const char *fmt, ...)
 {
 	if (!f)
 		return -1;
+	char msg[0x1000];
 	va_list args;
 	va_start(args, fmt);
-	int rc = write_log_impl(f, NULL, false, NULL, -1, NULL, limits, fmt, args);
-	va_end(args);
-	return rc;
+	int rc = format_log_msg(msg, sizeof(msg), false, false, false, NULL, NULL, -1, NULL, limits, fmt, args);
+	va_end(args);	// don't ever return from function before va_end() - undefined behaviour!
+	if (rc)
+		return rc;
+	if (fputs(msg, f) < 0 || fflush(f))		// TODO: consider setlinebuf() to avoid frequent fflush()
+		return errno;
+	return 0;
 }
 
 FILE *get_log()
@@ -380,6 +373,8 @@ int write_log_ex(unsigned tags, unsigned level, const char *src_file, int src_li
 {
 	if (!((tags & log_enabled_tags) && level <= log_verbosity_level))
 		return 0;
+	if (!log)
+		return -1;
 	char s_tags[0x1000] = "";
 	concat_tag_names(tags, ":", 0, s_tags, sizeof s_tags);
 #if 0  // TODO: when we have different levels indeed, we'll decide how to print them
@@ -387,10 +382,15 @@ int write_log_ex(unsigned tags, unsigned level, const char *src_file, int src_li
 	sprintf(lev, ":lev.%d", level);
 	strcat(s_tags, lev);
 #endif
+	char msg[0x1000];
 	va_list args;
 	va_start(args, fmt);
-	int rc = write_log_impl(log, s_tags, !!(tags & L_ERR), src_file, src_line, src_func, NULL, fmt, args);
-	va_end(args);
+	int rc = format_log_msg(msg, sizeof(msg), !!(tags & L_ERR), true, true, s_tags, src_file, src_line, src_func, NULL, fmt, args);
+	va_end(args);		// don't ever return from function before va_end() - undefined behaviour!
+	if (rc)
+		return rc;
+	if (fputs(msg, log) < 0 || fflush(log))		// TODO: consider setlinebuf() to avoid frequent fflush()
+		return errno;
 	return rc;
 }
 
