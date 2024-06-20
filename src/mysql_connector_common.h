@@ -151,8 +151,7 @@ long db_mysql_get_integer (char *result, unsigned long length);
 //Из формата БД в float
 double db_mysql_get_float (char *result, unsigned long length);
 //Из формата БД в строку фиксированного размера
-void db_mysql_get_string (char *buffer, char *result, unsigned long length,
-			unsigned long max_bufer_len);
+void db_mysql_get_string(char *dst, const char *src, unsigned long srcLen, size_t dstSz);
 //Получить строку с последней ошибкой передаваемому соединению
 char *db_getlasterror (MYSQL * mysql_internal);
 void

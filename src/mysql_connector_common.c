@@ -457,18 +457,15 @@ db_mysql_get_float (char *result, unsigned long length)
 	return result_number;
 }
 
-//Get ranged string from string. NULL at end safety
-void
-db_mysql_get_string (char *buffer, char *result, unsigned long length,
-		unsigned long max_bufer_len)
+// 'dst' is buffer of 'dstSz' bytes;
+// 'src' points to 'srcLen' bytes, which can _contain_ terminating NULL character inside
+void db_mysql_get_string(char *dst, const char *src, unsigned long srcLen, size_t dstSz)
 {
-	unsigned long nlen = 0;
-	if (max_bufer_len < length)
-		nlen = max_bufer_len - 1;
-	else
-		nlen = length;
-	memcpy (buffer, result, nlen);
-	buffer[nlen] = 0;
+	if (!dstSz)
+		return;
+	size_t maxLen = srcLen < dstSz ? srcLen : dstSz - 1;	// maximum possible number of non-NULL characters to be copied
+	strncpy(dst, src, maxLen);	// using it instead of memcpy() can be faster if NULL character appears within 'maxLen'
+	dst[maxLen] = 0;
 }
 
 //Get last DB error
