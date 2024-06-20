@@ -52,8 +52,7 @@ struct governor_config
 	int improved_accuracy;
 };
 
-stats_limit_cfg *config_get_account_limit (const char *account_id,
-					stats_limit_cfg * cfgin);
+stats_limit_cfg *config_get_account_limit(const char *account_id, stats_limit_cfg *cfgin);
 void config_free (void);
 struct governor_config *config_init (const char *path);
 int save_duplicate_config (xml_data* xml);

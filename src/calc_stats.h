@@ -38,7 +38,7 @@ void calc_stats_difference_inner_add_to_counters (double cpu,
 					long long read,
 					long long write,
 					tid_table * old);
-int is_user_ignored (char *user_name);
+int is_user_ignored(const char *user_name);
 double calc_cpu_from_rusage(tid_table * item);
 
 //--- for dbctl ---------------------------------------------------------------

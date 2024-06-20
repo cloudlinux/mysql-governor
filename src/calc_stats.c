@@ -1441,22 +1441,15 @@ find_acount_cmp (gpointer key, Account * ac, void *data)
 	return 0;
 }
 
-int
-is_user_ignored (char *user_name)
+int is_user_ignored(const char *user_name)
 {
+	pthread_mutex_lock(&mtx_account);
+	const Account *ac = (const Account *) g_hash_table_find(accounts, (GHRFunc) find_acount_cmp, (gpointer)user_name);
+	pthread_mutex_unlock(&mtx_account);
 	stats_limit_cfg cfg_buf;
-	Account *ac = NULL;
-	pthread_mutex_lock (&mtx_account);
-	ac =
-		(Account *) g_hash_table_find (accounts, (GHRFunc) find_acount_cmp,
-					user_name);
-	pthread_mutex_unlock (&mtx_account);
-	stats_limit_cfg *sl =
-		config_get_account_limit (ac ? ac->id : user_name, &cfg_buf);
+	const stats_limit_cfg *sl = config_get_account_limit(ac ? ac->id : user_name, &cfg_buf);
 	if (sl->mode != IGNORE_MODE)
-	{
 		return sl->slow._current;
-	}
 	return 0;
 }
 

@@ -752,8 +752,7 @@ check_mysql_version()
 		if (row)
 		{
 			lengths = (*_mysql_fetch_lengths) (res);
-			db_mysql_get_string (buffer, row[0], lengths[0],
-						_DBGOVERNOR_BUFFER_2048);
+			db_mysql_get_string(buffer, row[0], lengths[0], sizeof(buffer));
 			if (strstr (buffer, "-cll-lve"))
 			{
 				if (strstr (buffer, "-cll-lve-plg"))
@@ -844,9 +843,7 @@ void log_user_queries(const char *user_name)
 
 	char user_name_alloc[USERNAMEMAXLEN * 2];
 	(*_mysql_real_escape_string)(mysql_do_command, user_name_alloc, user_name, strlen(user_name));
-	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
-	snprintf(sql_buffer, sizeof(sql_buffer), QUERY_GET_PROCESSLIST_INFO);
-	if (db_mysql_exec_query (sql_buffer, &mysql_do_command))
+	if (db_mysql_exec_query(QUERY_GET_PROCESSLIST_INFO, &mysql_do_command))
 	{
 		LOG(L_ERR|L_MYSQL, "Get show processlist failed");
 		return;
@@ -869,7 +866,7 @@ void log_user_queries(const char *user_name)
 				{
 					char buffer[_DBGOVERNOR_BUFFER_8192];
 					const unsigned long *lengths = (*_mysql_fetch_lengths) (res);
-					db_mysql_get_string (buffer, row[7], lengths[7], _DBGOVERNOR_BUFFER_8192);
+					db_mysql_get_string(buffer, row[7], lengths[7], sizeof(buffer));
 					fprintf (log_queries, "%s\n", buffer);
 				}
 			}
@@ -899,8 +896,6 @@ activate_plugin()
 		int is_found_plg = 0;
 		MYSQL_RES *res;
 		MYSQL_ROW row;
-		unsigned long *lengths;
-		char buffer[_DBGOVERNOR_BUFFER_2048];
 		struct governor_config data_cfg;
 		get_config_data (&data_cfg);
 
@@ -914,10 +909,10 @@ activate_plugin()
 			res = (*_mysql_store_result) (mysql_send_governor);
 			while ((row = (*_mysql_fetch_row) (res)))
 			{
-				lengths = (*_mysql_fetch_lengths) (res);
-				db_mysql_get_string (buffer, row[0], lengths[0],
-						_DBGOVERNOR_BUFFER_2048);
-				if (!strncasecmp (buffer, "GOVERNOR", _DBGOVERNOR_BUFFER_2048))
+				char buffer[_DBGOVERNOR_BUFFER_2048];
+				const unsigned long *lengths = (*_mysql_fetch_lengths) (res);
+				db_mysql_get_string(buffer, row[0], lengths[0], sizeof(buffer));
+				if (!strncasecmp(buffer, "GOVERNOR", sizeof(buffer)))
 				{
 					is_found_plg = 1;
 				}
