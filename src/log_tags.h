@@ -8,6 +8,7 @@
 
 // severities:
 DEFINE_LOG_TAG(ERR)			// ALWAYS ENABLED
+DEFINE_LOG_TAG(ERRSENTRY)	// error severe enough to be duplicated to Sentry; ALWAYS ENABLED
 DEFINE_LOG_TAG(INFO)		// informational
 DEFINE_LOG_TAG(IMPORTANT)	// informational, but ALWAYS ENABLED
 // facilities:
