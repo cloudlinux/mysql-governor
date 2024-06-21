@@ -32,7 +32,7 @@ void getloadavggov(char *buffer)
 	FILE *stat = fopen(LOADAVG_DATA, "r");
 	if (stat)
 	{
-		if (fgets(buffer, GETSYSINFO_MAXFILECONTENT, stat))
+		if (!fgets(buffer, GETSYSINFO_MAXFILECONTENT, stat))
 			LOG(L_MON, "fgets() failed, errno=%d", errno);	// TODO: make it L_ERR when we have log rotation
 		fclose(stat);
 	}
