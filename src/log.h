@@ -54,12 +54,8 @@ FILE *get_slow_queries_log();
 extern unsigned log_enabled_tags;
 extern unsigned log_verbosity_level;
 
-typedef enum {
-	CL_SENTRY_DEBUG,
-	CL_SENTRY_ERROR
-} cl_sentry_level_t;
-
-void init_log_ex(bool enable_all_tags);	// initialize logging tags, verbosity, etc.
+void init_log_ex(bool enable_all_tags, const char *sentry_depot);	// initialize logging tags, verbosity, etc.
+void set_log_ex_mysql_version(const char *ver);	// Initialize MySQL version, to use as Sentry tag. Becomes available in db_governor since MySQL version check. Not available in MySQL for now.
 
 t_write_log_ex write_log_ex;	// declare logging function through a typedef
 
@@ -69,8 +65,5 @@ t_write_log_ex write_log_ex;	// declare logging function through a typedef
 			write_log_ex(tags, 1, __FILE__, __LINE__, __FUNCTION__, fmt, ##__VA_ARGS__);\
 	}\
 	while (0)
-
-// Sentry logging
-int sentry_log(cl_sentry_level_t level, const char *message, size_t len);
 
 #endif

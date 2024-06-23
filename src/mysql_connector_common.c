@@ -753,6 +753,7 @@ check_mysql_version()
 		{
 			lengths = (*_mysql_fetch_lengths) (res);
 			db_mysql_get_string(buffer, row[0], lengths[0], sizeof(buffer));
+			set_log_ex_mysql_version(buffer);
 			if (strstr (buffer, "-cll-lve"))
 			{
 				if (strstr (buffer, "-cll-lve-plg"))

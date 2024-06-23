@@ -28,7 +28,8 @@ enum
 	#undef DEFINE_LOG_TAG
 };
 
-#define ALWAYS_ENABLED_LOG_TAGS	(L_ERR | L_ERRSENTRY | L_IMPORTANT | L_LIFE)	// independent of file flags
+#define _L_MASK_ERRORS			(L_ERR | L_ERRSENTRY)
+#define _L_MASK_ALWAYS_ENABLED	(_L_MASK_ERRORS | L_IMPORTANT | L_LIFE)	// tags independent of file flags
 
 #ifdef __cplusplus
 extern "C" {

@@ -48,6 +48,11 @@ typedef char parameter_t[USERNAMEMAXLEN];
 #define PATH_TO_GOVERNOR_PRIVATE_DIR PATH_TO_GOVERNOR_STATS
 #define MYSQLD_EXTLOG_PATH "/var/log/dbgovernor-mysqld.log"
 
+#define SENTRY_DEPOT_ROOT	"/var/log/dbgovernor/sentry-depot"
+#define SENTRY_DEPOT_DB_GOVERNOR	SENTRY_DEPOT_ROOT "/db_governor"
+#define SENTRY_DEPOT_MYSQLD			SENTRY_DEPOT_ROOT "/mysqld"
+#define SENTRY_DEPOT_EXT ".txt"
+
 #define DBUSER_MAP_FILE "/etc/container/dbuser-map"
 #define DUPLICATE_CONFIG_PATH "/var/run/mysql-governor-config.xml"
 

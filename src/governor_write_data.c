@@ -185,7 +185,7 @@ static int connect_to_server_in()
 	int s;
 	if ((s = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
-		LOG(L_INFO, "failed to create socket to connect to mysqld");
+		LOG(L_INFO, "failed to create socket to connect to db_governor");
 		return -1;
 	}
 
@@ -196,7 +196,7 @@ static int connect_to_server_in()
 
 	if (connection_with_timeout_poll(s, &saun, len, 5) < 0)
 	{
-		LOG(L_INFO, "failed to connect to mysqld over socket");
+		LOG(L_INFO, "failed to connect to db_governor over socket");
 		return -2;
 	}
 	/*int rt_code;
@@ -206,7 +206,7 @@ static int connect_to_server_in()
 	sd.socket = s;
 	sd.status = 1;
 
-	LOG(L_INFO, "connected to mysqld over socket");
+	LOG(L_INFO, "connected to db_governor over socket");
 	return 0;
 }
 
@@ -230,7 +230,7 @@ connect_to_server ()
 	{
 		not_first_connect = 1;
 		if (ret)
-			LOG(L_INFO, "first failure of connect to mysqld over socket is forgiven");
+			LOG(L_INFO, "first failure of connect to db_governor over socket is forgiven");
 		return 0;
 	}
 }
@@ -368,7 +368,7 @@ static int void_pthread_mutex_func(pthread_mutex_t *mutex)
 void init_libgovernor(void)
 {
 	open_log(MYSQLD_EXTLOG_PATH);
-	init_log_ex(false);
+	init_log_ex(false, SENTRY_DEPOT_MYSQLD);
 
 	LOG(L_LIFE, "init()");
 
