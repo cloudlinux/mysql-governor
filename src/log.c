@@ -104,6 +104,7 @@ int open_log(const char *path)
 {
 	if ((log = fopen(path, "a")) == NULL)
 		return errno;
+	setlinebuf(log);	// it's better than fflush() each time, especially for many threads, because the pair 'fputs()/fwrite()/f...() + fflush()' locks the internal stdio mutex TWICE
 	return 0;
 }
 
@@ -154,6 +155,23 @@ int close_slow_queries_log()
 	return 0;
 }
 
+// let's cache PID and TID for a thread, the APIs are not very cheap. Nginx does smth similar for its logging.
+static pid_t fast_pid()
+{
+	static __thread pid_t pid = 0;	// let's cache it for a thread, API is not cheap. Nginx does smth similar for its logging.
+	if (!pid)
+		pid = getpid();
+	return pid;
+}
+
+static pid_t fast_tid()
+{
+	static __thread pid_t tid = 0;	// let's cache it for a thread, API is not cheap. Nginx does smth similar for its logging.
+	if (!tid)
+		tid = gettid_p();
+	return tid;
+}
+
 static int format_log_msg(char *buf, size_t bufSz, bool error, bool pid_tid, bool nano_time, const char *tags, const char *src_file, int src_line, const char *src_func, const Stats *limits, const char *fmt, va_list args)
 {
 	char *p = buf;
@@ -162,7 +180,7 @@ static int format_log_msg(char *buf, size_t bufSz, bool error, bool pid_tid, boo
 	#define INC_P \
 		do {\
 			if (rc < 0 || rc >= (int)pSz)\
-				return EIO;\
+				return -1;\
 			p += rc;\
 			pSz -= rc;\
 		} while (0)
@@ -184,11 +202,13 @@ static int format_log_msg(char *buf, size_t bufSz, bool error, bool pid_tid, boo
 	INC_P;
 	if (pid_tid)
 	{
-		rc = snprintf(p, pSz, " [%lu:%lu]", (unsigned long)getpid(), (unsigned long)gettid_p());
+		rc = snprintf(p, pSz, " [%lu:%lu]", (unsigned long)fast_pid(), (unsigned long)fast_tid());
 		INC_P;
 	}
-	rc = snprintf(p, pSz, error ? "!" : " ");
-	INC_P;
+	if (!pSz)
+		return -1;
+	*p++ = error ? '!' : ' ';
+	pSz--;
 	if (src_file && src_line != -1 && src_func)
 	{
 		// According to man 3 basename, GNU version of basename is selected by defining _GNU_SOURCE + not including libgen.h
@@ -217,9 +237,11 @@ static int format_log_msg(char *buf, size_t bufSz, bool error, bool pid_tid, boo
 	}
 
 	if (pSz < 2)
-		return EIO;
-	strncpy(p, "\n", pSz);
-	return 0;
+		return -1;
+	*p++ = '\n';
+	size_t msgLen = p - buf;	// without NULL terminator
+	*p++ = '\0';
+	return msgLen;
 }
 
 int write_log_simple(FILE *f, const Stats *limits, const char *fmt, ...)
@@ -229,11 +251,11 @@ int write_log_simple(FILE *f, const Stats *limits, const char *fmt, ...)
 	char msg[0x1000];
 	va_list args;
 	va_start(args, fmt);
-	int rc = format_log_msg(msg, sizeof(msg), false, false, false, NULL, NULL, -1, NULL, limits, fmt, args);
+	int msgLen = format_log_msg(msg, sizeof(msg), false, false, false, NULL, NULL, -1, NULL, limits, fmt, args);
 	va_end(args);	// don't ever return from function before va_end() - undefined behaviour!
-	if (rc)
-		return rc;
-	if (fputs(msg, f) < 0 || fflush(f))		// TODO: consider setlinebuf() to avoid frequent fflush()
+	if (msgLen <= 0)	// '\n' is always added, so msgLen should never be zero
+		return -1;
+	if (fwrite(msg, msgLen, 1, f) != 1 || fflush(f))		// TODO: consider setlinebuf() to avoid frequent fflush()
 		return errno;
 	return 0;
 }
@@ -253,57 +275,56 @@ FILE *get_slow_queries_log()
 	return slow_queries_log;
 }
 
-static const char *tag_names[] =
+static const char *tag_names[] =	// in uppercase
 {
 	#define DEFINE_LOG_TAG(tag)	#tag,
 	#include "log_tags.h"
 	#undef DEFINE_LOG_TAG
 };
 
-// tag name in uppercase, or NULL if no such tag defined
-static const char *get_tag_name(unsigned tag)
+// 'buf' isn't used in case of a single tag (and, naturally, 'delim' as well)
+static const char *concat_tag_names(unsigned tags, const char *delim, bool lowerCase, char *buf, size_t bufSz)
 {
-	int i;
-	for (i=0; i < LOG_TAG_BITS; i++)
-		if (tag == (1u << i))
-			return tag_names[i];
-	return NULL;
-}
-
-static void concat_tag_names(unsigned tags, const char *delim, int lowerCase, char *dst, size_t dstSz)
-{
-	char *p = dst;
-	*p = '\0';
-	size_t delimLen = strlen(delim);
+	*buf = '\0';			// let's prepare right away to return an empty string
+	char *p = NULL;			// we set it to 'buf' when we begin actual concatenation
+	size_t delimLen = 0;	// same, needed only for actual concatenation
 	int i;
 	for (i=0; i < LOG_TAG_BITS; i++)
 	{
+		if (!tags)
+			break;
 		unsigned tag = 1 << i;
-		if (tags & tag)
+		if (!(tags & tag))
+			continue;
+		tags &= ~tag;		// forget it
+		const char *s_tag = tag_names[i];
+		if (!p && !tags)	// no tags so far (otherwise we'd start concatenation and set 'p') and no more tags
+			return s_tag;	// return the only one, no need to concatenate
+		if (!p)				// prepare for actual concatenation, if not yet
 		{
-			const char *s_tag = get_tag_name(tag);
-			if (!s_tag)
-				s_tag = "unknown";
-			size_t len = strlen(s_tag);
-			if (delimLen+len+1 > dstSz)
-				return;
-			if (p > dst)	// before any tag except first, add delimiter
-			{
-				memcpy(p, delim, delimLen);
-				p += delimLen;
-				dstSz -= delimLen;
-			}
-			memcpy(p, s_tag, len + 1);
-			dstSz -= len + 1;
-			if (lowerCase)
-			{
-				char *pp;
-				for (pp=p; pp < p + len; pp++)
-					*pp = tolower((unsigned char)*pp);
-			}
-			p += len;
+			p = buf;
+			delimLen = strlen(delim);	// very short usually
 		}
+		size_t len = strlen(s_tag);
+		if (delimLen+len+1 > bufSz)		// delim + tag + '\0' don't fit
+			return buf;					// only what we got so far
+		if (p > buf)					// before any tag except the first, add a delimiter
+		{
+			memcpy(p, delim, delimLen);	// we don't add '\0' here, as we're sure we shall add it with 's_tag' below
+			p += delimLen;
+			bufSz -= delimLen;
+		}
+		memcpy(p, s_tag, len + 1);		// tag + '\0'
+		bufSz -= len + 1;
+		if (lowerCase)
+		{
+			char *pp;
+			for (pp=p; pp < p + len; pp++)
+				*pp = tolower((unsigned char)*pp);	// <ctype.h> is freakish about signed chars
+		}
+		p += len;	// add only real characters, point to current '\0'
 	}
+	return buf;
 }
 
 unsigned log_enabled_tags = 0;		// bitmask of enabled tags
@@ -315,7 +336,6 @@ unsigned log_verbosity_level = 1;
 void init_log_ex(bool enable_all_tags)
 {
 	log_enabled_tags = ALWAYS_ENABLED_LOG_TAGS;
-
 	if (enable_all_tags)	// in debug mode, enable all tags
 		log_enabled_tags = (1 << LOG_TAG_BITS) - 1;
 	else									// otherwise, check file-flags to enable corresponding tags
@@ -339,14 +359,14 @@ void init_log_ex(bool enable_all_tags)
 			} else
 			{
 				tag = 1 << i;
-				s_tag = get_tag_name(tag);
+				s_tag = tag_names[i];
 			}
 			size_t l_tag = strlen(s_tag);
 			strcpy(ptr, "log-");
 			char *p_tag = ptr + strlen(ptr), *pp;
 			strcpy(p_tag, s_tag);
 			for (pp=p_tag; pp < p_tag + l_tag; pp++)
-				*pp = tolower((unsigned char)*pp);
+				*pp = tolower((unsigned char)*pp);	// <ctype.h> is freakish about signed chars
 			strcat(ptr, ".flag");
 			struct stat flag_stat;
 			if (!stat(fname, &flag_stat))
@@ -357,14 +377,13 @@ void init_log_ex(bool enable_all_tags)
 			}
 		}
 	}
-
 	// TODO: possibly we'll need configurable log_verbosity_level, for now it's constant
-
-	char	s_tags_ena[0x1000] = "",
-			s_tags_dis[0x1000] = "";
-	concat_tag_names( log_enabled_tags, ",", 0, s_tags_ena, sizeof s_tags_ena);
-	concat_tag_names(~log_enabled_tags, ",", 1, s_tags_dis, sizeof s_tags_dis);
-	LOG(L_LIFE, "Logging enabled tags: [%s]; verbosity level: %d; disabled tags: [%s]; Governor version: %s, built at %s %s", s_tags_ena, log_verbosity_level, s_tags_dis, GOVERNOR_CUR_VER, __DATE__, __TIME__);
+	char s_tags_ena_buf[0x1000] = "", s_tags_dis_buf[0x1000] = "";	// two different buffers
+	LOG(L_LIFE, "Logging enabled tags: [%s]; verbosity level: %d; disabled tags: [%s]; Governor version: %s, built at %s %s",
+		concat_tag_names( log_enabled_tags, ",", false, s_tags_ena_buf, sizeof(s_tags_ena_buf)),
+		log_verbosity_level,
+		concat_tag_names(~log_enabled_tags, ",", true,  s_tags_dis_buf, sizeof(s_tags_dis_buf)),
+		GOVERNOR_CUR_VER, __DATE__, __TIME__);
 }
 
 #pragma GCC diagnostic pop
@@ -375,22 +394,21 @@ int write_log_ex(unsigned tags, unsigned level, const char *src_file, int src_li
 		return 0;
 	if (!log)
 		return -1;
-	char s_tags[0x1000] = "";
-	concat_tag_names(tags, ":", 0, s_tags, sizeof s_tags);
+	char s_tags_buf[0x1000] = "";
+	const char *s_tags = concat_tag_names(tags, ":", false, s_tags_buf, sizeof(s_tags_buf));
 #if 0  // TODO: when we have different levels indeed, we'll decide how to print them
 	char lev[0x10];
 	sprintf(lev, ":lev.%d", level);
-	strcat(s_tags, lev);
 #endif
 	char msg[0x1000];
 	va_list args;
 	va_start(args, fmt);
-	int rc = format_log_msg(msg, sizeof(msg), !!(tags & L_ERR), true, true, s_tags, src_file, src_line, src_func, NULL, fmt, args);
-	va_end(args);		// don't ever return from function before va_end() - undefined behaviour!
-	if (rc)
-		return rc;
-	if (fputs(msg, log) < 0 || fflush(log))		// TODO: consider setlinebuf() to avoid frequent fflush()
+	int msgLen = format_log_msg(msg, sizeof(msg), !!(tags & L_ERR), true, true, s_tags, src_file, src_line, src_func, NULL, fmt, args);
+	va_end(args);	// don't ever return from function before va_end() - undefined behaviour!
+	if (msgLen <= 0)	// '\n' is always added, so msgLen should never be zero
+		return -1;
+	if (fwrite(msg, msgLen, 1, log) != 1)
 		return errno;
-	return rc;
+	return 0;
 }
 
