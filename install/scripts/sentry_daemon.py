@@ -9,45 +9,55 @@
 
 import os
 import sys
+import time
 import signal
-import socket
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 import logging
+import glob
+import re
 
 SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry_dsn"
-LISTENER_SOCK_FILE = "/var/run/db-governor-sentry.sock"
+DAEMON_INTERVAL = 10
+
+GOVERNOR_LOGS_PATH = "/var/log/dbgovernor-sentry-depot/*.txt"
+MYSQLD_LOGS_PATH = "/var/log/dbgovernor-mysqld-sentry-depot/*.txt"
 
 MESSAGE_SIZE = 1024
 CONNECTS_MAX = 5
 
 class SentryDaemon:
     """
-    A daemon process to handle and forward logs to Sentry based on UNIX socket communication.
+    A daemon process to handle and forward governor logs to Sentry.
 
     Attributes:
-        socket_path (str): The path to the UNIX socket file.
-        server_socket (socket.socket): The socket object for server.
+        governor_logs_path (str): The path where the governor Sentry logs are located.
+        mysqld_logs_path (str): The path where the mysqld Sentry logs are located.
         sentry_dsn (str): Data Source Name for the Sentry integration.
     """
 
-    def __init__(self, socket_path, sentry_dsn_file):
+    def __init__(self, governor_logs_path, mysqld_logs_path, sentry_dsn_file):
         """
         Initializes the SentryDaemon with given socket path and Sentry DSN file.
 
         Args:
-            socket_path (str): The file path where the UNIX socket should be created.
+            governor_logs_path (str): The path where the governor Sentry logs are located.
+            mysqld_logs_path (str): The path where the mysqld Sentry logs are located.
             sentry_dsn_file (str): The file path containing the Sentry DSN.
         """
-        self.socket_path = socket_path
-        self.server_socket = None
+        self.governor_logs_path = governor_logs_path
+        self.mysqld_logs_path = mysqld_logs_path
         self.sentry_dsn = self.read_sentry_dsn_from_file(sentry_dsn_file)
 
         # Initialize Sentry SDK
         sentry_sdk.init(
             dsn=self.sentry_dsn,
+            traces_sample_rate = 1.0,
             integrations=[LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)]
         )
+
+        self.logger_db_governor = logging.getLogger("db_governor")
+        self.logger_mysqld = logging.getLogger("mysqld")
 
     def read_sentry_dsn_from_file(self, path):
         """
@@ -78,73 +88,94 @@ class SentryDaemon:
         self.cleanup()
         sys.exit(0)
 
-    def start_server(self):
+    def start(self):
         """
-        Starts the UNIX socket server to listen for incoming log messages.
+        Starts the daemon to read log files and send logs to Sentry.
         """
-        if os.path.exists(self.socket_path):
-            os.remove(self.socket_path)
-
-        self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.server_socket.bind(self.socket_path)
-        self.server_socket.listen(CONNECTS_MAX)
-
-        print(f"Started listening on the socket {self.socket_path}")
+        print(f"Started reading log files in {self.governor_logs_path} and {self.mysqld_logs_path}")
 
         try:
             while True:
                 try:
-                    client_socket, _ = self.server_socket.accept()
-                    with client_socket:
-                        while True:
-                            try:
-                                # Receive log from client
-                                data = client_socket.recv(MESSAGE_SIZE)
-                                if not data:
-                                    break
-
-                                self.process_message(data.decode())
-
-                            except Exception as e:
-                                logging.error(f"Failed to receive log: {e}")
-                                break
-
-                except socket.error as se:
-                    logging.error(f"Failed to accept socket: {se}")
+                    self.process_files(self.governor_logs_path, self.logger_db_governor)
+                    self.process_files(self.mysqld_logs_path, self.logger_mysqld)
                 except Exception as e:
-                    logging.error(f"General error: {e}")
+                    logging.error(f"Failed to process log file: {e}")
+
+                # Sleep for a bit before checking the log files again
+                time.sleep(DAEMON_INTERVAL)
+
+        except KeyboardInterrupt:
+            self.cleanup()
 
         finally:
             self.cleanup()
 
-    def process_message(self, message):
+    def process_files(self, log_files_path, logger):
+            """
+            Processes all log files in the specified path and sends their contents to Sentry.
+
+            Args:
+                log_files_path (str): The path pattern to the log files.
+                logger (logging.Logger): The logger to use for sending messages to Sentry.
+            """
+            log_files = glob.glob(log_files_path)
+            for log_file_path in log_files:
+                if os.path.exists(log_file_path):
+                    with open(log_file_path, 'r') as log_file:
+                        for line in log_file:
+                            self.process_message(line.strip(), logger)
+
+                    os.remove(log_file_path)
+                    print(f"Removed log file {log_file_path}")
+
+    def process_message(self, message, logger):
         """
         Processes a single message received from the client.
 
         Args:
             message (str): The log message received.
+            logger (logging.Logger): The logger to use for sending the message to Sentry.
         """
-        if message.startswith("ERROR:"):
-            logging.error(message[6:].strip())
-        elif message.startswith("INFO:"):
-            logging.info(message[5:].strip())
-        elif message.startswith("DEBUG:"):
-            logging.debug(message[6:].strip())
-        else: # Default log level (ERROR)
-            logging.error(message)
+        line_format = r"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{9})\] \[(\d+)\.(\d+)\] \[([^]]+)\] \[([^]]+)\] (.*)$"
+        match = re.match(line_format, message)
+
+        if match:
+            timestamp, process, thread, src_location, tags, msg = match.groups()
+            tags = [t for t in tags.split(":") if t != "ERRSENTRY"]
+
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("timestamp", timestamp)
+                scope.set_tag("process", process)
+                scope.set_tag("thread", thread)
+                for tag in tags:
+                    scope.set_tag(tag, True)
+                scope.set_tag("src_location", src_location)
+                logger.error(msg.strip())
+        else:
+            logger.error("Invalid log message format")
 
     def cleanup(self):
         """
-        Cleans up the resources used by the daemon, particularly the server socket.
+        Cleans up the resources used by the daemon, particularly the log files.
         """
-        if self.server_socket:
-            self.server_socket.close()
-            print("Closed server socket")
-        if os.path.exists(self.socket_path):
-            os.remove(self.socket_path)
-            print(f"Removed socket file {self.socket_path}")
+        self.cleanup_files(self.governor_logs_path)
+        self.cleanup_files(self.mysqld_logs_path)
+
+    def cleanup_files(self, log_files_path):
+        """
+        Removes all log files in the specified path.
+
+        Args:
+            log_files_path (str): The path pattern to the log files.
+        """
+        log_files = glob.glob(log_files_path)
+        for log_file_path in log_files:
+            if os.path.exists(log_file_path):
+                os.remove(log_file_path)
+                print(f"Removed log file {log_file_path}")
 
 if __name__ == "__main__":
-    daemon = SentryDaemon(LISTENER_SOCK_FILE, SENTRY_DSN_FILE)
+    daemon = SentryDaemon(GOVERNOR_LOGS_PATH, MYSQLD_LOGS_PATH, SENTRY_DSN_FILE)
     signal.signal(signal.SIGTERM, daemon.handle_sigterm)
-    daemon.start_server()
+    daemon.start()
