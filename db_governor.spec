@@ -82,6 +82,7 @@ This package provides dbtop, db_governor utilities.
 export PYTHONINTERPRETER=%{__python}
 
 echo -e "#ifndef VERSION_H_\n#define VERSION_H_\n#define GOVERNOR_CUR_VER \"%{g_version}-%{g_release}\"\n#define GOVERNOR_OS_CL%{?rhel} 1\n#endif\n" > src/version.h
+echo -e "GOVERNOR_CUR_VER=\"%{g_version}-%{g_release}\"\n" > install/scripts/dbgovernor_version.py
 
 mkdir build_clean
 pushd build_clean
@@ -182,6 +183,7 @@ install -D -m 755 install/scripts/cpanel_map_rebuilder $RPM_BUILD_ROOT/usr/share
 install -D -m 755 install/scripts/dbgovernor_map $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map
 install -D -m 755 install/scripts/dbgovernor_map.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map.py
 install -D -m 755 install/scripts/dbgovernor_map_plesk.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map_plesk.py
+install -D -m 644 install/scripts/dbgovernor_version.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_version.py
 install -D -m 755 install/scripts/sentry_daemon.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sentry_daemon.py
 install -D -m 755 install/scripts/detect-cpanel-mysql-version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 install -D -m 755 install/scripts/cpanel-mysql-url-detect.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
