@@ -1,0 +1,16 @@
+# logrotate config for mysqld part of mysql-governor logging
+
+/var/log/dbgovernor-mysqld.log {
+    create 0640 mysql mysql
+    missingok
+    dateext
+    rotate 10
+    size=200M
+    compress
+    copytruncate
+
+#    create option will have no effect with copytruncate option because the old log file stays in place
+#    create 0640 mysql mysql
+
+}
+

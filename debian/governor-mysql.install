@@ -38,6 +38,8 @@
  usr/share/lve/dbgovernor/scripts/map_hook
  usr/share/lve/dbgovernor/scripts/sync_hook
  etc/logrotate.d/mysql-governor
+ etc/logrotate.d/mysql-governor-slow
+ etc/logrotate.d/mysql-governor-mysqld
  usr/share/lve/dbgovernor/utils/cloudlinux.versions
  usr/share/lve/dbgovernor/utils/db_governor
  usr/share/lve/dbgovernor/list_problem_files.txt

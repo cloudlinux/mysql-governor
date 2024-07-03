@@ -88,6 +88,8 @@ override_dh_auto_install:
 	install -D -m 755 $(CURDIR)/install/scripts/map_hook $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/map_hook
 	install -D -m 755 $(CURDIR)/install/scripts/sync_hook $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/sync_hook
 	install -D -m 644 $(CURDIR)/logrotate/mysql-governor $(CURDIR)/debian/tmp/etc/logrotate.d/mysql-governor
+	install -D -m 644 $(CURDIR)/logrotate/mysql-governor-slow $(CURDIR)/debian/tmp/etc/logrotate.d/mysql-governor-slow
+	install -D -m 644 $(CURDIR)/logrotate/mysql-governor-mysqld $(CURDIR)/debian/tmp/etc/logrotate.d/mysql-governor-mysqld
 	install -D -m 644 $(CURDIR)/install/utils/cloudlinux.versions $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/utils/cloudlinux.versions
 	install -D -m 644 $(CURDIR)/install/utils/dbgovernor $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/utils/db_governor
 	install -D -m 600 $(CURDIR)/install/list_problem_files.txt $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/

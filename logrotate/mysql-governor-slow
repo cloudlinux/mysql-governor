@@ -1,0 +1,10 @@
+# logrotate config for mysql-governor slow queries
+
+/var/log/dbgovernor-kill.log {
+    missingok
+    dateext
+    rotate 10
+    size=150M
+    compress
+    copytruncate
+}

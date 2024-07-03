@@ -197,6 +197,8 @@ install -D -m 755 install/scripts/map_hook $RPM_BUILD_ROOT/usr/share/lve/dbgover
 install -D -m 755 install/scripts/sync_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sync_hook
 
 install -D -m 644 logrotate/mysql-governor $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor
+install -D -m 644 logrotate/mysql-governor-slow $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor-slow
+install -D -m 644 logrotate/mysql-governor-mysqld $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor-mysqld
 install -D -m 644 install/utils/cloudlinux.versions $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/cloudlinux.versions
 install -D -m 644 install/utils/dbgovernor $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/db_governor
 install -D -m 600 install/list_problem_files.txt $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/
