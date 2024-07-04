@@ -1,3 +1,6 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 10 01 * * * root /usr/sbin/tmpwatch -umc 10 /var/lve/dbgovernor-store
-15 01 * * * root /usr/share/lve/dbgovernor/mysqlgovernor.py --dbupdate 
+15 01 * * * root /usr/share/lve/dbgovernor/mysqlgovernor.py --dbupdate
+
+# every 2 minutes, delete logs older than 3 minutes:
+*/2 * * * * root /usr/bin/flock -n /var/run/governor_sentry_cleaner.cronlock /usr/share/lve/dbgovernor/scripts/sentry_cleaner.sh 3  >/dev/null 2>&1

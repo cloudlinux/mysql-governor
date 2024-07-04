@@ -185,6 +185,7 @@ install -D -m 755 install/scripts/dbgovernor_map.py $RPM_BUILD_ROOT/usr/share/lv
 install -D -m 755 install/scripts/dbgovernor_map_plesk.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map_plesk.py
 install -D -m 644 install/scripts/dbgovernor_version.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_version.py
 install -D -m 755 install/scripts/sentry_daemon.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sentry_daemon.py
+install -D -m 755 install/scripts/sentry_cleaner.sh $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sentry_cleaner.sh
 install -D -m 755 install/scripts/detect-cpanel-mysql-version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 install -D -m 755 install/scripts/cpanel-mysql-url-detect.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
 install -D -m 755 install/scripts/set_cpanel_mysql_version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm

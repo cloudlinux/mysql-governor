@@ -80,6 +80,7 @@ override_dh_auto_install:
 	install -D -m 755 $(CURDIR)/install/scripts/dbgovernor_watchdog.py $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py
 	install -D -m 644 $(CURDIR)/install/scripts/dbgovernor_version.py $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/dbgovernor_version.py
 	install -D -m 755 $(CURDIR)/install/scripts/sentry_daemon.py $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/sentry_daemon.py
+	install -D -m 755 $(CURDIR)/install/scripts/sentry_cleaner.sh $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/sentry_cleaner.sh
 	install -D -m 755 $(CURDIR)/install/scripts/detect-cpanel-mysql-version.pm $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 	install -D -m 755 $(CURDIR)/install/scripts/cpanel-mysql-url-detect.pm $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
 	install -D -m 755 $(CURDIR)/install/scripts/set_cpanel_mysql_version.pm $(CURDIR)/debian/tmp/usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm
