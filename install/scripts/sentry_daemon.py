@@ -34,34 +34,28 @@ SENTRY_DEPOT_DB_GOVERNOR = SENTRY_DEPOT_ROOT + "/db_governor"
 SENTRY_DEPOT_MYSQLD   = SENTRY_DEPOT_ROOT + "/mysqld"
 SENTRY_DEPOT_EXT = ".txt"
 
-DB_GOVERNOR_LOGS_PATH = SENTRY_DEPOT_DB_GOVERNOR + "/*" + SENTRY_DEPOT_EXT
-MYSQLD_LOGS_PATH      = SENTRY_DEPOT_MYSQLD      + "/*" + SENTRY_DEPOT_EXT
+DB_GOVERNOR_LOGS_WILDCARD = SENTRY_DEPOT_DB_GOVERNOR + "/*" + SENTRY_DEPOT_EXT
+MYSQLD_LOGS_WILDCARD      = SENTRY_DEPOT_MYSQLD      + "/*" + SENTRY_DEPOT_EXT
 
 class SentryDaemon:
     """
     A daemon process to forward 'db_governor' and extended 'mysqld' logs to Sentry.
-
-    Attributes:
-        db_governor_logs_path (str): The path where the db_governor Sentry logs are located.
-        mysqld_logs_path (str): The path where the mysqld Sentry logs are located.
-        sentry_dsn (str): Data Source Name for the Sentry integration.
     """
 
-    def __init__(self, db_governor_logs_path, mysqld_logs_path, sentry_dsn_file):
+    def __init__(self, db_governor_logs_wildcard, mysqld_logs_wildcard, sentry_dsn_file):
         """
-        Initializes the SentryDaemon with given log path wildcards and Sentry DSN file.
+        Initializes SentryDaemon with given log path wildcards and Sentry DSN file.
 
         Args:
-            db_governor_logs_path (str): The path where the db_governor Sentry logs are located.
-            mysqld_logs_path (str): The path where the mysqld Sentry logs are located.
-            sentry_dsn_file (str): The file path containing the Sentry DSN.
+            db_governor_logs_wildcard (str): wildcard path for Sentry log files from db_governor.
+            mysqld_logs_wildcard (str): wildcard path for Sentry log files from mysqld.
+            sentry_dsn_file (str): path to file containing Sentry DSN.
         """
 
-        self.db_governor_logs_path = db_governor_logs_path
-        self.mysqld_logs_path = mysqld_logs_path
+        self.db_governor_logs_wildcard = db_governor_logs_wildcard
+        self.mysqld_logs_wildcard = mysqld_logs_wildcard
         with open(sentry_dsn_file) as f:
             dsn = f.read().strip()
-
 
         os_name = get_rhn_systemid_value('operating_system')
         os_version = get_rhn_systemid_value('os_release')
@@ -102,8 +96,8 @@ class SentryDaemon:
         Handles SIGTERM signal to perform clean shutdown of the daemon.
 
         Args:
-            signum (int): The signal number.
-            frame (frame): The current stack frame.
+            signum (int): signal number.
+            frame (frame): current stack frame.
         """
         self.print("SIGTERM received, shutting down gracefully...")
         self.cleanup()
@@ -139,7 +133,7 @@ class SentryDaemon:
         """
         Starts the daemon to read log files and send logs to Sentry.
         """
-        self.print(f"Started reading log files in {self.db_governor_logs_path} and {self.mysqld_logs_path}")
+        self.print(f"Started reading log files in {self.db_governor_logs_wildcard} and {self.mysqld_logs_wildcard}")
 
         events_ever_lost, loss_report_sent, loss_reporting_complete = False, False, False
 
@@ -159,31 +153,30 @@ class SentryDaemon:
                         loss_report_sent = True                         # We send it only once per daemon session.
                         self.print("Event loss report sent")
 
-            for        logs_path,              logger      in [
-                    (self.db_governor_logs_path, "db_governor"),
-                    (self.mysqld_logs_path,      "mysqld")]:
+            for           wildcard,                   logger      in [
+                    (self.db_governor_logs_wildcard, "db_governor"),
+                    (self.mysqld_logs_wildcard,      "mysqld")]:
                 try:
-                    log_files = glob.glob(logs_path)
-                    for log_file_path in log_files:
-                        if os.path.exists(log_file_path):
-                            name = os.path.basename(log_file_path)
+                    logs = glob.glob(wildcard)
+                    for log in logs:
+                        if os.path.exists(log):
                             ver_mysql = None
                             # MySQL version can be empty - it's not always available inside 'db_governor',
                             # and never available in 'mysqld'.
                             # The latter sounds so ridiculous, we surely have to fix it soon.
-                            match = re.match(r"(.*)-mysql\.", name)
+                            match = re.match(r"(.*)-mysql\.", os.path.basename(log))
                             if not match:
-                                self.internal_logger.error(f"Invalid file name: '{log_file_path}'")  # sends to Sentry and prints locally
+                                self.internal_logger.error(f"Invalid file name: '{log}'")  # sends to Sentry and prints locally
                             else:
                                 ver_mysql = match.group(1)
                                 if send_files:
-                                    with open(log_file_path, 'r') as log_file:
-                                        self.process_message(logger, log_file.read().strip(), ver_mysql)
-                                    self.print(f"Sent log file {log_file_path}")
-                            os.remove(log_file_path)
-                            self.print(f"Removed log file {log_file_path}")
+                                    with open(log, 'r') as f:
+                                        self.process_message(logger, f.read().strip(), ver_mysql)
+                                    self.print(f"Sent log file {log}")
+                            os.remove(log)
+                            self.print(f"Removed log file {log}")
                 except Exception as e:
-                    self.internal_logger.error(f"Failed to process log file '{logs_path}': {e}")  # sends to Sentry and prints locally
+                    self.internal_logger.error(f"Failed to process '{wildcard}' log files: {e}")  # sends to Sentry and prints locally
 
             if not events_ever_lost and not self.is_healthy():
                 events_ever_lost = True  # this could trigger due to Rate Limiting response from Sentry server, or due to local queue overflow, or other internal problem
@@ -197,8 +190,8 @@ class SentryDaemon:
         Processes a single message received from the client.
 
         Args:
-            message (str): The log message received.
-            logger (str): The logger to use for sending the message to Sentry.
+            message (str): log message received.
+            logger (str): logger to use for sending the message to Sentry.
         """
 
         # The purpose of this preface Sentry event is to guarantee that we see the complete Python attributes, like module list, at least once -
@@ -279,7 +272,7 @@ def VIS(x):
     return x if x else "n/a"
 
 if __name__ == "__main__":
-    daemon = SentryDaemon(DB_GOVERNOR_LOGS_PATH, MYSQLD_LOGS_PATH, SENTRY_DSN_FILE)
+    daemon = SentryDaemon(DB_GOVERNOR_LOGS_WILDCARD, MYSQLD_LOGS_WILDCARD, SENTRY_DSN_FILE)
     signal.signal(signal.SIGTERM, daemon.handle_sigterm)
     try:
         daemon.run()
