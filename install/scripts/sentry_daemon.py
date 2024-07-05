@@ -59,7 +59,9 @@ class SentryDaemon:
 
         self.db_governor_logs_path = db_governor_logs_path
         self.mysqld_logs_path = mysqld_logs_path
-        dsn = self.read_sentry_dsn_from_file(sentry_dsn_file)
+        with open(sentry_dsn_file) as f:
+            dsn = f.read().strip()
+
 
         os_name = get_rhn_systemid_value('operating_system')
         os_version = get_rhn_systemid_value('os_release')
@@ -94,22 +96,6 @@ class SentryDaemon:
 
         self.internal_logger = logging.getLogger("sentry_daemon")  # for internal, non-forwarded events
         self.preface_sent = False
-
-    def read_sentry_dsn_from_file(self, path):
-        """
-        Reads the Sentry DSN from the specified file.
-
-        Args:
-            path (str): Path to the file containing the Sentry DSN.
-
-        Returns:
-            str: The Sentry DSN string or None if the file is not found or an error occurs.
-        """
-        try:
-            with open(path) as f:
-                return f.read().strip()
-        except Exception as e:
-            self.print(f"Error reading Sentry DSN: {e}")
 
     def handle_sigterm(self, signum, frame):
         """
@@ -149,79 +135,62 @@ class SentryDaemon:
     def print_sentry_transport_status(prompt):  # use it for debugging, if you want to reconsider our interaction with Sentry transport
         SentryDaemon.print(f"{prompt}: queuse size={sentry_sdk.Hub.current.client.transport._worker._queue.qsize()}, healthy={SentryDaemon.is_healthy()}")
 
-    def start(self):
+    def run(self):
         """
         Starts the daemon to read log files and send logs to Sentry.
         """
         self.print(f"Started reading log files in {self.db_governor_logs_path} and {self.mysqld_logs_path}")
 
-        try:
-            events_ever_lost, loss_report_sent, loss_reporting_complete = False, False, False
+        events_ever_lost, loss_report_sent, loss_reporting_complete = False, False, False
 
-            while True:
-                send_files = True
+        while True:
+            send_files = True
 
-                if events_ever_lost and not loss_reporting_complete:  # Since the detection of event loss, we're struggling for reporting it. This reporting takes place only once per daemon session.
-                    send_files = False    # For this period, we suspend transmission of regular log files - otherwise they can choke us again and leave us no chance to render the loss on Sentry server.
-                    healthy = self.is_healthy()  # It's vital to make no movements while this is False. 'sentry_sdk' is fragile enough under high load, and we need to report the loss reliably.
-                    self.print(f"Event loss reporting phase, regular log files are being skipped; transport healthy: {healthy}")
-                    if healthy:  # No state change while unhealthy. We wait for health _before_ sending the loss report, and once again _after_ sending it.
-                        if loss_report_sent:
-                            loss_reporting_complete = True         # We're healthy after the loss report transmission. Loss reporting is over.
-                            self.print("Event loss reporting complete")  # On the next iteration we shall return to normal log file processing.
-                        else:
-                            self.internal_logger.warning("Errors possibly lost")  # We're healthy, but haven't yet sent the loss report. Send it now.
-                            loss_report_sent = True                         # We send it only once per daemon session.
-                            self.print("Event loss report sent")
+            if events_ever_lost and not loss_reporting_complete:  # Since the detection of event loss, we're struggling for reporting it. This reporting takes place only once per daemon session.
+                send_files = False    # For this period, we suspend transmission of regular log files - otherwise they can choke us again and leave us no chance to render the loss on Sentry server.
+                healthy = self.is_healthy()  # It's vital to make no movements while this is False. 'sentry_sdk' is fragile enough under high load, and we need to report the loss reliably.
+                self.print(f"Event loss reporting phase, regular log files are being skipped; transport healthy: {healthy}")
+                if healthy:  # No state change while unhealthy. We wait for health _before_ sending the loss report, and once again _after_ sending it.
+                    if loss_report_sent:
+                        loss_reporting_complete = True         # We're healthy after the loss report transmission. Loss reporting is over.
+                        self.print("Event loss reporting complete")  # On the next iteration we shall return to normal log file processing.
+                    else:
+                        self.internal_logger.warning("Errors possibly lost")  # We're healthy, but haven't yet sent the loss report. Send it now.
+                        loss_report_sent = True                         # We send it only once per daemon session.
+                        self.print("Event loss report sent")
 
-                for        logs_path,              logger      in [
-                     (self.db_governor_logs_path, "db_governor"),
-                     (self.mysqld_logs_path,      "mysqld")]:
-                    try:
-                        self.process_files(logs_path, logger, send_files)
-                    except Exception as e:
-                        self.internal_logger.error(f"Failed to process log file '{logs_path}': {e}")  # sends to Sentry and prints locally
+            for        logs_path,              logger      in [
+                    (self.db_governor_logs_path, "db_governor"),
+                    (self.mysqld_logs_path,      "mysqld")]:
+                try:
+                    log_files = glob.glob(logs_path)
+                    for log_file_path in log_files:
+                        if os.path.exists(log_file_path):
+                            name = os.path.basename(log_file_path)
+                            ver_mysql = None
+                            # MySQL version can be empty - it's not always available inside 'db_governor',
+                            # and never available in 'mysqld'.
+                            # The latter sounds so ridiculous, we surely have to fix it soon.
+                            match = re.match(r"(.*)-mysql\.", name)
+                            if not match:
+                                self.internal_logger.error(f"Invalid file name: '{log_file_path}'")  # sends to Sentry and prints locally
+                            else:
+                                ver_mysql = match.group(1)
+                                if send_files:
+                                    with open(log_file_path, 'r') as log_file:
+                                        self.process_message(logger, log_file.read().strip(), ver_mysql)
+                                    self.print(f"Sent log file {log_file_path}")
+                            os.remove(log_file_path)
+                            self.print(f"Removed log file {log_file_path}")
+                except Exception as e:
+                    self.internal_logger.error(f"Failed to process log file '{logs_path}': {e}")  # sends to Sentry and prints locally
 
-                if not events_ever_lost and not self.is_healthy():
-                    events_ever_lost = True  # this could trigger due to Rate Limiting response from Sentry server, or due to local queue overflow, or other internal problem
-                    self.print("Event loss first detected")
+            if not events_ever_lost and not self.is_healthy():
+                events_ever_lost = True  # this could trigger due to Rate Limiting response from Sentry server, or due to local queue overflow, or other internal problem
+                self.print("Event loss first detected")
 
-                # Sleep for a bit before checking the log files again
-                time.sleep(DAEMON_INTERVAL)
-
-        except KeyboardInterrupt:
-            self.cleanup()
-
-        finally:
-            self.cleanup()
-
-    def process_files(self, log_files_path, logger, send):
-        """
-        Processes all log files in the specified path and sends their contents to Sentry.
-
-        Args:
-            log_files_path (str): The path pattern to the log files.
-            logger (str): The logger to use for sending messages to Sentry.
-        """
-        log_files = glob.glob(log_files_path)
-        for log_file_path in log_files:
-            if os.path.exists(log_file_path):
-                name = os.path.basename(log_file_path)
-                ver_mysql = None
-                # MySQL version can be empty - it's not always available inside 'db_governor',
-                # and never available in 'mysqld'.
-                # The latter sounds so ridiculous, we surely have to fix it soon.
-                match = re.match(r"(.*)-mysql\.", name)
-                if not match:
-                    self.internal_logger.error(f"Invalid file name: '{log_file_path}'")  # sends to Sentry and prints locally
-                else:
-                    ver_mysql = match.group(1)
-                    if send:
-                        with open(log_file_path, 'r') as log_file:
-                            self.process_message(logger, log_file.read().strip(), ver_mysql)
-                        self.print(f"Sent log file {log_file_path}")
-                os.remove(log_file_path)
-                self.print(f"Removed log file {log_file_path}")
+            # Sleep for a bit before checking the log files again
+            time.sleep(DAEMON_INTERVAL)
 
     def process_message(self, logger, message, ver_mysql):
         """
@@ -312,4 +281,9 @@ def VIS(x):
 if __name__ == "__main__":
     daemon = SentryDaemon(DB_GOVERNOR_LOGS_PATH, MYSQLD_LOGS_PATH, SENTRY_DSN_FILE)
     signal.signal(signal.SIGTERM, daemon.handle_sigterm)
-    daemon.start()
+    try:
+        daemon.run()
+    except KeyboardInterrupt:
+        daemon.cleanup()
+    finally:
+        daemon.cleanup()
