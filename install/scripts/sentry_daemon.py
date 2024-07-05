@@ -31,7 +31,7 @@ DAEMON_INTERVAL = 10
 
 SENTRY_DEPOT_ROOT = "/var/log/dbgovernor/sentry-depot"
 SENTRY_DEPOT_DB_GOVERNOR = SENTRY_DEPOT_ROOT + "/db_governor"
-SENTRY_DEPOT_MYSQLD   = SENTRY_DEPOT_ROOT + "/mysqld"
+SENTRY_DEPOT_MYSQLD      = SENTRY_DEPOT_ROOT + "/mysqld"
 SENTRY_DEPOT_EXT = ".txt"
 
 DB_GOVERNOR_LOGS_WILDCARD = SENTRY_DEPOT_DB_GOVERNOR + "/*" + SENTRY_DEPOT_EXT
@@ -138,10 +138,11 @@ class SentryDaemon:
         events_ever_lost, loss_report_sent, loss_reporting_complete = False, False, False
 
         while True:
-            send_files = True
+            send_logs = True  # by default, all found logs will be sent to Sentry
 
+            # Handle loss reporting
             if events_ever_lost and not loss_reporting_complete:  # Since the detection of event loss, we're struggling for reporting it. This reporting takes place only once per daemon session.
-                send_files = False    # For this period, we suspend transmission of regular log files - otherwise they can choke us again and leave us no chance to render the loss on Sentry server.
+                send_logs = False    # For this period, we suspend transmission of regular log files - otherwise they can choke us again and leave us no chance to render the loss on Sentry server.
                 healthy = self.is_healthy()  # It's vital to make no movements while this is False. 'sentry_sdk' is fragile enough under high load, and we need to report the loss reliably.
                 self.print(f"Event loss reporting phase, regular log files are being skipped; transport healthy: {healthy}")
                 if healthy:  # No state change while unhealthy. We wait for health _before_ sending the loss report, and once again _after_ sending it.
@@ -153,31 +154,53 @@ class SentryDaemon:
                         loss_report_sent = True                         # We send it only once per daemon session.
                         self.print("Event loss report sent")
 
+            # Scan for log files
+            report = ""
             for           wildcard,                   logger      in [
                     (self.db_governor_logs_wildcard, "db_governor"),
                     (self.mysqld_logs_wildcard,      "mysqld")]:
                 try:
                     logs = glob.glob(wildcard)
-                    for log in logs:
-                        if os.path.exists(log):
-                            ver_mysql = None
-                            # MySQL version can be empty - it's not always available inside 'db_governor',
-                            # and never available in 'mysqld'.
-                            # The latter sounds so ridiculous, we surely have to fix it soon.
-                            match = re.match(r"(.*)-mysql\.", os.path.basename(log))
-                            if not match:
-                                self.internal_logger.error(f"Invalid file name: '{log}'")  # sends to Sentry and prints locally
-                            else:
-                                ver_mysql = match.group(1)
-                                if send_files:
-                                    with open(log, 'r') as f:
-                                        self.process_message(logger, f.read().strip(), ver_mysql)
-                                    self.print(f"Sent log file {log}")
-                            os.remove(log)
-                            self.print(f"Removed log file {log}")
                 except Exception as e:
-                    self.internal_logger.error(f"Failed to process '{wildcard}' log files: {e}")  # sends to Sentry and prints locally
+                    self.internal_logger.error(f"Failed to scan '{wildcard}': {e}")  # bug, can't normally happen -> print locally + report to Sentry (loggers are intercepted by 'sentry_sdk')
+                n_sent, n_deleted = 0, 0
+                for log in logs:
+                    if not os.path.exists(log):
+                        self.print(f"Disappeared file '{log}'")                      # can be caused by races with sentry_cleaner.sh -> print only locally
+                        continue
+                    # MySQL version can be empty - it's not always available inside 'db_governor',
+                    # and never available in 'mysqld'.
+                    # The latter sounds so ridiculous, we surely have to fix it soon.
+                    match = re.match(r"(.*)-mysql\.", os.path.basename(log))  # basename() must not throw - 'log' is a valid path, proven above
+                    if not match:
+                        self.internal_logger.error(f"Invalid file name '{log}'")     # bug -> print + Sentry
+                    else:
+                        ver_mysql = match.group(1)
+                        if send_logs:
+                            message = None
+                            try:
+                                with open(log, 'r') as f:
+                                    try:
+                                        message = f.read()
+                                    except Exception as e:
+                                        self.print(f"Failed to read {log}: {e}")     # races -> print only
+                            except Exception as e:
+                                self.print(f"Failed to open {log}: {e}")             # races -> print only
+                            if message is not None:
+                                self.process_message(logger, message.strip(), ver_mysql)
+                                n_sent += 1
+                    try:
+                        os.remove(log)
+                        n_deleted += 1
+                    except Exception as e:
+                        self.print(f"Failed to delete {log}: {e}")                   # races -> print only
+                if len(report):
+                    report += ";  "
+                report += f"{logger}: {n_sent} sent, {n_deleted} deleted"
 
+            self.print(report)  # how many files were sent and deleted
+
+            # Detect event loss
             if not events_ever_lost and not self.is_healthy():
                 events_ever_lost = True  # this could trigger due to Rate Limiting response from Sentry server, or due to local queue overflow, or other internal problem
                 self.print("Event loss first detected")
@@ -203,10 +226,10 @@ class SentryDaemon:
 
         norsqr = r"([^]]+)"       # anything without right square bracket
         insqr = rf"\[{norsqr}\]"  # anything in square brackets
-        line_format = rf"\s*{insqr}\s*\[(\d+):(\d+)\][\s!]*\[{norsqr}:(\d+):{norsqr}\]\s*{insqr}\s*(.*)$"
-        match = re.match(line_format, message)
+        message_format = rf"\s*{insqr}\s*\[(\d+):(\d+)\][\s!]*\[{norsqr}:(\d+):{norsqr}\]\s*{insqr}\s*(.*)$"
+        match = re.match(message_format, message)
         if match:
-            timestamp, process, thread, src_file, src_line, src_func, tags, msg = match.groups()
+            timestamp, process, thread, src_file, src_line, src_func, tags, text = match.groups()
             try:
                 process, thread, src_line = int(process), int(thread), int(src_line)
             except ValueError:
@@ -216,7 +239,6 @@ class SentryDaemon:
                 match = None
             tags = [t for t in tags if t != "ERRSENTRY"]  # omit this one - it's always present in Sentry-reported log messages (unless we use some cryptic internal-use-only file flags)
             src_func += "()"
-            msg = msg.strip()
         if not match:
             self.internal_logger.error(f"Invalid message format in '{logger}' log: '{message}'")  # sends to Sentry and prints locally
             return
@@ -236,7 +258,7 @@ class SentryDaemon:
                 "logger": logger,
                 "exception": {        # We need to trigger an error somehow. Alternatively, we could use 'threads'->'stacktrace', but it has its downsides.
                     "values": [ {
-                        "type": msg,  # SIC! This is shown as an event title in case of exceptions.
+                        "type": text,  # SIC! This is shown as an event title in case of exceptions.
                         "value": "",
                         "thread_id": thread,
                         "stacktrace": {
