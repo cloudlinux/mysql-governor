@@ -307,7 +307,7 @@ void init_log_ex(bool enable_all_tags, const char *sentry_depot)
 				s_tag = tag_names[i];
 			}
 			size_t l_tag = strlen(s_tag);
-			strcpy(ptr, "log-");
+			strcpy(ptr, "/log-");
 			char *p_tag = ptr + strlen(ptr), *pp;
 			strcpy(p_tag, s_tag);
 			for (pp=p_tag; pp < p_tag + l_tag; pp++)

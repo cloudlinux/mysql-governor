@@ -778,10 +778,9 @@ WriteDbGovStatistics (void)
 	char file[256], file_ts[256];
 	int _size;
 
-	time_t timestamp = time (NULL);
-	sprintf (file, "%sgovernor_%ld.incomplete", PATH_TO_GOVERNOR_STATS,
-		timestamp);
-	sprintf (file_ts, "%sgovernor.%ld", PATH_TO_GOVERNOR_STATS, timestamp);
+	time_t timestamp = time(NULL);
+	sprintf(file,    "%s/governor_%ld.incomplete", PATH_TO_GOVERNOR_STATS, (long)timestamp);
+	sprintf(file_ts, "%s/governor.%ld",            PATH_TO_GOVERNOR_STATS, (long)timestamp);
 
 	dbgov_stats = fopen (file, "w");
 
