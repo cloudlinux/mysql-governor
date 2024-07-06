@@ -20,7 +20,7 @@ minutes=$1
 # Note that files other than *.txt, are temporary and owned by C code. They are renamed to *.txt immediately after writing.
 # Our cleanup shouldn't interfere with that process.
 
-depot="/var/log/dbgovernor/sentry-depot/"
+depot="/var/lve/dbgovernor/logging/sentry-depot/"
 mask="*.txt"
 
 find "$depot"  -type f  -name "$mask"  -mmin +"$minutes"  -print  -delete | wc -l | xargs -I {} echo "deleted {} files older than $minutes minutes from $depot"

@@ -121,7 +121,13 @@ fi
 cd install
 #make DESTDIR=$RPM_BUILD_ROOT install
 cd -
-mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor/
+# Statistic files, consumed by dbgov_saver.py in lvestats package:
+mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor
+# Logging control (internal-use file flags):
+mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor/logging
+# Temporary files, consumed by sentry_daemon.py:
+mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor/logging/sentry-depot
+# SQL query logs:
 mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor-store/
 
 mkdir -p $RPM_BUILD_ROOT%{_sbindir}/
@@ -492,6 +498,8 @@ fi
 /usr/share/lve/dbgovernor/*
 %{_sysconfdir}/cron.d/lvedbgovernor-utils-cron
 /var/lve/dbgovernor
+/var/lve/dbgovernor/logging
+/var/lve/dbgovernor/logging/sentry-depot
 /var/lve/dbgovernor-store
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
 

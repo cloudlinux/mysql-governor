@@ -27,9 +27,9 @@
 #include "version.h"
 #include "log.h"
 
-#define SENTRY_FLAG_DISABLED		PATH_TO_GOVERNOR_PRIVATE_DIR "/sentry-disabled.flag"
-#define SENTRY_FLAG_FORCE_4_ERR		PATH_TO_GOVERNOR_PRIVATE_DIR "/sentry-force-4-err.flag"
-#define SENTRY_FLAG_FORCE_4_ALL		PATH_TO_GOVERNOR_PRIVATE_DIR "/sentry-force-4-all.flag"
+#define SENTRY_FLAG_DISABLED		PATH_TO_GOVERNOR_LOGGING_INTERNALS "/sentry-disabled.flag"
+#define SENTRY_FLAG_FORCE_4_ERR		PATH_TO_GOVERNOR_LOGGING_INTERNALS "/sentry-force-4-err.flag"
+#define SENTRY_FLAG_FORCE_4_ALL		PATH_TO_GOVERNOR_LOGGING_INTERNALS "/sentry-force-4-all.flag"
 
 #define _L_MASK_ALL		((1 << LOG_TAG_BITS) - 1)
 #define _L_NO_SENTRY	(1 << LOG_TAG_BITS)		// not an actual tag, but a flag used internally to avoid infinite recursion, by disabling Sentry for LOG()s that tell about passing LOG() to Sentry
@@ -287,10 +287,10 @@ void init_log_ex(bool enable_all_tags, const char *sentry_depot)
 	{
 		// calculate file-flags prefix
 		static const int flag_max_size = 256;
-		size_t blen = strlen(PATH_TO_GOVERNOR_PRIVATE_DIR);
+		size_t blen = strlen(PATH_TO_GOVERNOR_LOGGING_INTERNALS);
 		char fname[blen + flag_max_size];
 		char *ptr = fname + blen;
-		memcpy(fname, PATH_TO_GOVERNOR_PRIVATE_DIR, blen);	// without NULL
+		memcpy(fname, PATH_TO_GOVERNOR_LOGGING_INTERNALS, blen);	// without NULL
 		int i;
 		for (i=-1; i < LOG_TAG_BITS; i++)
 		{
@@ -334,9 +334,10 @@ void init_log_ex(bool enable_all_tags, const char *sentry_depot)
 	log_sentry_tags &= log_enabled_tags;
 	// TODO: possibly we'll need configurable log_verbosity_level, for now it's constant
 	char s_tags_ena_buf[0x1000] = "", s_tags_sen_buf[0x1000] = "", s_tags_dis_buf[0x1000] = "";	// three different buffers
-	LOG(L_LIFE, "Logging enabled tags: [%s]; Sentry-reported tags: [%s]; verbosity level: %d; disabled tags: [%s]; Governor version: %s, built at %s %s",
+	LOG(L_LIFE, "Logging enabled tags: [%s]; Sentry-reported tags: [%s]; Sentry depot directory: %s; verbosity level: %d; disabled tags: [%s]; Governor version: %s, built at %s %s",
 		concat_tag_names( log_enabled_tags, ",", false, s_tags_ena_buf, sizeof(s_tags_ena_buf)),
 		concat_tag_names( log_sentry_tags,  ",", false, s_tags_sen_buf, sizeof(s_tags_sen_buf)),
+		log_sentry_depot,
 		log_verbosity_level,
 		concat_tag_names(~log_enabled_tags, ",", true,  s_tags_dis_buf, sizeof(s_tags_dis_buf)),
 		GOVERNOR_CUR_VER, __DATE__, __TIME__);

@@ -29,7 +29,7 @@ from utilities import exec_command
 SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry-dsn"
 DAEMON_INTERVAL = 10
 
-SENTRY_DEPOT_ROOT = "/var/log/dbgovernor/sentry-depot"
+SENTRY_DEPOT_ROOT = "/var/lve/dbgovernor/logging/sentry-depot"
 SENTRY_DEPOT_DB_GOVERNOR = SENTRY_DEPOT_ROOT + "/db_governor"
 SENTRY_DEPOT_MYSQLD      = SENTRY_DEPOT_ROOT + "/mysqld"
 SENTRY_DEPOT_EXT = ".txt"

@@ -48,6 +48,8 @@
  usr/share/lve/dbgovernor/cpanel/upgrade-mysql-disabler.sh
  usr/share/lve/dbgovernor/tmp/INFO
  var/lve/dbgovernor
+ var/lve/dbgovernor/logging
+ var/lve/dbgovernor/logging/sentry-depot
  var/lve/dbgovernor-store
  etc/cron.d/lvedbgovernor-utils-cron
  usr/share/lve/dbgovernor/governor_package_limitting.py
