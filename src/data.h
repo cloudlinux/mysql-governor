@@ -196,7 +196,7 @@ typedef struct _dbtop_exch
 	time_t start_count;
 } dbtop_exch;
 
-typedef struct __dbgov_statitrics
+typedef struct __dbgov_statistics
 {
 	char username[USERNAMEMAXLEN];
 	int max_simultaneous_requests;
@@ -219,7 +219,7 @@ typedef struct __dbgov_statitrics
 
 	int cause;
 	MODE_TYPE ignored;
-} dbgov_statitrics;
+} dbgov_statistics;
 
 typedef struct _user_map
 {

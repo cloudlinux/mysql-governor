@@ -52,7 +52,7 @@ typedef struct __statistics_restrict_info
 
 static GHashTable *accounts = NULL, *users = NULL;
 
-static GHashTable *DbGovStatitrics = NULL;
+static GHashTable *DbGovStatistics = NULL;
 static GHashTable *DbGovNumberOfRestricts = NULL;
 static double old_tm_stats = 0.0;
 
@@ -648,7 +648,7 @@ add_user_stats_from_counter (gpointer key, Stat_counters * item,
 }
 
 static int
-dbgov_was_user_activity (dbgov_statitrics * dbgovst)
+dbgov_was_user_activity (dbgov_statistics * dbgovst)
 {
 	if ((dbgovst->sum_cpu > 0.0 || dbgovst->sum_write > 0.0
 		|| dbgovst->sum_read > 0.0 || dbgovst->cause)
@@ -692,18 +692,18 @@ static GHashTable *pwdload(void)
 }
 
 void
-dbstat_print_table (gpointer key, dbgov_statitrics * dbgov_statitrics__,
+dbstat_print_table (gpointer key, dbgov_statistics * dbgov_statistics__,
 		void *data)
 {
 	FILE *dbgov_stats =  (FILE *)data;
 	struct governor_config data_cfg;
 
-	int number_of_iterations = dbgov_statitrics__->number_of_iterations;
+	int number_of_iterations = dbgov_statistics__->number_of_iterations;
 	static const int mb_s = 1024*1024;
 
 	get_config_data (&data_cfg);
 
-	if (dbgov_was_user_activity (dbgov_statitrics__))
+	if (dbgov_was_user_activity (dbgov_statistics__))
 	{
 		if (data_cfg.save_statistic_uid)
 		{
@@ -713,48 +713,48 @@ dbstat_print_table (gpointer key, dbgov_statitrics * dbgov_statitrics__,
 			if (pwdusers == NULL)
 				pwdusers = pwdload();
 
-			if (pwdusers && g_hash_table_lookup_extended(pwdusers, dbgov_statitrics__->username, &pwdkey, &pwdval))
+			if (pwdusers && g_hash_table_lookup_extended(pwdusers, dbgov_statistics__->username, &pwdkey, &pwdval))
 				need_uid = *((uid_t *)pwdval);
 
 			fprintf (dbgov_stats,
 				"%s;%d;%f;%f;%f;%f;%f;%f;%d;%ld;%ld;%ld;%d;%d\n",
-				dbgov_statitrics__->username,
-				(int) ceil ((double) dbgov_statitrics__->
+				dbgov_statistics__->username,
+				(int) ceil ((double) dbgov_statistics__->
 						max_simultaneous_requests /
 						(double) number_of_iterations),
-				fabs ((dbgov_statitrics__->sum_cpu /
+				fabs ((dbgov_statistics__->sum_cpu /
 					number_of_iterations) * 100),
-				(dbgov_statitrics__->sum_write / number_of_iterations) / mb_s,
-				(dbgov_statitrics__->sum_read / number_of_iterations) / mb_s,
-				fabs ((dbgov_statitrics__->max_cpu) * 100),
-				dbgov_statitrics__->max_write / mb_s,
-				dbgov_statitrics__->max_read / mb_s,
-				dbgov_statitrics__->number_of_restricts,
-				dbgov_statitrics__->limit_cpu_on_period_end,
-				(long) (dbgov_statitrics__->limit_read_on_period_end / mb_s),
-				(long) (dbgov_statitrics__->limit_write_on_period_end / mb_s),
-				dbgov_statitrics__->cause,
+				(dbgov_statistics__->sum_write / number_of_iterations) / mb_s,
+				(dbgov_statistics__->sum_read / number_of_iterations) / mb_s,
+				fabs ((dbgov_statistics__->max_cpu) * 100),
+				dbgov_statistics__->max_write / mb_s,
+				dbgov_statistics__->max_read / mb_s,
+				dbgov_statistics__->number_of_restricts,
+				dbgov_statistics__->limit_cpu_on_period_end,
+				(long) (dbgov_statistics__->limit_read_on_period_end / mb_s),
+				(long) (dbgov_statistics__->limit_write_on_period_end / mb_s),
+				dbgov_statistics__->cause,
 				(int) need_uid);
 		}
 		else
 		{
 			fprintf (dbgov_stats, "%s;%d;%f;%f;%f;%f;%f;%f;%d;%ld;%ld;%ld;%d\n",
-				dbgov_statitrics__->username,
-				(int) ceil ((double) dbgov_statitrics__->
+				dbgov_statistics__->username,
+				(int) ceil ((double) dbgov_statistics__->
 						max_simultaneous_requests /
 						(double) number_of_iterations),
-				fabs ((dbgov_statitrics__->sum_cpu /
+				fabs ((dbgov_statistics__->sum_cpu /
 					number_of_iterations) * 100),
-				(dbgov_statitrics__->sum_write / number_of_iterations) / mb_s,
-				(dbgov_statitrics__->sum_read / number_of_iterations) / mb_s,
-				fabs ((dbgov_statitrics__->max_cpu) * 100),
-				dbgov_statitrics__->max_write / mb_s,
-				dbgov_statitrics__->max_read / mb_s,
-				dbgov_statitrics__->number_of_restricts,
-				dbgov_statitrics__->limit_cpu_on_period_end,
-				(long) (dbgov_statitrics__->limit_read_on_period_end / mb_s),
-				(long) (dbgov_statitrics__->limit_write_on_period_end / mb_s),
-				dbgov_statitrics__->cause);
+				(dbgov_statistics__->sum_write / number_of_iterations) / mb_s,
+				(dbgov_statistics__->sum_read / number_of_iterations) / mb_s,
+				fabs ((dbgov_statistics__->max_cpu) * 100),
+				dbgov_statistics__->max_write / mb_s,
+				dbgov_statistics__->max_read / mb_s,
+				dbgov_statistics__->number_of_restricts,
+				dbgov_statistics__->limit_cpu_on_period_end,
+				(long) (dbgov_statistics__->limit_read_on_period_end / mb_s),
+				(long) (dbgov_statistics__->limit_write_on_period_end / mb_s),
+				dbgov_statistics__->cause);
 		}
 	}
 }
@@ -772,7 +772,7 @@ fileSize (FILE * file)
 }
 
 int
-WriteDbGovStatitrics (void)
+WriteDbGovStatistics (void)
 {
 	FILE *dbgov_stats;
 	char file[256], file_ts[256];
@@ -787,7 +787,7 @@ WriteDbGovStatitrics (void)
 
 	if (dbgov_stats != NULL)
 	{
-		g_hash_table_foreach (DbGovStatitrics, (GHFunc) dbstat_print_table,
+		g_hash_table_foreach (DbGovStatistics, (GHFunc) dbstat_print_table,
 					dbgov_stats);
 		_size = fileSize (dbgov_stats);
 		fclose (dbgov_stats);
@@ -814,9 +814,9 @@ void
 dbstat_add_to_table (gpointer key, Account * ac, void *data)
 {
 	stats_limit_cfg cfg_buf;
-	dbgov_statitrics *dbgov_statitrics__ = NULL;
-	dbgov_statitrics__ =
-		(dbgov_statitrics *) g_hash_table_lookup (DbGovStatitrics, ac->id);
+	dbgov_statistics *dbgov_statistics__ = NULL;
+	dbgov_statistics__ =
+		(dbgov_statistics *) g_hash_table_lookup (DbGovStatistics, ac->id);
 	stats_limit_cfg *sl = config_get_account_limit (ac->id, &cfg_buf);
 	int max_simultaneous_requests = get_cnt_threads (ac->id);
 
@@ -830,82 +830,82 @@ dbstat_add_to_table (gpointer key, Account * ac, void *data)
 			(statistics_restrict_info *)
 			g_hash_table_lookup (DbGovNumberOfRestricts, ac->id);
 
-	if (dbgov_statitrics__ == NULL)
+	if (dbgov_statistics__ == NULL)
 	{
-		dbgov_statitrics__ =
-			(dbgov_statitrics *) malloc (sizeof (dbgov_statitrics));
+		dbgov_statistics__ =
+			(dbgov_statistics *) malloc (sizeof (dbgov_statistics));
 
-		strncpy (dbgov_statitrics__->username, ac->id, USERNAMEMAXLEN - 1);
-		dbgov_statitrics__->max_simultaneous_requests =
+		strncpy (dbgov_statistics__->username, ac->id, USERNAMEMAXLEN - 1);
+		dbgov_statistics__->max_simultaneous_requests =
 			max_simultaneous_requests;
 
-		dbgov_statitrics__->sum_cpu = ac->current.cpu;
-		dbgov_statitrics__->sum_write = ac->current.write;
-		dbgov_statitrics__->sum_read = ac->current.read;
+		dbgov_statistics__->sum_cpu = ac->current.cpu;
+		dbgov_statistics__->sum_write = ac->current.write;
+		dbgov_statistics__->sum_read = ac->current.read;
 
-		dbgov_statitrics__->number_of_iterations = 1;
+		dbgov_statistics__->number_of_iterations = 1;
 
-		dbgov_statitrics__->max_cpu = ac->current.cpu;
-		dbgov_statitrics__->max_write = ac->current.write;
-		dbgov_statitrics__->max_read = ac->current.read;
+		dbgov_statistics__->max_cpu = ac->current.cpu;
+		dbgov_statistics__->max_write = ac->current.write;
+		dbgov_statistics__->max_read = ac->current.read;
 
-		dbgov_statitrics__->number_of_restricts =
+		dbgov_statistics__->number_of_restricts =
 			number_of_restricts ? number_of_restricts->number_of_restricts : 0;
-		dbgov_statitrics__->cause =
+		dbgov_statistics__->cause =
 			number_of_restricts ? number_of_restricts->cause_of_restricts : 0;
 
-		dbgov_statitrics__->limit_cpu_on_period_end =
+		dbgov_statistics__->limit_cpu_on_period_end =
 			limit_cpu < 0 ? 0 : limit_cpu;
-		dbgov_statitrics__->limit_read_on_period_end =
+		dbgov_statistics__->limit_read_on_period_end =
 			limit_read < 0 ? 0 : limit_read;
-		dbgov_statitrics__->limit_write_on_period_end =
+		dbgov_statistics__->limit_write_on_period_end =
 			limit_write < 0 ? 0 : limit_write;
 
-		dbgov_statitrics__->ignored = sl->mode;
+		dbgov_statistics__->ignored = sl->mode;
 
-		g_hash_table_insert (DbGovStatitrics, ac->id, dbgov_statitrics__);
+		g_hash_table_insert (DbGovStatistics, ac->id, dbgov_statistics__);
 	}
 	else
 	{
-		dbgov_statitrics__->max_simultaneous_requests +=
+		dbgov_statistics__->max_simultaneous_requests +=
 			max_simultaneous_requests;
 
-		dbgov_statitrics__->sum_cpu += ac->current.cpu;
-		dbgov_statitrics__->sum_write += ac->current.write;
-		dbgov_statitrics__->sum_read += ac->current.read;
+		dbgov_statistics__->sum_cpu += ac->current.cpu;
+		dbgov_statistics__->sum_write += ac->current.write;
+		dbgov_statistics__->sum_read += ac->current.read;
 
-		dbgov_statitrics__->number_of_iterations++;
+		dbgov_statistics__->number_of_iterations++;
 
-		dbgov_statitrics__->max_cpu =
+		dbgov_statistics__->max_cpu =
 			ac->current.cpu >
-			dbgov_statitrics__->max_cpu ? ac->current.cpu : dbgov_statitrics__->
+			dbgov_statistics__->max_cpu ? ac->current.cpu : dbgov_statistics__->
 			max_cpu;
-		dbgov_statitrics__->max_write =
+		dbgov_statistics__->max_write =
 			ac->current.write >
-			dbgov_statitrics__->max_write ? ac->current.
-			write : dbgov_statitrics__->max_write;
-		dbgov_statitrics__->max_read =
+			dbgov_statistics__->max_write ? ac->current.
+			write : dbgov_statistics__->max_write;
+		dbgov_statistics__->max_read =
 			ac->current.read >
-			dbgov_statitrics__->max_read ? ac->current.read : dbgov_statitrics__->
+			dbgov_statistics__->max_read ? ac->current.read : dbgov_statistics__->
 			max_read;
 
-		dbgov_statitrics__->number_of_restricts =
+		dbgov_statistics__->number_of_restricts =
 			number_of_restricts ? number_of_restricts->number_of_restricts : 0;
-		dbgov_statitrics__->cause =
+		dbgov_statistics__->cause =
 			number_of_restricts ? number_of_restricts->cause_of_restricts : 0;
 
-		dbgov_statitrics__->limit_cpu_on_period_end =
+		dbgov_statistics__->limit_cpu_on_period_end =
 			limit_cpu < 0 ? 0 : limit_cpu;
-		dbgov_statitrics__->limit_read_on_period_end =
+		dbgov_statistics__->limit_read_on_period_end =
 			limit_read < 0 ? 0 : limit_read;
-		dbgov_statitrics__->limit_write_on_period_end =
+		dbgov_statistics__->limit_write_on_period_end =
 			limit_write < 0 ? 0 : limit_write;
-		dbgov_statitrics__->ignored = sl->mode;
+		dbgov_statistics__->ignored = sl->mode;
 	}
 }
 
 double
-AddDbGovStatitrics (double old_tm)
+AddDbGovStatistics (double old_tm)
 {
 	struct timespec cur_tm;
 
@@ -918,8 +918,8 @@ AddDbGovStatitrics (double old_tm)
 
 	if (new_tm - old_tm >= 1.0)
 	{
-		if (DbGovStatitrics == NULL)
-			DbGovStatitrics =
+		if (DbGovStatistics == NULL)
+			DbGovStatistics =
 				g_hash_table_new_full (g_str_hash, g_str_equal, NULL, free);
 
 		g_hash_table_foreach (accounts, (GHFunc) dbstat_add_to_table, NULL);
@@ -927,10 +927,10 @@ AddDbGovStatitrics (double old_tm)
 
 	if (new_tm - old_tm >= 60.0)
 	{
-		if (WriteDbGovStatitrics ())
+		if (WriteDbGovStatistics ())
 		{
-			if (DbGovStatitrics)
-				g_hash_table_remove_all (DbGovStatitrics);
+			if (DbGovStatistics)
+				g_hash_table_remove_all (DbGovStatistics);
 			if (DbGovNumberOfRestricts)
 				g_hash_table_remove_all (DbGovNumberOfRestricts);
 			old_tm = new_tm;
@@ -965,7 +965,7 @@ process_accounts (double tm)
 		g_hash_table_foreach (accounts, (GHFunc) account_analyze, NULL);
 	}
 	if (data_cfg.statistic_mode)
-		old_tm_stats = AddDbGovStatitrics (old_tm_stats);
+		old_tm_stats = AddDbGovStatistics (old_tm_stats);
 	pthread_mutex_unlock (&mtx_account);
 }
 
