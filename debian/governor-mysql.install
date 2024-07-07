@@ -50,4 +50,4 @@
  etc/cron.d/lvedbgovernor-utils-cron
  usr/share/lve/dbgovernor/governor_package_limitting.py
  usr/share/lve/dbgovernor/creates_individual_limits_vector_list.py
- usr/share/lve/dbgovernor/sentry_dsn
+ usr/share/lve/dbgovernor/sentry-dsn

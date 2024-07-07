@@ -17,7 +17,7 @@ import logging
 import glob
 import re
 
-SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry_dsn"
+SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry-dsn"
 DAEMON_INTERVAL = 10
 
 GOVERNOR_LOGS_PATH = "/var/log/dbgovernor-sentry-depot/*.txt"

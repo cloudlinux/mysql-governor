@@ -195,7 +195,7 @@ install -D -m 644 logrotate/mysql-governor $RPM_BUILD_ROOT/etc/logrotate.d/mysql
 install -D -m 644 install/utils/cloudlinux.versions $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/cloudlinux.versions
 install -D -m 644 install/utils/dbgovernor $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/db_governor
 install -D -m 600 install/list_problem_files.txt $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/
-install -D -m 600 install/sentry_dsn $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/sentry_dsn
+install -D -m 600 install/sentry-dsn $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/sentry-dsn
 
 install -D -m 755 install/utils/mysql_export $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/mysql_export
 

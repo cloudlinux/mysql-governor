@@ -22,7 +22,7 @@ MAX_ITEMS_IN_TABLE = 100000
 
 BAD_USER_LIST_FILE = "/var/lve/dbgovernor-shm/governor_bad_users_list"
 WATCHDOG_LOG_FILE = "/var/log/governor-watchdog.log"
-SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry_dsn"
+SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry-dsn"
 DBCTL_BIN = '/usr/share/lve/dbgovernor/utils/dbctl_orig'
 
 def sizeof_sem_t():
