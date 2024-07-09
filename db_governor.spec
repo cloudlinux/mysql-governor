@@ -1,5 +1,5 @@
 %define g_version   1.2
-%define g_release   114
+%define g_release   115
 %define g_key_library 13
 
 %if %{undefined _unitdir}
@@ -493,6 +493,9 @@ fi
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
 
 %changelog
+* Tue Jul 09 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> 1.2-115
+- CLOS-2596: Do not install missing MariaDB-compat package in case of CL9
+
 * Mon Jun 10 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> 1.2-114
 - CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval
 

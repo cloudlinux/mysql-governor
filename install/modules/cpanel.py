@@ -185,6 +185,10 @@ class cPanelManager(InstallManager):
         pkgs = ('MariaDB-server', 'MariaDB-client', 'MariaDB-shared',
                 'MariaDB-devel', 'MariaDB-compat',)
 
+        # do not try to install MariaDB-compat on CL9
+        if get_cl_num() >= 9:
+            pkgs = [pkg for pkg in pkgs if pkg != 'MariaDB-compat']
+
         num = version.split('mariadb')[-1]
         cpanel_alter_repo = f'MariaDB{num}'
 
