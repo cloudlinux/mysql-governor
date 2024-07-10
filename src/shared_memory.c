@@ -654,11 +654,11 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 
 	if (!bad_list_clients_global || (bad_list_clients_global == MAP_FAILED))
 	{
-		LOG(L_ERR|L_FRZ, "(%s): FAILED as bad_list is not inited: %p", username, bad_list_clients_global);
+		LOG(L_ERR|L_LVE, "(%s): FAILED as bad_list is not inited: %p", username, bad_list_clients_global);
 		return fnd;
 	}
 
-	LOG(L_FRZ, "(%s): before search from %ld num", username, bad_list_clients_global->numbers);
+	LOG(L_LVE, "(%s): before search from %ld num", username, bad_list_clients_global->numbers);
 	int tries = 1;
 	while (tries)
 	{
@@ -668,13 +668,13 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 			int found = 0;
 			for (index = 0; index < bad_list_clients_global->numbers; index++)
 			{
-				LOG(L_FRZ, "(%s): %ld/%ld before check against(%s)",
+				LOG(L_LVE, "(%s): %ld/%ld before check against(%s)",
 					username, index, bad_list_clients_global->numbers, 
 					bad_list_clients_global->items[index].username );
 				if (!strncmp(bad_list_clients_global->items[index].username, username, USERNAMEMAXLEN))
 				{
 					fnd = bad_list_clients_global->items[index].uid;
-					LOG(L_FRZ, "(%s): %ld/%ld FOUND - uid %d", username, index, bad_list_clients_global->numbers, fnd);
+					LOG(L_LVE, "(%s): %ld/%ld FOUND - uid %d", username, index, bad_list_clients_global->numbers, fnd);
 					found = 1;
 					break;
 				}
@@ -684,7 +684,7 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 			if (!found)
 			{
 				fnd = 0;
-				LOG(L_FRZ, "(%s): cannot find it in bad_list", username);
+				LOG(L_LVE, "(%s): cannot find it in bad_list", username);
 			}
 		}
 		else
@@ -694,12 +694,12 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 				tries++;
 				if (tries == 400)
 				{
-					LOG(L_ERR|L_FRZ, "(%s): FAILED - %d failures to acquire semaphore", username, tries);
+					LOG(L_ERR|L_LVE, "(%s): FAILED - %d failures to acquire semaphore", username, tries);
 					break;
 				}
 			} else
 			{
-				LOG(L_ERR|L_FRZ, "(%s): FAILED - sem_trywait failed with errno %d", username, errno);
+				LOG(L_ERR|L_LVE, "(%s): FAILED - sem_trywait failed with errno %d", username, errno);
 				tries = 0;
 			}
 		}
