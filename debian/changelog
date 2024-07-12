@@ -5,6 +5,12 @@ governor-mysql (1.2-114) stable; urgency=medium
 
  -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>  Mon, 10 Jun 2024 10:00:00 +0000
 
+governor-mysql (1.2-113) stable; urgency=medium
+
+  * CLOS-2653: Deprecated outdated mysql/mariadb/percona versions
+
+ -- Alexandr Demeshko <ademeshko@cloudlinux.com>  Tue, 11 Jun 2024 10:00:00 +0000
+
 governor-mysql (1.2-112) stable; urgency=medium
 
   * CLOS-2705: Reverted adding of watchdog monitoring utility
@@ -137,7 +143,7 @@ governor-mysql (1.2-90) stable; urgency=medium
   * MYSQLG-935: Added _nowraps function to exclude forced unload from lve
   * MYSQLG-863: Fix error with existing /etc/my.cnf.d.govprev
 
- -- Nikolay Petukhov <npetukhov@cloudlinux.com>  Tue, 25 apr 2023 10:00:00 +0000
+ -- Nikolay Petukhov <npetukhov@cloudlinux.com>  Tue, 25 Apr 2023 10:00:00 +0000
 
 governor-mysql (1.2-89) stable; urgency=medium
 
@@ -236,7 +242,11 @@ governor-mysql (1.2-77) stable; urgency=medium
   * MYSQLG-755: mysqlclient18 dependency added for cl-MariaDB106
   * MYSQLG-733: cPanel case for MariaDB 10.7, 10.8, or 10.9 added
 
+<<<<<<< HEAD
  -- Alexandr Demeshko <ademeshko@cloudlinux.com>  Mon, 26 Sep 2022 11:06:33 +0000
+=======
+ -- Alexandr Demeshko <ademeshko@cloudlinux.com>  Mon, 26 Sep 2022 14:00:00 +0000
+>>>>>>> 1.2-113
 
 governor-mysql (1.2-76) unstable; urgency=medium
 

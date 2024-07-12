@@ -1624,16 +1624,12 @@ def wait_for_governormysql_service_status(number_of_attempts: int = 5) -> bool:
 AUTO_VER = ('auto',)
 
 MYSQL_VERS = (
-    'mysql51',
-    'mysql55',
     'mysql56',
     'mysql57',
     'mysql80',
 )
 
 MARIADB_VERS = (
-    'mariadb100',
-    'mariadb101',
     'mariadb102',
     'mariadb103',
     'mariadb104',
@@ -1642,12 +1638,10 @@ MARIADB_VERS = (
     'mariadb1011',
 )
 
-PERCONA_VERS = ('percona56',)
-
 DEFAULT_CL_VER = 9
 EXCL_MYSQL_VERS = {
-    9 : ( 'mysql51', 'mysql55', 'mysql56', 'percona56', ),
-    8 : ( 'mysql51', ),
+    9 : ( 'mysql56', ),
+    8 : ( ),
     7 : ( ),
     6 : ( 'mysql80', 'mariadb1011', ),
 }
@@ -1661,11 +1655,14 @@ def get_supported_mysqls(ubuntu, cl_num, panel):
 
     mysqls_list = list(filter(lambda x: x not in \
                                    EXCL_MYSQL_VERS.get(cl_num, EXCL_MYSQL_VERS[DEFAULT_CL_VER]),
-                               AUTO_VER + MYSQL_VERS + MARIADB_VERS + PERCONA_VERS
+                               AUTO_VER + MYSQL_VERS + MARIADB_VERS
                              )
                       )
     if not ubuntu and panel == 'cPanel':
         mysqls_list = list(filter(lambda x: x != 'mariadb104', mysqls_list))
+        # cPanel supports MariaDB 10.11 only starting from version 114, and this version was released for CL8+ only
+        # The last cPanel version for CL7 is 110.
+        # That's why clMariaDB 10.11 is not supported on CL7+cPanel
         if cl_num < 8:
             mysqls_list = list(filter(lambda x: x != 'mariadb1011', mysqls_list))
 

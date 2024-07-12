@@ -101,51 +101,45 @@ def test_mycnf_read_only(fs):
 
 
 nopanel_cl6_mysqls_types = ['auto',
-    'mysql51', 'mysql55', 'mysql56', 'mysql57',
-    'mariadb100', 'mariadb101', 'mariadb102', 
-    'mariadb103', 'mariadb104', 'mariadb105', 'mariadb106',
-    'percona56']
+    'mysql56', 'mysql57',
+    'mariadb102', 
+    'mariadb103', 'mariadb104', 'mariadb105', 'mariadb106' ]
 
 nopanel_cl7_mysqls_types = ['auto',
-    'mysql51', 'mysql55', 'mysql56', 'mysql57', 'mysql80',
-    'mariadb100', 'mariadb101', 'mariadb102', 'mariadb103',
-    'mariadb104', 'mariadb105', 'mariadb106', 'mariadb1011',
-    'percona56']
+    'mysql56', 'mysql57', 'mysql80',
+    'mariadb102', 'mariadb103',
+    'mariadb104', 'mariadb105', 'mariadb106', 'mariadb1011' ]
 
 nopanel_cl8_mysqls_types = ['auto',
-    'mysql55', 'mysql56', 'mysql57', 'mysql80',
-    'mariadb100', 'mariadb101', 'mariadb102', 'mariadb103',
-    'mariadb104', 'mariadb105', 'mariadb106', 'mariadb1011',
-    'percona56']
+    'mysql56', 'mysql57', 'mysql80',
+    'mariadb102', 'mariadb103',
+    'mariadb104', 'mariadb105', 'mariadb106', 'mariadb1011' ]
 
 nopanel_cl9_mysqls_types = ['auto',
     'mysql57', 'mysql80',
-    'mariadb100', 'mariadb101', 'mariadb102', 'mariadb103',
+    'mariadb102', 'mariadb103',
     'mariadb104', 'mariadb105', 'mariadb106', 'mariadb1011']
 
 nopanel_ubuntu_mysqls_types = ['auto', 'mysql80', 'mariadb103' ]
 
 cpanel_cl6_mysqls_types = ['auto',
-    'mysql51', 'mysql55', 'mysql56', 'mysql57',
-    'mariadb100', 'mariadb101', 'mariadb102', 'mariadb103',
-    'mariadb105', 'mariadb106',
-    'percona56']
+    'mysql56', 'mysql57',
+    'mariadb102', 'mariadb103',
+    'mariadb105', 'mariadb106' ]
 
 cpanel_cl7_mysqls_types = ['auto',
-    'mysql51', 'mysql55', 'mysql56', 'mysql57', 'mysql80',
-    'mariadb100', 'mariadb101', 'mariadb102', 'mariadb103',
-    'mariadb105', 'mariadb106',
-    'percona56']
+    'mysql56', 'mysql57', 'mysql80',
+    'mariadb102', 'mariadb103',
+    'mariadb105', 'mariadb106' ]
 
 cpanel_cl8_mysqls_types = ['auto',
-    'mysql55', 'mysql56', 'mysql57', 'mysql80',
-    'mariadb100', 'mariadb101', 'mariadb102', 'mariadb103',
-    'mariadb105', 'mariadb106', 'mariadb1011',
-    'percona56']
+    'mysql56', 'mysql57', 'mysql80',
+    'mariadb102', 'mariadb103',
+    'mariadb105', 'mariadb106', 'mariadb1011' ]
 
 cpanel_cl9_mysqls_types = ['auto',
     'mysql57', 'mysql80',
-    'mariadb100', 'mariadb101', 'mariadb102', 'mariadb103',
+    'mariadb102', 'mariadb103',
     'mariadb105', 'mariadb106', 'mariadb1011']
 
 cpanel_ubuntu_mysqls_types = ['auto', 'mysql80', 'mariadb103' ]

@@ -201,6 +201,8 @@ install -D -m 755 install/scripts/map_hook $RPM_BUILD_ROOT/usr/share/lve/dbgover
 install -D -m 755 install/scripts/sync_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sync_hook
 
 install -D -m 644 logrotate/mysql-governor $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor
+install -D -m 644 logrotate/mysql-governor-slow $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor-slow
+install -D -m 644 logrotate/mysql-governor-mysqld $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor-mysqld
 install -D -m 644 install/utils/cloudlinux.versions $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/cloudlinux.versions
 install -D -m 644 install/utils/dbgovernor $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/db_governor
 install -D -m 600 install/list_problem_files.txt $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/
@@ -504,9 +506,12 @@ fi
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
 
 %changelog
-* Mon Jun 10 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> 1.2-114
+* Tue Jul 16 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> 1.2-114
 - CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval
 - CLOS-2596: Do not install missing MariaDB-compat package in case of CL9
+
+* Tue Jun 11 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-113
+- CLOS-2653: Deprecated outdated mysql/mariadb/percona versions
 
 * Tue Jun 04 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-112
 - CLOS-2705: Reverted adding of watchdog monitoring utility
