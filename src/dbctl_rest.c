@@ -8,6 +8,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "data.h"
 #include "xml.h"
@@ -32,7 +33,8 @@ int restrict_user(char *user, char *level)
 	if (opensock(&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite(&ctt, sizeof(client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
 
 		DbCtlCommand command;
@@ -41,7 +43,7 @@ int restrict_user(char *user, char *level)
 		strncpy(command.options.username, user,
 				sizeof(command.options.username) - 1);
 		command.options.cpu = 0;
-		command.options.level = atoi((level ? level : "-1"));
+		command.options.level = atoi(level ? level : "-1");
 		command.options.read = 0;
 		command.options.write = 0;
 		command.options.timeout = 0;
@@ -74,7 +76,8 @@ int unrestrict(char *user)
 	if (opensock(&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite(&ctt, sizeof(client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
 
 		DbCtlCommand command;
@@ -111,7 +114,8 @@ int dbupdatecmd(void)
 	if (opensock(&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite(&ctt, sizeof(client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
 
 		DbCtlCommand command;
@@ -147,7 +151,8 @@ int unrestrict_all(void)
 	if (opensock(&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite(&ctt, sizeof(client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
 
 		DbCtlCommand command;

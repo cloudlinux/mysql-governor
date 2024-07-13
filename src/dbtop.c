@@ -478,15 +478,14 @@ getRestrictChar (GOVERNORS_PERIOD_NAME restrict_level)
 void
 print_account_screen1 (const Account * ac)
 {
+	char username_buf[USERNAMEMAXLEN];
 	char stringBuf[1024];
-	char buf[sizeof(stringBuf) + 0x100];
 
-	memset(buf, 0, sizeof(buf));
-	memset(stringBuf, 0, sizeof(stringBuf));
-	snprintf(stringBuf, sizeof(stringBuf), "%s", print_formatted_user_name(ac->id, buf));
+	snprintf(stringBuf, sizeof(stringBuf), "%s", print_formatted_user_name(ac->id, username_buf));
 	printf("%-18s ", stringBuf);
-	printString(buf, A_BOLD, 17, NONEWLINE);
+	printString(username_buf, A_BOLD, 17, NONEWLINE);
 
+	char buf[sizeof(stringBuf) + 0x100];
 	memset(buf, 0, sizeof(buf));
 	memset(stringBuf, 0, sizeof(stringBuf));
 	sprintf(buf, "%d/%d/%d ",
@@ -717,9 +716,10 @@ char *print_formatted_user_name(const char *name, char *buf)
 
 void print_account_screen1_no_curses(const Account *ac)
 {
+	char username_buf[USERNAMEMAXLEN];
 	char stringBuf[1024];
 	char buf[sizeof(stringBuf) + 0x100];
-	snprintf(stringBuf, sizeof(stringBuf), "%s", print_formatted_user_name(ac->id, buf));
+	snprintf(stringBuf, sizeof(stringBuf), "%s", print_formatted_user_name(ac->id, username_buf));
 	printf("%-18s ", stringBuf);
 	sprintf(stringBuf, "%d/%d/%d ",
 		(int) ceil(fabs(ac->current.cpu * 100.0)),
@@ -844,7 +844,8 @@ void *
 screen_regenerate (void)
 {
 	client_type_t ctt = DBTOPCL;
-	fwrite (&ctt, sizeof (client_type_t), 1, out);
+	int res __attribute__((unused));
+	res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 	fflush (out);
 	read_info ();
 	printOneScreen ();
@@ -923,7 +924,8 @@ main (int argc, char *argv[])
 	if (no_curses)
 	{
 		client_type_t ctt = DBTOPCL;
-		fwrite (&ctt, sizeof (client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite (&ctt, sizeof(client_type_t), 1, out);
 		fflush (out);
 		accounts = NULL;
 		recv_accounts = NULL;
@@ -965,5 +967,6 @@ main (int argc, char *argv[])
 
 	read_keys ();
 	closesock ();
+	return 0;
 }
 #endif

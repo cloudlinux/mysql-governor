@@ -368,7 +368,8 @@ list_all (int flag, int non_priv, int raw)
 	if (opensock (&socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite (&ctt, sizeof (client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush (out);
 
 		DbCtlCommand command = { 0 };
@@ -405,7 +406,8 @@ list_all_json (int flag)
 	if (opensock (&socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite (&ctt, sizeof (client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush (out);
 
 		DbCtlCommand command = { 0 };
@@ -443,7 +445,8 @@ list_restricted (void)
 	if (opensock (&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite (&ctt, sizeof (client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush (out);
 
 		DbCtlCommand command;

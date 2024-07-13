@@ -220,7 +220,8 @@ get_data_from_client (void *data)
 	fds->events = POLLIN;
 	reinit_command_list ();
 
-	struct sigaction sa = { 0 };
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
 	sigset_t newset;
 	sigemptyset (&newset);
 	sigaddset (&newset, SIGHUP);

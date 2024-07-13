@@ -19,6 +19,8 @@
 
 #include "xml.h"
 #include "data.h"
+#include "dbgovernor_string_functions.h"
+
 #define CONFIG_LOCK_PATH "/etc/container/mysql-governor.xml.lock"
 
 /*
@@ -39,7 +41,7 @@ static xml_data *parseConfigData_orig(const char *path, char *error, int maxErrD
 				xml->root = (void *) xmlDocGetRootElement(xml->doc);
 				if (xml->root)
 				{
-					strncpy(xml->path, path, MAX_XML_PATH);
+					strlcpy(xml->path, path, MAX_XML_PATH);
 					return xml;
 				} else
 				{

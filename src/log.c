@@ -269,7 +269,7 @@ static const char *log_sentry_depot = NULL;
 unsigned log_sentry_tags = 0;		// bitmask of tags that are duplicated to Sentry
 static char log_mysql_version[0x100] = "";
 
-#if !(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9))	// only since gcc 4.9 we have a warning and have to suppress it. In earlier gcc we get warnings about our #pragmas suppressing that warning.
+#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9))	// only since gcc 4.9 we have a warning and have to suppress it. In earlier gcc we get warnings about our #pragmas suppressing that warning.
 	#define SUPPRESS_DATE_TIME_WARNING
 #endif
 

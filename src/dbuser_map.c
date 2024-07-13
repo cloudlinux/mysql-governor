@@ -19,6 +19,7 @@
 #include "data.h"
 #include "log.h"
 #include "calc_stats.h"
+#include "dbgovernor_string_functions.h"
 
 #include "dbuser_map.h"
 
@@ -154,17 +155,10 @@ get_map_file (struct governor_config *data_cfg)
 				{
 					userMap_ = (UserMap *) g_malloc (sizeof (UserMap));
 
-					for (l = 0; l < USERNAMEMAXLEN; l++)
-					{
-						userMap_->username[l] = 0;
-						userMap_->account_name[l] = 0;
-					}
 					userMap_->uid = 0;
+					strlcpy(userMap_->username, username, sizeof(userMap_->username));
+					strlcpy(userMap_->account_name, account_name, sizeof(userMap_->account_name));
 
-					strncpy (userMap_->username, username,
-						sizeof (userMap_->username) - 1);
-					strncpy (userMap_->account_name, account_name,
-						sizeof (userMap_->account_name) - 1);
 					int tmp_uid = data_cfg->separate_lve ? atoi (uid) : BAD_LVE;
 
 					LOG(L_USRMAP, "Added user %s account %s with uid %d", userMap_->username, userMap_->account_name, tmp_uid);
