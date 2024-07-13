@@ -506,9 +506,10 @@ fi
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
 
 %changelog
-* Tue Jul 16 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> 1.2-114
+* Tue Jul 16 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-114
 - CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval
 - CLOS-2596: Do not install missing MariaDB-compat package in case of CL9
+- CLOS-2735: Changed semaphore retry logic to timed wait
 
 * Tue Jun 11 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-113
 - CLOS-2653: Deprecated outdated mysql/mariadb/percona versions

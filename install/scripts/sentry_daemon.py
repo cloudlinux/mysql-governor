@@ -250,6 +250,10 @@ class SentryDaemon:
             scope.set_tag("thread", thread)
             for tag in tags:
                 scope.set_tag(tag, True)
+            match2 = re.search(r"\busername '(.+?)',\s*", text)  # hacky, to be exterminated
+            if match2:
+                scope.set_tag("username", match2.group(1))
+                text = text.replace(match2.group(0), "")
             # Sentry server overrides the transmitted value of 'event.type' and sets it to 'error' only if it finds the actual error cause - the exception.
             # 'sentry_sdk' is designed to catch and report exceptions in its native language environment - Python in our case.
             # To emulate an error event with the appropriate type, logger name and source code attributes, I found no easier way than building it manually:

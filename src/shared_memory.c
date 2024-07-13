@@ -420,6 +420,34 @@ void printf_bad_users_list(void)
 	return;
 }
 
+// Use sem_timedwait() on newer Linuxes, emulate it on older ones
+static int governor_sem_wait(sem_t *sem, unsigned timeout_sec)
+{
+#ifdef SYSTEMD_FLAG		// CL7,8,9,..., Ubuntu:
+	struct timespec ts;
+	if (clock_gettime(CLOCK_REALTIME, &ts))
+	{
+		LOG(L_ERR, "clock_gettime() failed, errno=%d", errno);
+		return -1;
+	}
+	ts.tv_sec += timeout_sec;
+	return sem_timedwait(sem, &ts);
+#else					// CL6:
+	unsigned ms;
+	for (ms=0; ms < timeout_sec * 1000; ms++)
+	{
+		if (!sem_trywait(sem))
+			return 0;			// succeeded
+		if (errno != EAGAIN)	// failed, but not because locked by other thread -
+			return -1;			// - no sense to insist
+		usleep(1000);	// 1 ms
+	}
+	errno = ETIMEDOUT;		// for timeout error, rely on reporting in the caller
+	return -1;
+#endif
+}
+
+// Seems like not used. Not called form the MySQL patches, at least modern.
 int32_t is_user_in_bad_list_client(const char *username)
 {
 	int shm_fd_clients = 0;
@@ -441,38 +469,18 @@ int32_t is_user_in_bad_list_client(const char *username)
 
 	if (bad_list_clients)
 	{
-		int tries = 1;
-		while (tries)
+		if (governor_sem_wait(&bad_list_clients->sem, 1))
+			LOG(L_ERR|L_FRZ, "(%s): failed to acquire semaphore, errno=%d", username, errno);
+		else
 		{
-			if (sem_trywait(&bad_list_clients->sem) == 0)
-			{
-				long index;
-				for (index = 0; index < bad_list_clients->numbers; index++)
+			long i;
+			for (i=0; i < bad_list_clients->numbers; i++)
+				if (!strncmp(bad_list_clients->items[i].username, username, USERNAMEMAXLEN))
 				{
-					if (!strncmp(bad_list_clients->items[index].username,
-							username,
-							USERNAMEMAXLEN))
-					{
-						fnd = bad_list_clients->items[index].uid;
-						break;
-					}
+					fnd = bad_list_clients->items[i].uid;
+					break;
 				}
-				tries = 0;
-				sem_post(&bad_list_clients->sem);
-			} else
-			{
-				if (errno == EAGAIN)
-				{
-					tries++;
-					if (tries == 400)
-					{
-						break;
-					}
-				} else
-				{
-					tries = 0;
-				}
-			}
+			sem_post(&bad_list_clients->sem);
 		}
 	}
 
@@ -504,33 +512,17 @@ int user_in_bad_list_client_show(void)
 	}
 
 	umask(old_umask);
-	int tries = 1;
 
 	if (bad_list_clients)
 	{
-		while (tries)
+		if (governor_sem_wait(&bad_list_clients->sem, 1))
+			LOG(L_ERR|L_UNFRZ, "failed to acquire semaphore, errno=%d", errno);
+		else
 		{
-			if (sem_trywait(&bad_list_clients->sem) == 0)
-			{
-				long index;
-				for (index = 0; index < bad_list_clients->numbers; index++)
-				{
-					printf("%s\n", bad_list_clients->items[index].username);
-				}
-				tries = 0;
-				sem_post(&bad_list_clients->sem);
-			} else
-			{
-				if (errno == EAGAIN)
-				{
-					tries++;
-					if (tries == 400)
-						break;
-				} else
-				{
-					tries = 0;
-				}
-			}
+			long i;
+			for (i=0; i < bad_list_clients->numbers; i++)
+				printf("%s\n", bad_list_clients->items[i].username);
+			sem_post(&bad_list_clients->sem);
 		}
 	}
 
@@ -659,90 +651,49 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 	}
 
 	LOG(L_LVE, "(%s): before search from %ld num", username, bad_list_clients_global->numbers);
-	int tries = 1;
-	while (tries)
+
+	if (governor_sem_wait(&bad_list_clients_global->sem, 1))
+		LOG(L_ERRSENTRY|L_LVE, "failed to acquire semaphore, username '%s', errno=%d", username, errno);	// the only critical place with semaphore acquisition
+	else
 	{
-		if (sem_trywait(&bad_list_clients_global->sem) == 0)
+		bool found = false;
+		long i;
+		for (i=0; i < bad_list_clients_global->numbers; i++)
 		{
-			long index;
-			int found = 0;
-			for (index = 0; index < bad_list_clients_global->numbers; index++)
+			LOG(L_LVE, "(%s): %ld/%ld before check against(%s)", username, i, bad_list_clients_global->numbers, bad_list_clients_global->items[i].username);
+			if (!strncmp(bad_list_clients_global->items[i].username, username, USERNAMEMAXLEN))
 			{
-				LOG(L_LVE, "(%s): %ld/%ld before check against(%s)",
-					username, index, bad_list_clients_global->numbers, 
-					bad_list_clients_global->items[index].username );
-				if (!strncmp(bad_list_clients_global->items[index].username, username, USERNAMEMAXLEN))
-				{
-					fnd = bad_list_clients_global->items[index].uid;
-					LOG(L_LVE, "(%s): %ld/%ld FOUND - uid %d", username, index, bad_list_clients_global->numbers, fnd);
-					found = 1;
-					break;
-				}
-			}
-			tries = 0;
-			sem_post(&bad_list_clients_global->sem);
-			if (!found)
-			{
-				fnd = 0;
-				LOG(L_LVE, "(%s): cannot find it in bad_list", username);
+				fnd = bad_list_clients_global->items[i].uid;
+				found = true;
+				LOG(L_LVE, "(%s): %ld/%ld FOUND - uid %d", username, i, bad_list_clients_global->numbers, fnd);
+				break;
 			}
 		}
-		else
+		sem_post(&bad_list_clients_global->sem);
+		if (!found)
 		{
-			if (errno == EAGAIN)
-			{
-				tries++;
-				if (tries == 400)
-				{
-					LOG(L_ERR|L_LVE, "(%s): FAILED - %d failures to acquire semaphore", username, tries);
-					break;
-				}
-			} else
-			{
-				LOG(L_ERR|L_LVE, "(%s): FAILED - sem_trywait failed with errno %d", username, errno);
-				tries = 0;
-			}
+			fnd = 0;
+			LOG(L_LVE, "(%s): cannot find it in bad_list", username);
 		}
 	}
+
 	return fnd;
 }
 
 void printf_bad_list_client_persistent(void)
 {
 	printf(" USER             NUMBER\n");
-
 	if (bad_list_clients_global && (bad_list_clients_global != MAP_FAILED))
 	{
-		int tries = 1;
-		while (tries)
+		if (governor_sem_wait(&bad_list_clients_global->sem, 1))
+			LOG(L_ERR|L_DBTOP, "failed to acquire semaphore, errno=%d", errno);
+		else
 		{
-			if (sem_trywait(&bad_list_clients_global->sem) == 0)
-			{
-				long index = 0;
-				for (index = 0; index < bad_list_clients_global->numbers; index++)
-				{
-					printf(" %-16s %ld\n",
-							bad_list_clients_global->items[index].username,
-							index);
-				}
-				tries = 0;
-				sem_post(&bad_list_clients_global->sem);
-			} else
-			{
-				if (errno == EAGAIN)
-				{
-					tries++;
-					if (tries == 400)
-					{
-						break;
-					}
-				} else
-				{
-					tries = 0;
-				}
-			}
+			long i;
+			for (i=0; i < bad_list_clients_global->numbers; i++)
+				printf(" %-16s %ld\n", bad_list_clients_global->items[i].username, i);
+			sem_post(&bad_list_clients_global->sem);
 		}
 	}
-	return;
 }
 
