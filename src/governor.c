@@ -105,11 +105,7 @@ pid_t regionIsLocked_III(int fd_III, int type_III, int whence_III,
 
 int createPidFile_III(const char *pidFile_III, int flags_III)
 {
-	char buffer[_DBGOVERNOR_BUFFER_2048];
-	int fd;
-	char buf[BUF_SIZE_III];
-
-	fd = open(pidFile_III, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	int fd = open(pidFile_III, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if (fd == -1)
 	{
 		return -1;
@@ -149,8 +145,10 @@ int createPidFile_III(const char *pidFile_III, int flags_III)
 		return -1;
 	}
 
+	char buf[BUF_SIZE_III];
 	snprintf(buf, BUF_SIZE_III, "%ld\n", (long) getpid());
-	if (write(fd, buf, strlen(buf)) != strlen(buf))
+	size_t bufLen = strlen(buf);
+	if (write(fd, buf, bufLen) != bufLen)
 	{
 		close(fd);
 		return -1;
@@ -388,31 +386,17 @@ static void print_config(const void *icfg)
 	}
 }
 
-static void prepare_log_for_mysqld(const struct governor_config *cfg, const char *path)
+static void prepare_mysqld_log(const char *path, uid_t mysql_uid, gid_t mysql_gid)
 {
-	uid_t mysql_uid = get_mysql_uid();
-	gid_t mysql_gid = get_mysql_gid();
-	if (mysql_uid == UNINITED_UID || mysql_gid == UNINITED_GID)	// possibly not inited yet
-	{
-		init_mysql_uidgid();
-		mysql_uid = get_mysql_uid();
-		mysql_gid = get_mysql_gid();
-	}
-	if (mysql_uid == UNINITED_UID || mysql_gid == UNINITED_GID)
-	{
-		LOG(L_ERR|L_LIFE, "can't check '%s' file: possibly 'mysql' user doesn't exist. Please install MySQL and restart Governor", path);
-		goto fail;
-	}
 	mode_t required_mode = S_IRUSR|S_IWUSR|S_IRGRP;
 	struct stat st;
-	bool exists = !stat(path, &st);
-	if (exists && S_ISDIR(st.st_mode))
+	bool alreadyExists = !stat(path, &st);
+	if (alreadyExists && S_ISDIR(st.st_mode))
 	{
-		LOG(L_ERR|L_LIFE, "failed to create '%s': directory exists at this path. Please remove the directory", path);
+		LOG(L_ERR|L_LIFE, "failed to create '%s' file: directory exists at this path. Please remove the directory.", path);
 		goto fail;
 	}
-	bool createdNow = false;
-	if (!exists)
+	if (!alreadyExists)
 	{
 		LOG(L_LIFE, "'%s' not found, creating", path);
 		int fd = open(path, O_CREAT|O_WRONLY, required_mode);
@@ -422,17 +406,15 @@ static void prepare_log_for_mysqld(const struct governor_config *cfg, const char
 			goto fail;
 		}
 		close(fd);
-		exists = !stat(path, &st);
-		if (!exists)
+		if (stat(path, &st))	// double-check creation, but mainly refresh attributes in 'st'
 		{
 			LOG(L_ERR|L_LIFE, "failed to create '%s'", path);
 			goto fail;
 		}
-		createdNow = true;
 	}
 	if (st.st_uid != mysql_uid || st.st_gid != mysql_gid)
 	{
-		if (!createdNow)
+		if (alreadyExists)
 			LOG(L_LIFE, "'%s' has wrong owner, changing UID %u->%u, GID %u->%u", path, (unsigned)st.st_uid, (unsigned)mysql_uid, (unsigned)st.st_gid, (unsigned)mysql_gid);
 		if (chown(path, mysql_uid, mysql_gid))
 		{
@@ -452,6 +434,54 @@ static void prepare_log_for_mysqld(const struct governor_config *cfg, const char
 	return;
 fail:
 	LOG(L_LIFE, "make sure that '%s' file exists and has proper ownership (mysql.mysql) and permissions (0%o)", path, (unsigned)required_mode);
+}
+
+static void prepare_mysqld_sentry_depot(const char *path, uid_t mysql_uid, gid_t mysql_gid)
+{
+	mode_t required_mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP;
+	struct stat st;
+	bool alreadyExists = !stat(path, &st);
+	if (alreadyExists && !S_ISDIR(st.st_mode))
+	{
+		LOG(L_ERR|L_LIFE, "failed to create '%s' directory: regular file exists at this path. Please remove the file.", path);
+		goto fail;
+	}
+	if (!alreadyExists)
+	{
+		LOG(L_LIFE, "'%s' not found, creating", path);
+		if (mkdir(path, required_mode))
+		{
+			LOG(L_ERR|L_LIFE, "failed to create '%s', errno=%d", path, errno);
+			goto fail;
+		}
+		if (stat(path, &st))	// double-check creation, but mainly refresh attributes in 'st'
+		{
+			LOG(L_ERR|L_LIFE, "failed to create '%s'", path);
+			goto fail;
+		}
+	}
+	if (st.st_uid != mysql_uid || st.st_gid != mysql_gid)
+	{
+		if (alreadyExists)
+			LOG(L_LIFE, "'%s' has wrong owner, changing UID %u->%u, GID %u->%u", path, (unsigned)st.st_uid, (unsigned)mysql_uid, (unsigned)st.st_gid, (unsigned)mysql_gid);
+		if (chown(path, mysql_uid, mysql_gid))
+		{
+			LOG(L_ERR|L_LIFE, "chown() failed, errno=%d", errno);
+			goto fail;
+		}
+	}
+	if ((st.st_mode & required_mode) != required_mode)
+	{
+		LOG(L_LIFE, "'%s' has wrong mode, changing %o->%o", path, (unsigned)st.st_mode, (unsigned)required_mode);
+		if (chmod(path, required_mode))
+		{
+			LOG(L_ERR|L_LIFE, "chmod() failed, errno=%d", errno);
+			goto fail;
+		}
+	}
+	return;
+fail:
+	LOG(L_LIFE, "make sure that '%s' directory exists and has proper ownership (mysql.mysql) and permissions (0%o)", path, (unsigned)required_mode);
 }
 
 void initGovernor(void)
@@ -497,13 +527,59 @@ void initGovernor(void)
 		open_slow_queries_log(data_cfg.slow_queries_log);
 
 	// Setup logging - enable tags, etc.
-	init_log_ex(data_cfg.log_mode == DEBUG_MODE);
+	const char *depot = SENTRY_DEPOT_DB_GOVERNOR;	// Sentry files for Python watchdog will go there
+	init_log_ex(data_cfg.log_mode == DEBUG_MODE, depot);	// Setup logging - enable tags, etc.
 
-	// When "mysqld" calls "libgovernor.so" functions,
-	// they try to write to a separate log, "/var/log/dbgovernor-mysqld.log".
-	// But "mysqld" doesn't have rights to create files in "/var/log/".
-	// We need to ensure that there exists such a file with proper permissisons.
-	prepare_log_for_mysqld(&data_cfg, MYSQLD_EXTLOG_PATH);
+	// ensure Sentry depot exists
+	struct stat st;
+	if (stat(depot, &st))
+	{
+		LOG(L_LIFE, "'%s' not found, creating", depot);
+		if (g_mkdir_with_parents(depot, 0777))	// this one is easy to create, no permission problems
+			LOG(L_ERR|L_LIFE, "failed to create '%s', errno=%d", depot, errno);
+	}
+
+	// ensure existence of logging-related files and directories to be written from 'mysqld' process, which normally has limited permissions:
+	if (get_mysql_uid()==UNINITED_UID || get_mysql_gid()==UNINITED_GID)	// possibly not inited yet
+		init_mysql_uidgid();
+	if (get_mysql_uid()==UNINITED_UID || get_mysql_gid()==UNINITED_GID)
+		LOG(L_ERR|L_LIFE, "Can't prepare extended logging from 'mysqld'. Possibly 'mysql' user doesn't exist. Please install MySQL and restart Governor.");
+	else
+	{
+		// When "mysqld" calls "libgovernor.so" functions,
+		// they try to write to a separate log, "/var/log/dbgovernor-mysqld.log".
+		// But "mysqld" doesn't have rights to create files in "/var/log/".
+		// We need to ensure that there exists such a file with proper permissisons.
+		prepare_mysqld_log(MYSQLD_EXTLOG_PATH, get_mysql_uid(), get_mysql_gid());
+		// The same relates to Sentry depot:
+		prepare_mysqld_sentry_depot(SENTRY_DEPOT_MYSQLD, get_mysql_uid(), get_mysql_gid());
+	}
+
+#if 0
+	// test {
+	struct timespec ts;
+	#define GETT() (clock_gettime(CLOCK_REALTIME, &ts), ts.tv_sec*1000*1000*1000ll + ts.tv_nsec)
+	static const int N = 1000*1000;
+	#define TEST_BEGIN(name)\
+	{\
+		printf("%s\t... ", name);\
+		fflush(stdout);\
+		long long t0 = GETT();\
+		int i;
+	#define TEST_END\
+		printf("%.2f us\n", (GETT() - t0) / N / 1000.);\
+	}
+	TEST_BEGIN("L_ERR\t")
+		for (i=0; i < N; i++)
+			LOG(L_ERR, "aaa %d", i);
+	TEST_END
+	TEST_BEGIN("L_ERRSENTRY")
+		for (i=0; i < N; i++)
+			LOG(L_ERRSENTRY, "aaa %d", i);
+	TEST_END
+	exit(0);
+	// } test
+#endif // 0
 }
 
 void trackingDaemon(void)

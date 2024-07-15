@@ -44,10 +44,9 @@ GPtrArray *GetCfg (void);
 //---------------------------------------------------
 void *SearchTagByName (xml_data *cfg, char *name_tag, char *name);
 
-char *GetUserName (GHashTable * attr);
-char *GetAttr (GHashTable * attr, char *name_attr);
-char *GetLimitAttr (GPtrArray * limit_attr, char *name_limit,
-			char *name_attr);
+const char *GetUserName(const GHashTable *attr);
+const char *GetAttr(const GHashTable *attr, const char *name_attr);
+const char *GetLimitAttr(const GPtrArray *limit_attr, const char *name_limit, const char *name_attr);
 
 
 char *GetLimitsForDefault(GPtrArray * tags, int flag, int json);

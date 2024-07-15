@@ -33,8 +33,8 @@ void releaseConfigData(xml_data *data);
 void *getNextChild(void *node, const char *childName, void *prev_node);
 void removeNode(void *node);
 void *getNextAttr(void *nodeValue, void *prev_attr);
-char *getAttributeName(void *attr);
-char *getAttributeValue(void *attr);
+char *getAttributeName(const void *pAttr);
+char *getAttributeValue(const void *pAttr);
 void *FindElementWithNameAndAttr(xml_data *data, void *node, const char *nodeName,
 		const char *attrName, const char *attrValue);
 void *setNodeWithAttr(xml_data *data, void *node, const char *nodeName,

@@ -22,7 +22,7 @@ MAX_ITEMS_IN_TABLE = 100000
 
 BAD_USER_LIST_FILE = "/var/lve/dbgovernor-shm/governor_bad_users_list"
 WATCHDOG_LOG_FILE = "/var/log/governor-watchdog.log"
-SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry_dsn"
+SENTRY_DSN_FILE = "/usr/share/lve/dbgovernor/sentry-dsn"
 DBCTL_BIN = '/usr/share/lve/dbgovernor/utils/dbctl_orig'
 
 def sizeof_sem_t():
@@ -84,6 +84,28 @@ sentry_sdk.init(
 )
 
 
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    # Ignore KeyboardInterrupt to allow graceful exit
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    # Report the exception to Sentry
+    sentry_sdk.capture_exception((exc_type, exc_value, exc_traceback))
+
+    try:
+        if os.isatty(sys.stdin.fileno()) and os.isatty(sys.stderr.fileno()):
+            # Call the default exception handler if not running from Cron
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+    except OSError:
+        pass
+
+
+# Override the default exception handler behavior with a custom exception handler.
+# This will ensure that any unhandled exceptions are reported to the Sentry.
+sys.excepthook = global_exception_handler
+
+
 def sentry_log(message, level="info"):
     """
     Logs message to Sentry if DSN is available.
@@ -105,9 +127,6 @@ def log_message(level="info", message="", log_to_file=False):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"{timestamp} [{level}] {message}\n"
 
-    # Print to stdout
-    print(log_entry.strip())
-
     # Log to Sentry if it's an error
     if level == "error":
         sentry_log(message, level)
@@ -117,12 +136,8 @@ def log_message(level="info", message="", log_to_file=False):
         try:
             with open(WATCHDOG_LOG_FILE, "a+") as log_file:
                 log_file.write(log_entry)
-        except PermissionError:
-            print(f"Permission denied: Unable to write to {WATCHDOG_LOG_FILE}.")
-        except OSError as e:
-            print(f"Error opening or writing to {WATCHDOG_LOG_FILE}: {e}")
-        except Exception as e:
-            print(f"Unexpected error while opening file {WATCHDOG_LOG_FILE}: {e}")
+        except (PermissionError, OSError, Exception) as e:
+            sentry_log(f"Failed to log to file {WATCHDOG_LOG_FILE}: {str(e)}", "error")
 
 
 def get_restricted_user_list(log_to_file=False):
@@ -210,15 +225,9 @@ def check_bad_user_list(log_to_file=False):
     bad_user_list = get_bad_user_list(log_to_file)
     restricted_list = get_restricted_user_list(log_to_file)
 
-    for user in bad_user_list:
-        log_message("debug", f"BAD user: {user}", log_to_file)
-
-    for user in restricted_list:
-        log_message("debug", f"Restricted user: {user}", log_to_file)
-
     for username in bad_user_list:
         if username not in restricted_list:
-            log_message("error", f"Unrestricted user: {username}", log_to_file)
+            log_message("error", f"The user {username} is in the bad list but is not in list-restricted.", log_to_file)
 
 
 def dbctl_check_governor(log_to_file=False):

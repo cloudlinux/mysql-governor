@@ -191,8 +191,6 @@ GetOptList (int argc, char **argv, int *ret)
 					_opts->option = opt;
 					_opts->val = optarg;
 
-					SplitStr *data = NULL;
-
 					opts = g_list_append (opts, _opts);
 				}
 				break;

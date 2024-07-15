@@ -112,10 +112,10 @@ addMemoryUser (FILE * in, GPtrArray * tags)
 		int found_user = 0, i = 0;
 		for (; i < Tags->len; i++)
 		{
-			DbCtlFoundTag *found_tag_ = g_ptr_array_index (Tags, i);
-			char *name_list = GetUserName (found_tag_->attr);
+			const DbCtlFoundTag *found_tag_ = g_ptr_array_index(Tags, i);
+			const char *name_list = GetUserName(found_tag_->attr);
 			if (name_list)
-				if (strcmp (name_list, _ac->id) == 0)
+				if (strcmp(name_list, _ac->id) == 0)
 					found_user++;
 		}
 
@@ -209,7 +209,6 @@ print_list (FILE * in, int flag, int non_priv, int raw)
 		sizeof (write_def.l_long) - 1);
 	FreeCfg ();
 
-	DbCtlLimitAttr limit_attr_def;
 	ReadCfg ((non_priv?DUPLICATE_CONFIG_PATH:CONFIG_PATH), "user");
 	GPtrArray *tags = addMemoryUser (in, GetCfg ());
 	GetLimitsForUsers (tags, &cpu_def, &read_def, &write_def, flag, raw, 0);
@@ -220,7 +219,6 @@ print_list (FILE * in, int flag, int non_priv, int raw)
 static void
 print_json (FILE * in, int flag)
 {
-	int raw = 1;
 	int non_priv = 1;
 	DbCtlLimitAttr cpu_def, read_def, write_def;
 	if (access(CONFIG_PATH, R_OK) == 0)
@@ -249,7 +247,6 @@ print_json (FILE * in, int flag)
 	strncpy (write_def.l_long,    GetLimitAttr (found_tag_->limit_attr, "write", "long"),    sizeof (write_def.l_long)    - 1);
 	FreeCfg ();
 
-	DbCtlLimitAttr limit_attr_def;
 	ReadCfg ((non_priv?DUPLICATE_CONFIG_PATH:CONFIG_PATH), "user");
 	GPtrArray *tags = addMemoryUser (in, GetCfg ());
 	GetLimitsForUsers (tags, &cpu_def, &read_def, &write_def, flag, 1, 1);
@@ -278,10 +275,8 @@ get_restrict_level (GOVERNORS_PERIOD_NAME restrict_level)
 	return ch;
 }
 
-char *
-read_restrict_reriod (Account * ac)
+const char *read_restrict_reriod(const Account *ac)
 {
-	char ch;
 	if (ac->info.field_restrict == NO_PERIOD)
 	{
 		return "";
@@ -298,15 +293,15 @@ read_restrict_reriod (Account * ac)
 				return "mid";
 			case LONG_PERIOD:
 				return "long";
+			case NO_PERIOD:
+				break;
 		}
 	}
 	return "";
 }
 
-char *
-read_restrict_reason (Account * ac)
+const char *read_restrict_reason(const Account *ac)
 {
-	char ch;
 	if (ac->info.field_restrict == NO_PERIOD)
 	{
 		return "";
@@ -321,6 +316,9 @@ read_restrict_reason (Account * ac)
 				return "read";
 			case WRITE_PARAM:
 				return "write";
+			case NORESTRICT_PARAM:
+			case NORESTRICT_PARAM2:
+				break;
 		}
 	}
 	return "";
@@ -336,8 +334,6 @@ get_time_to_end (const Account * ac)
 void
 print_list_rest (FILE * in)
 {
-	char stringBuf[1024];
-
 	GList *ac = NULL;
 	GList *list = read_info (in);
 
@@ -372,7 +368,8 @@ list_all (int flag, int non_priv, int raw)
 	if (opensock (&socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite (&ctt, sizeof (client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush (out);
 
 		DbCtlCommand command = { 0 };
@@ -409,7 +406,8 @@ list_all_json (int flag)
 	if (opensock (&socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite (&ctt, sizeof (client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush (out);
 
 		DbCtlCommand command = { 0 };
@@ -447,7 +445,8 @@ list_restricted (void)
 	if (opensock (&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite (&ctt, sizeof (client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush (out);
 
 		DbCtlCommand command;

@@ -35,6 +35,7 @@ case "$g_verrel_num" in
 esac
 
 echo -e "#ifndef VERSION_H_\n#define VERSION_H_\n#define GOVERNOR_CUR_VER \"${g_version_release}\"\n#define GOVERNOR_OS_UBUNTU2004 1\n#endif\n" > ./src/version.h
+echo -e "GOVERNOR_CUR_VER=\"${g_version_release}\"\n" > ./install/scripts/dbgovernor_version.py
 
 echo "gen_version.sh g_version_release:${g_version_release}"
 echo "gen_version.sh g_verrel:${g_verrel}"

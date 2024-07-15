@@ -378,11 +378,9 @@ process_tid_data (GHFunc func, gpointer user_data)
 	remove_tid_bad_list ();
 }
 
-void
-increment_counters (char *username, double cpu, long long read,
-		    long long write, double tm)
+void increment_counters(const char *username, double cpu, long long read, long long write, double tm)
 {
-	Stat_counters *item = g_hash_table_lookup (user_counters_list, username);
+	Stat_counters *item = g_hash_table_lookup(user_counters_list, username);
 	if (item)
 	{
 		item->s.cpu += cpu;
@@ -415,8 +413,7 @@ increment_counters (char *username, double cpu, long long read,
 	}
 }
 
-void
-reset_counters (char *username)
+void reset_counters(const char *username)
 {
 	Stat_counters *item = g_hash_table_lookup (user_counters_list, username);
 	if (item)

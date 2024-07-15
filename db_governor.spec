@@ -1,5 +1,5 @@
 %define g_version   1.2
-%define g_release   113
+%define g_release   114
 %define g_key_library 13
 
 %if %{undefined _unitdir}
@@ -44,12 +44,14 @@ BuildRequires: cloudlinux-venv
 BuildRequires: systemd
 BuildRequires: systemd-devel
 %endif
+%if 0%{?with_unittests}
 %if 0%{?rhel} == 7
 BuildRequires: mariadb-libs
 BuildRequires: mariadb
 %else
 BuildRequires: mysql-libs
 BuildRequires: mysql
+%endif
 %endif
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Conflicts: db-governor
@@ -72,14 +74,6 @@ Requires(postun): initscripts
 %description
 This package provides dbtop, db_governor utilities.
 
-%package devel
-Summary: Development header files for db_governor client applications
-Group: System Environment/Base
-
-%description devel
-This package contains the development header files necessary
-to develop db_governor client applications.
-
 %prep
 
 %setup -q
@@ -88,6 +82,7 @@ to develop db_governor client applications.
 export PYTHONINTERPRETER=%{__python}
 
 echo -e "#ifndef VERSION_H_\n#define VERSION_H_\n#define GOVERNOR_CUR_VER \"%{g_version}-%{g_release}\"\n#define GOVERNOR_OS_CL%{?rhel} 1\n#endif\n" > src/version.h
+echo -e "GOVERNOR_CUR_VER=\"%{g_version}-%{g_release}\"\n" > install/scripts/dbgovernor_version.py
 
 mkdir build_clean
 pushd build_clean
@@ -126,7 +121,16 @@ fi
 cd install
 #make DESTDIR=$RPM_BUILD_ROOT install
 cd -
-mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor/
+
+# ALL directory levels below have their DISTINCT purpose:
+# statistic files, consumed by dbgov_saver.py in lvestats package:
+mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor
+# logging control (internal-use file flags):
+mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor/logging
+# temporary files, consumed by sentry_daemon.py:
+mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor/logging/sentry-depot
+
+# SQL query logs:
 mkdir -p $RPM_BUILD_ROOT/var/lve/dbgovernor-store/
 
 mkdir -p $RPM_BUILD_ROOT%{_sbindir}/
@@ -188,18 +192,24 @@ install -D -m 755 install/scripts/cpanel_map_rebuilder $RPM_BUILD_ROOT/usr/share
 install -D -m 755 install/scripts/dbgovernor_map $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map
 install -D -m 755 install/scripts/dbgovernor_map.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map.py
 install -D -m 755 install/scripts/dbgovernor_map_plesk.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_map_plesk.py
+install -D -m 644 install/scripts/dbgovernor_version.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_version.py
 install -D -m 755 install/scripts/sentry_daemon.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sentry_daemon.py
+install -D -m 755 install/scripts/sentry_cleaner.sh $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sentry_cleaner.sh
 install -D -m 755 install/scripts/detect-cpanel-mysql-version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/detect-cpanel-mysql-version.pm
 install -D -m 755 install/scripts/cpanel-mysql-url-detect.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/cpanel-mysql-url-detect.pm
 install -D -m 755 install/scripts/set_cpanel_mysql_version.pm $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/set_cpanel_mysql_version.pm
+install -D -m 755 install/scripts/dbgovernor_watchdog.py $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py
 install -D -m 755 install/scripts/mysql_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/mysql_hook
 install -D -m 755 install/scripts/map_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/map_hook
 install -D -m 755 install/scripts/sync_hook $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/scripts/sync_hook
 
 install -D -m 644 logrotate/mysql-governor $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor
+install -D -m 644 logrotate/mysql-governor-slow $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor-slow
+install -D -m 644 logrotate/mysql-governor-mysqld $RPM_BUILD_ROOT/etc/logrotate.d/mysql-governor-mysqld
 install -D -m 644 install/utils/cloudlinux.versions $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/cloudlinux.versions
 install -D -m 644 install/utils/dbgovernor $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/db_governor
 install -D -m 600 install/list_problem_files.txt $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/
+install -D -m 600 install/sentry-dsn $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/sentry-dsn
 
 install -D -m 755 install/utils/mysql_export $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/utils/mysql_export
 
@@ -213,14 +223,13 @@ install -D -m 644 cron/lvedbgovernor-utils-cron $RPM_BUILD_ROOT%{_sysconfdir}/cr
 touch $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/tmp/INFO
 echo "CloudLinux" > $RPM_BUILD_ROOT/usr/share/lve/dbgovernor/tmp/INFO
 
-mkdir -p $RPM_BUILD_ROOT%{_includedir}/
-install -D -m 644 src/governor_write_data.h $RPM_BUILD_ROOT%{_includedir}/libgovernor.h
-
 %check
+%if 0%{?with_unittests}
 ls -l /usr/bin/mysql
 /usr/bin/mysql -V
 echo "****Start unittests for python code"
 PYTHONPATH=install:install/scripts:. %{cl_venv_path}/bin/pytest tests/py/
+%endif
 
 %pre
 /sbin/service db_governor stop > /dev/null 2>&1 || :
@@ -374,15 +383,12 @@ if [ -e "/etc/container/dbgovernor-libcheck" ]; then
         fi
 fi
 
-# Governor watchdog was introduced by CLOS-2385 in governor 1.2-111
-# but reverted by CLOS-2705 in governor 1.2-112
-# So let's remove cron job possibly created by 1.2-111
-if [ -e /etc/cron.d/dbgovernor_watchdog_cron ]; then
-    rm /etc/cron.d/dbgovernor_watchdog_cron
-fi
-
-if [ -e "/usr/share/lve/dbgovernor/sentry_dsn" ]; then
-    rm -f /usr/share/lve/dbgovernor/sentry_dsn
+if [ $1 -gt 0 ] ; then
+    if [ -e "/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" ]; then
+        echo "15 */12 * * * root /usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" > /etc/cron.d/dbgovernor_watchdog_cron
+        chmod 644 /etc/cron.d/dbgovernor_watchdog_cron
+        chown root:root /etc/cron.d/dbgovernor_watchdog_cron
+    fi
 fi
 
 %preun
@@ -405,15 +411,10 @@ if [ $1 -eq 1 -o $1 -eq 0 ] ; then
  fi
 fi
 
-# Governor watchdog was introduced by CLOS-2385 in governor 1.2-111
-# but reverted by CLOS-2705 in governor 1.2-112
-# So let's remove cron job possibly created by 1.2-111
-if [ -e "/etc/cron.d/dbgovernor_watchdog_cron" ]; then
-    rm -f /etc/cron.d/dbgovernor_watchdog_cron
-fi
-
-if [ -e "/usr/share/lve/dbgovernor/sentry_dsn" ]; then
-    rm -f /usr/share/lve/dbgovernor/sentry_dsn
+if [ $1 -eq 0 ]; then
+    if [ -e "/etc/cron.d/dbgovernor_watchdog_cron" ]; then
+        rm -f /etc/cron.d/dbgovernor_watchdog_cron
+    fi
 fi
 
 %postun
@@ -501,21 +502,24 @@ fi
 %endif
 /usr/share/lve/dbgovernor/*
 %{_sysconfdir}/cron.d/lvedbgovernor-utils-cron
-/var/lve/dbgovernor
+# ALL levels in the below directory have their DISTINCT purpose, but we list only the deepest one to avoid rpmbuild warnings:
+/var/lve/dbgovernor/logging/sentry-depot
 /var/lve/dbgovernor-store
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
 
-%files devel
-%{_includedir}/libgovernor.h
-
 %changelog
+* Tue Jul 16 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-114
+- CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval
+- CLOS-2596: Do not install missing MariaDB-compat package in case of CL9
+- CLOS-2735: Changed semaphore retry logic to timed wait
+
 * Tue Jun 11 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-113
 - CLOS-2653: Deprecated outdated mysql/mariadb/percona versions
 
 * Tue Jun 04 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-112
 - CLOS-2705: Reverted adding of watchdog monitoring utility
 
-* Thu May 13 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-111
+* Mon May 13 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-111
 - CLOS-2645: Corrected MariaDB version detection logic for DA config
 - CLOS-2593, CLOS-2613: Added extended logging
 - CLOS-2385: Added watchdog monitoring utility to governor package

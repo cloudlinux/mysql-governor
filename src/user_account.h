@@ -16,8 +16,7 @@
 #include "stats.h"
 #include "data.h"
 
-User_stats *add_user_stats (username_t account_id, GHashTable * accounts,
-				GHashTable * users);
+User_stats *add_user_stats(const username_t account_id, GHashTable * accounts, GHashTable * users);
 
 struct user_account
 {
@@ -29,7 +28,7 @@ void init_user_account_table (void);
 void init_user_table (void);
 void free_user_table (void);
 void free_user_account_table (void);
-struct user_account *get_user_account (username_t username);
-int check_if_user_restricted (username_t username, GHashTable * accounts);
+struct user_account *get_user_account(const username_t username);
+int check_if_user_restricted(const username_t username, const GHashTable *accounts);
 
 #endif

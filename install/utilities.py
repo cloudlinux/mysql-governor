@@ -608,14 +608,15 @@ def check_file(path):
 
 
 def exec_command(command, as_string=False, silent=False, return_code=False,
-                 cmd_on_error=""):
+                 cmd_on_error="", no_debug_log=False):
     """
     Advanced system exec call
     """
     p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     out, err = p.communicate()
-    debug_log("Executed command %s with retcode %d\n" % (command, p.returncode))
+    if not no_debug_log:
+        debug_log("Executed command %s with retcode %d\n" % (command, p.returncode))
 
     if return_code:
         if p.returncode == 0:

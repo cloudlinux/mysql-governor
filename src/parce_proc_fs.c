@@ -105,11 +105,11 @@ try_file_to_buffer (char *buffer, const char *format, ...)
 	ssize_t len;
 	va_list pa;
 
-	va_start (pa, format);
+	va_start(pa, format);
 
-	vsnprintf (path, sizeof path, format, pa);
+	vsnprintf(path, sizeof path, format, pa);
 
-	va_end (pa);
+	va_end(pa);		// don't ever return from function before va_end() - undefined behaviour!
 
 	buffer[0] = '\0';
 
@@ -127,30 +127,24 @@ try_file_to_buffer (char *buffer, const char *format, ...)
 	return TRY_FILE_TO_BUFFER_OK_IOSTAT;
 }
 
-static unsigned long long
-get_scaled_iostat (const char *buffer, const char *key)
+static unsigned long long get_scaled_iostat(const char *buffer, const char *key)
 {
-	const char *ptr;
-	char *next;
 	unsigned long long value = 0;
-	int dummy;
-
-	ptr = strstr (buffer, key);
+	const char *ptr = strstr(buffer, key);
 	if (ptr)
 	{
-		ptr += strlen (key);
-		value = strtoull (ptr, &next, 0);
-		if (strchr (next, 'k'))
-		value *= 1024;
+		ptr += strlen(key);
+		char *next;
+		value = strtoull(ptr, &next, 0);
+		if (strchr(next, 'k'))
+			value *= 1024;
 		else if (strchr (next, 'M'))
-		value *= 1024 * 1024;
+			value *= 1024 * 1024;
 	}
 	else
 	{
 		//g_warning ("Could not read key '%s' in buffer '%s'", key, buffer);
-		dummy = 1;
 	}
-
 	return value;
 }
 

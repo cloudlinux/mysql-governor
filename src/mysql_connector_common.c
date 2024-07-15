@@ -80,12 +80,11 @@ db_connect_common (MYSQL ** internal_db, const char *host,
 {
 	const char *groups_client[] = { "client", "mysqld", "dbgovernor", NULL };
 	//const char *groups_server[] = { "mysqld", "client", NULL };
-	int i, option_index = 0;
+	int option_index = 0;
 	char c;
-	char *hst = NULL;
+	char *hst __attribute__((unused)) = NULL;
 	char *user = NULL;
 	char *password = NULL;
-	int db_connection_method = 0;
 	my_bool reconnect = 1;
 
 	struct governor_config data_cfg;
@@ -458,18 +457,15 @@ db_mysql_get_float (char *result, unsigned long length)
 	return result_number;
 }
 
-//Get ranged string from string. NULL at end safety
-void
-db_mysql_get_string (char *buffer, char *result, unsigned long length,
-		unsigned long max_bufer_len)
+// 'dst' is buffer of 'dstSz' bytes;
+// 'src' points to 'srcLen' bytes, which can _contain_ terminating NULL character inside
+void db_mysql_get_string(char *dst, const char *src, unsigned long srcLen, size_t dstSz)
 {
-	unsigned long nlen = 0;
-	if (max_bufer_len < length)
-		nlen = max_bufer_len - 1;
-	else
-		nlen = length;
-	memcpy (buffer, result, nlen);
-	buffer[nlen] = 0;
+	if (!dstSz)
+		return;
+	size_t maxLen = srcLen < dstSz ? srcLen : dstSz - 1;	// maximum possible number of non-NULL characters to be copied
+	strncpy(dst, src, maxLen);	// using it instead of memcpy() can be faster if NULL character appears within 'maxLen'
+	dst[maxLen] = 0;
 }
 
 //Get last DB error
@@ -756,8 +752,8 @@ check_mysql_version()
 		if (row)
 		{
 			lengths = (*_mysql_fetch_lengths) (res);
-			db_mysql_get_string (buffer, row[0], lengths[0],
-						_DBGOVERNOR_BUFFER_2048);
+			db_mysql_get_string(buffer, row[0], lengths[0], sizeof(buffer));
+			set_log_ex_mysql_version(buffer);
 			if (strstr (buffer, "-cll-lve"))
 			{
 				if (strstr (buffer, "-cll-lve-plg"))
@@ -815,75 +811,63 @@ lve_connection(const char *user_name)
 }
 
 //LOGGER USER QUERIES
-int
-create_dir (void)
+int create_dir(void)
 {
-	char tek_day_dir[11];
-	GDate *date = g_date_new ();
-	const time_t timestamp = time (NULL);
-	g_date_set_time_t (date, timestamp);
+	GDate *date = g_date_new();
+	const time_t timestamp = time(NULL);
+	g_date_set_time_t(date, timestamp);
 
-	if (g_mkdir_with_parents (PATH_TO_LOG_USER_QUERIES, 0755) == 0)
+	if (g_mkdir_with_parents(PATH_TO_LOG_USER_QUERIES, 0755) == 0)
 	{
-		if (g_chdir (PATH_TO_LOG_USER_QUERIES) == 0)
+		if (g_chdir(PATH_TO_LOG_USER_QUERIES) == 0)
 		{
-			sprintf (tek_day_dir, "%d-%d-%d", g_date_get_year (date),
-				g_date_get_month (date), g_date_get_day (date));
-			if (g_mkdir_with_parents (tek_day_dir, 0755) == 0)
+			char tek_day_dir[100];
+			sprintf(tek_day_dir, "%d-%d-%d", g_date_get_year(date), g_date_get_month(date), g_date_get_day(date));
+			if (g_mkdir_with_parents(tek_day_dir, 0755) == 0)
 			{
-				g_date_free (date);
-				if (g_chdir (tek_day_dir) == 0)
+				g_date_free(date);
+				if (g_chdir(tek_day_dir) == 0)
 					return 1;
 			}
 		}
 	}
-	g_date_free (date);
+	g_date_free(date);
 	return 0;
 }
 
-void
-log_user_queries(const char *user_name)
+void log_user_queries(const char *user_name)
 {
-	char buffer[_DBGOVERNOR_BUFFER_8192];
-	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
-	char user_name_alloc[USERNAMEMAXLEN * 2];
-	char file_name[USERNAMEMAXLEN + 1 + 10];
-
-	unsigned long counts;
-	unsigned long *lengths;
-	MYSQL_RES *res;
-	MYSQL_ROW row;
-	FILE *log_queries;
-	const time_t timestamp = time (NULL);
-
 	if (mysql_do_command == NULL)
 		return;
 
-	(*_mysql_real_escape_string) (mysql_do_command, user_name_alloc, user_name, strlen(user_name));
-	snprintf (sql_buffer, _DBGOVERNOR_BUFFER_8192, QUERY_GET_PROCESSLIST_INFO);
-	if (db_mysql_exec_query (sql_buffer, &mysql_do_command))
+	const time_t timestamp = time(NULL);
+
+	char user_name_alloc[USERNAMEMAXLEN * 2];
+	(*_mysql_real_escape_string)(mysql_do_command, user_name_alloc, user_name, strlen(user_name));
+	if (db_mysql_exec_query(QUERY_GET_PROCESSLIST_INFO, &mysql_do_command))
 	{
 		LOG(L_ERR|L_MYSQL, "Get show processlist failed");
 		return;
 	}
 
-	res = (*_mysql_store_result) (mysql_do_command);
-	counts = (*_mysql_num_rows) (res);
-	int tek_r = 0;
+	MYSQL_RES *res = (*_mysql_store_result) (mysql_do_command);
+	unsigned long counts = (*_mysql_num_rows) (res);
 
 	if (create_dir () && counts > 0)
 	{
-		snprintf (file_name, USERNAMEMAXLEN + 1 + 10, "%s.%lld", user_name, timestamp);
-		log_queries = fopen (file_name, "w");
-		if (log_queries != NULL)
+		char file_name[USERNAMEMAXLEN + 1 + 10];
+		snprintf(file_name, sizeof(file_name), "%s.%lld", user_name, (long long)timestamp);
+		FILE *log_queries = fopen(file_name, "w");
+		if (log_queries)
 		{
+			MYSQL_ROW row;
 			while ((row = (*_mysql_fetch_row) (res)))
 			{
-				if (strcmp (row[1], user_name) == 0)
+				if (strcmp(row[1], user_name) == 0)
 				{
-					lengths = (*_mysql_fetch_lengths) (res);
-					db_mysql_get_string (buffer, row[7], lengths[7],
-								_DBGOVERNOR_BUFFER_8192);
+					char buffer[_DBGOVERNOR_BUFFER_8192];
+					const unsigned long *lengths = (*_mysql_fetch_lengths) (res);
+					db_mysql_get_string(buffer, row[7], lengths[7], sizeof(buffer));
 					fprintf (log_queries, "%s\n", buffer);
 				}
 			}
@@ -913,8 +897,6 @@ activate_plugin()
 		int is_found_plg = 0;
 		MYSQL_RES *res;
 		MYSQL_ROW row;
-		unsigned long *lengths;
-		char buffer[_DBGOVERNOR_BUFFER_2048];
 		struct governor_config data_cfg;
 		get_config_data (&data_cfg);
 
@@ -928,10 +910,10 @@ activate_plugin()
 			res = (*_mysql_store_result) (mysql_send_governor);
 			while ((row = (*_mysql_fetch_row) (res)))
 			{
-				lengths = (*_mysql_fetch_lengths) (res);
-				db_mysql_get_string (buffer, row[0], lengths[0],
-						_DBGOVERNOR_BUFFER_2048);
-				if (!strncasecmp (buffer, "GOVERNOR", _DBGOVERNOR_BUFFER_2048))
+				char buffer[_DBGOVERNOR_BUFFER_2048];
+				const unsigned long *lengths = (*_mysql_fetch_lengths) (res);
+				db_mysql_get_string(buffer, row[0], lengths[0], sizeof(buffer));
+				if (!strncasecmp(buffer, "GOVERNOR", sizeof(buffer)))
 				{
 					is_found_plg = 1;
 				}

@@ -19,6 +19,8 @@
 
 #include "xml.h"
 #include "data.h"
+#include "dbgovernor_string_functions.h"
+
 #define CONFIG_LOCK_PATH "/etc/container/mysql-governor.xml.lock"
 
 /*
@@ -39,7 +41,7 @@ static xml_data *parseConfigData_orig(const char *path, char *error, int maxErrD
 				xml->root = (void *) xmlDocGetRootElement(xml->doc);
 				if (xml->root)
 				{
-					strncpy(xml->path, path, MAX_XML_PATH);
+					strlcpy(xml->path, path, MAX_XML_PATH);
 					return xml;
 				} else
 				{
@@ -243,15 +245,17 @@ void *getNextAttr(void *nodeValue, void *prev_attr)
 /*
  * get attrubute name
  */
-char *getAttributeName(void *attr)
+char *getAttributeName(const void *pAttr)
 {
-	if (attr)
+	if (pAttr)
 	{
-		char *ptr = calloc(1, strlen(((xmlAttrPtr) attr)->name) + 1);
-		if (ptr)
+		const xmlAttr *attr = (const xmlAttr*)pAttr;
+		const char *name0 = (const char*)attr->name;
+		char *name1 = calloc(1, strlen(name0) + 1);
+		if (name1)
 		{
-			strcpy(ptr, ((xmlAttrPtr) attr)->name);
-			return ptr;
+			strcpy(name1, name0);
+			return name1;
 		}
 	}
 	return NULL;
@@ -260,14 +264,12 @@ char *getAttributeName(void *attr)
 /*
  * get value of attribute attr
  */
-char *getAttributeValue(void *attr)
+char *getAttributeValue(const void *pAttr)
 {
-	if (!attr)
+	if (!pAttr)
 		return NULL;
-	xmlAttrPtr attribute = (xmlAttrPtr) attr;
-
-	xmlChar* value = xmlNodeListGetString(attribute->doc, attribute->children, 1);
-
+	const xmlAttr *attr = (const xmlAttr*)pAttr;
+	xmlChar *value = xmlNodeListGetString(attr->doc, attr->children, 1);
 	return (char *) value;
 }
 
@@ -327,7 +329,6 @@ void *setNodeWithAttr(xml_data *data, void *node, const char *nodeName,
  */
 void *setAttr(void *node, const char *attrName, const char *value)
 {
-	xmlNodePtr parent = (xmlNodePtr) node;
 	if (!attrName || !node)
 		return (void *) NULL;
 	xmlAttrPtr addressNode = NULL;

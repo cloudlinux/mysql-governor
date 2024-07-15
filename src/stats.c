@@ -16,20 +16,18 @@
 
 #define COMPARE_MAX_3(x,y,z) (x>y)?((x>z)?x:z):((y>z)?y:z)
 
-Account *
-init_account (char *id)
+Account *init_account(char *id)
 {
-	Account *ac = calloc (1, sizeof (Account));
-	memset ((void *) ac, (int) 0, sizeof (Account));
+	Account *ac = calloc(1, sizeof (Account));
+	memset(ac, 0, sizeof(Account));
 	ac->id = id;
-	ac->users = g_ptr_array_new ();
+	ac->users = g_ptr_array_new();
 	return ac;
 }
 
-void
-free_account (gpointer ignored, Account * ac)
+void free_account(gpointer ignored, Account *ac)
 {
-	g_ptr_array_free (ac->users, TRUE);
+	g_ptr_array_free(ac->users, TRUE);
 	free (ac);
 }
 
@@ -86,35 +84,28 @@ save_stats (Stats * dst, Stats * st)
 	dst->write = st->write;
 }
 
-Stats *
-push_stats(const Stats * st, User_stats * us)
+Stats *push_stats(const Stats *st, User_stats *us)
 {
-	int size, i;
-	Stats *old;
 	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
+	get_config_data(&data_cfg);
 
-	old = fifo_stats_push (us->stats, st);
-	fifo_stats_avg (us->stats, &us->long_average, data_cfg.interval_long);
-	fifo_stats_avg (us->stats, &us->mid_average, data_cfg.interval_mid);
-	fifo_stats_avg (us->stats, &us->short_average, data_cfg.interval_short);
+	Stats *old = fifo_stats_push(us->stats, st);
+	fifo_stats_avg(us->stats, &us->long_average, data_cfg.interval_long);
+	fifo_stats_avg(us->stats, &us->mid_average, data_cfg.interval_mid);
+	fifo_stats_avg(us->stats, &us->short_average, data_cfg.interval_short);
 
 	return old;
 }
 
-Stats *
-refresh_stats (Stats * st, User_stats * us)
+Stats *refresh_stats(const Stats *st, User_stats *us)
 {
-	char output_data[_DBGOVERNOR_BUFFER_8192];
-	int size, i;
-	Stats *old_value;
 	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
+	get_config_data(&data_cfg);
 
-	old_value = fifo_stats_refresh_last (us->stats, st);
-	fifo_stats_avg (us->stats, &us->long_average, data_cfg.interval_long);
-	fifo_stats_avg (us->stats, &us->mid_average, data_cfg.interval_mid);
-	fifo_stats_avg (us->stats, &us->short_average, data_cfg.interval_short);
+	Stats *old_value = fifo_stats_refresh_last(us->stats, st);
+	fifo_stats_avg(us->stats, &us->long_average, data_cfg.interval_long);
+	fifo_stats_avg(us->stats, &us->mid_average, data_cfg.interval_mid);
+	fifo_stats_avg(us->stats, &us->short_average, data_cfg.interval_short);
 
 	return old_value;
 }

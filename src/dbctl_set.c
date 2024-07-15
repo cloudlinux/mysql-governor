@@ -173,14 +173,13 @@ void *removeBadLimit(void *child, const char *s)
 
 void *setLimitAttr(void *limit, const char *s)
 {
-	int cnt = 0;
 	if (!s)
 		return limit;
 
 	SplitStr *data = NULL;
-	int res = 0;
 	const char *slowAttr = getElemAttr(limit, "name");
-	if (cnt = split(&data, s, ','))
+	int cnt = split(&data, s, ',');
+	if (cnt)
 	{
 		const char *nameAttr = slowAttr;
 
@@ -238,7 +237,8 @@ void *setLimitAttr(void *limit, const char *s)
 
 	} else if (slowAttr && strcmp(slowAttr, "slow") == 0)
 	{
-		if (cnt = split(&data, s, '\n'))
+		cnt = split(&data, s, '\n');
+		if (cnt)
 		{
 			if (isprint(data[0].str[0]))
 				setAttr(limit, "current", data[0].str);

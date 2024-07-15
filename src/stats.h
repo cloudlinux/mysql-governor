@@ -44,8 +44,8 @@ typedef struct account_struct
 	unsigned max_user_connections; // from mysql.user table
 } Account;
 
-Account *init_account (char *id);
-void free_account (gpointer ignored, Account * ac);
+Account *init_account(char *id);
+void free_account(gpointer ignored, Account *ac);
 
 typedef struct timeval _timeval;
 
@@ -66,14 +66,14 @@ void free_user_stats (gpointer ignored, User_stats * us);
 
 
 /* add two stats records */
-void sum_stats(Stats * dest, const Stats * nr);
+void sum_stats(Stats *dest, const Stats *nr);
 
 /* add stats record to user */
-Stats *push_stats(const Stats * st, User_stats * us);
+Stats *push_stats(const Stats *st, User_stats *us);
 
 /* resets stat */
-void reset_stats (Stats * st);
+void reset_stats(Stats *st);
 
-Stats *refresh_stats (Stats * st, User_stats * us);
+Stats *refresh_stats(const Stats * st, User_stats *us);
 
 #endif

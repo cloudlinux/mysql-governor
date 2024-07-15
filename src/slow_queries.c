@@ -22,6 +22,7 @@
 #include "dlload.h"
 #include "slow_queries.h"
 #include "calc_stats.h"
+#include "dbgovernor_string_functions.h"
 
 #define DELTA_TIME 15
 #define MAX_QUERY_OUTPUT_LEN 600
@@ -43,21 +44,8 @@ extern M_mysql_real_escape_string;
 extern M_mysql_ping;
 
 /* 
-  MYSQLG-849 - it seems that MySQL contains a bug, and killed QUERY request in this state can stuck for days 
-  That's why we exclude this state from state_to_kill and include it into state_to_no_kill
+  See MYSQLG-849
 */
-static const char *state_to_kill[] =
-{
-	"Copying to tmp table",
-	"Copying to group table",
-	"Copying to tmp table on disk",
-	/*  "removing tmp table", */
-	"Sending data",
-	"Sorting for group",
-	"Sorting for order",
-	NULL
-};
-
 static const char *state_to_no_kill[] =
 {
 	"removing tmp table",
@@ -65,101 +53,71 @@ static const char *state_to_no_kill[] =
 };
 
 static int
-is_request_in_state_to_kill (char *s)
-{
-	int i;
-	for (i=0; state_to_kill[i] != NULL; ++i)
-		if (!strncmp (s, state_to_kill[i], _DBGOVERNOR_BUFFER_256))
-			return 1;
-	return 0;
-}
-
-static int
 is_request_in_state_to_no_kill (char *s)
 {
 	int i;
-	for (i=0; state_to_no_kill[i] != NULL; ++i)
-		if (!strncmp (s, state_to_no_kill[i], _DBGOVERNOR_BUFFER_256))
+	for (i=0; state_to_no_kill[i]; ++i)
+		if (!strncmp(s, state_to_no_kill[i], _DBGOVERNOR_BUFFER_256))
 			return 1;
 	return 0;
 }
 
-void *
-parse_slow_query (void *data)
+void *parse_slow_query(void *data)
 {
 	LOG(L_LIFE|L_SLOW, "thread begin");
 
-	char buffer[_DBGOVERNOR_BUFFER_8192];
-	char sql_buffer[_DBGOVERNOR_BUFFER_8192];
 	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
+	get_config_data(&data_cfg);
 
-	MYSQL **mysql_do_kill_internal = get_mysql_connect ();
-	MYSQL_RES *res;
-	MYSQL_ROW row;
-	unsigned long *lengths;
-	unsigned long counts;
-
-	const char f_str[] = "SELECT";
-	const size_t f_str_sz = sizeof(f_str);
-	char Id[_DBGOVERNOR_BUFFER_2048];
-	char Time[_DBGOVERNOR_BUFFER_2048];
-	char Info[_DBGOVERNOR_BUFFER_2048];
-	char User[USERNAMEMAXLEN];
-	char State[_DBGOVERNOR_BUFFER_256];
-
+	MYSQL **mysql_do_kill_internal = get_mysql_connect();
 
 	while (1)
 	{
-#ifdef TEST
-		//printf( "slow_time=%d\n", slow_time );
-#endif
 		if (*mysql_do_kill_internal == NULL)
 		{
-			sleep (DELTA_TIME);
+			sleep(DELTA_TIME);
 			continue;
 		}
-		snprintf (sql_buffer, _DBGOVERNOR_BUFFER_8192,
-			QUERY_GET_PROCESSLIST_INFO);
-		if (db_mysql_exec_query(sql_buffer, mysql_do_kill_internal))
-			LOG(L_ERR|L_SLOW|L_MYSQL, "Get show processlist failed");
+		if (db_mysql_exec_query(QUERY_GET_PROCESSLIST_INFO, mysql_do_kill_internal))
+			LOG(L_ERR|L_SLOW|L_MYSQL, "'show processlist' failed");
 		else
 		{
 			LOG(L_SLOW|L_MYSQL, "processlist obtained");
 
-			res = (*_mysql_store_result) (*mysql_do_kill_internal);
-			counts = (*_mysql_num_rows) (res);
+			MYSQL_RES *res = (*_mysql_store_result)(*mysql_do_kill_internal);
+			unsigned long rowCount = (*_mysql_num_rows)(res);
 
-			if (counts > 0)
+			if (rowCount > 0)
 			{
-				LOG(L_SLOW, "counts > 0");
+				LOG(L_SLOW, "processlist row count > 0");
 
-				while ((row = (*_mysql_fetch_row) (res)))
+				MYSQL_ROW row;
+				while ((row = (*_mysql_fetch_row)(res)))
 				{
-					lengths = (*_mysql_fetch_lengths) (res);
+					const unsigned long *lengths = (*_mysql_fetch_lengths)(res);
 
-					LOG(L_SLOW, "is ROW; row[0]=%s, row[5]=%s, row[7]=%s", row[0], row[5], row[7]);
+					char
+						Id[_DBGOVERNOR_BUFFER_2048],
+						Time[_DBGOVERNOR_BUFFER_2048],
+						Info[_DBGOVERNOR_BUFFER_2048],
+						User[USERNAMEMAXLEN],
+						State[_DBGOVERNOR_BUFFER_256];
 
-					db_mysql_get_string (buffer, row[0], lengths[0],
-								_DBGOVERNOR_BUFFER_8192);
-					strncpy (Id, buffer, _DBGOVERNOR_BUFFER_2048 - 1);
-					db_mysql_get_string (buffer, row[1], lengths[1],
-								_DBGOVERNOR_BUFFER_8192);
-					strncpy (User, buffer, USERNAMEMAXLEN - 1);
-					db_mysql_get_string (buffer, row[5], lengths[5],
-								_DBGOVERNOR_BUFFER_8192);
-					strncpy (Time, buffer, _DBGOVERNOR_BUFFER_2048 - 1);
-					db_mysql_get_string (buffer, row[6], lengths[6],
-								_DBGOVERNOR_BUFFER_8192);
-					strncpy (State, buffer, _DBGOVERNOR_BUFFER_256 - 1);
-					db_mysql_get_string (buffer, row[7], lengths[7],
-								_DBGOVERNOR_BUFFER_8192);
-					strncpy (Info, buffer, _DBGOVERNOR_BUFFER_2048 - 1);
-					long slow_time = is_user_ignored (User);
+					#define FETCH_ROW(n, dst)	db_mysql_get_string(dst, row[n], lengths[n], sizeof(dst));
+					FETCH_ROW(0, Id)
+					FETCH_ROW(1, User)
+					FETCH_ROW(5, Time)
+					FETCH_ROW(6, State)
+					FETCH_ROW(7, Info)
+					#undef FETCH_ROW
+
+					LOG(L_SLOW, "processlist row: Id=%s, User=%s, Time=%s, State=%s, Info=%s", Id, User, Time, State, Info);
+
+					static const char select_str[] = "SELECT";
+					long slow_time = is_user_ignored(User);
 					if (slow_time > 0 &&
-						strncasecmp (f_str, Info, f_str_sz - 1) == 0
-						/*&& is_request_in_state_to_kill(State) */
-						&& ! is_request_in_state_to_no_kill(State)
+						strncasecmp(select_str, Info, sizeof(select_str)-1) == 0
+						&& !is_request_in_state_to_no_kill(State)
 						)
 					{
 						LOG(L_SLOW, "is SELECT; Id=%d, Time=%d, slow_time=%d", atoi(Id), atoi(Time), slow_time);
@@ -168,10 +126,9 @@ parse_slow_query (void *data)
 							LOG(L_SLOW, "Time > slow_time");
 							kill_query_by_id(atoi(Id), mysql_do_kill_internal);
 
-							char Info_[_DBGOVERNOR_BUFFER_2048];
-							strncpy (Info_, Info, MAX_QUERY_OUTPUT_LEN);
-							Info_[MAX_QUERY_OUTPUT_LEN] = 0;
-							LOG_SLOW_QUERIES("Query killed - %s : %s", User, Info_);
+							char info_short[MAX_QUERY_OUTPUT_LEN];
+							strlcpy(info_short, Info, sizeof(info_short));
+							LOG_SLOW_QUERIES("Query killed - %s : %s", User, info_short);
 						}
 					}
 				}

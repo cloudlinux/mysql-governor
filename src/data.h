@@ -43,10 +43,15 @@ typedef char parameter_t[USERNAMEMAXLEN];
 #define PID_PATH "db-governor.pid"
 #endif
 
-#define PATH_TO_GOVERNOR_STATS "/var/lve/dbgovernor/"
-#define PATH_TO_LOG_USER_QUERIES "/var/lve/dbgovernor-store/"
-#define PATH_TO_GOVERNOR_PRIVATE_DIR PATH_TO_GOVERNOR_STATS
+#define PATH_TO_GOVERNOR_STATS				"/var/lve/dbgovernor"
+#define PATH_TO_GOVERNOR_LOGGING_INTERNALS	"/var/lve/dbgovernor/logging"
+#define PATH_TO_LOG_USER_QUERIES			"/var/lve/dbgovernor-store"
 #define MYSQLD_EXTLOG_PATH "/var/log/dbgovernor-mysqld.log"
+
+#define SENTRY_DEPOT_ROOT	PATH_TO_GOVERNOR_LOGGING_INTERNALS "/sentry-depot"
+#define SENTRY_DEPOT_DB_GOVERNOR	SENTRY_DEPOT_ROOT "/db_governor"
+#define SENTRY_DEPOT_MYSQLD			SENTRY_DEPOT_ROOT "/mysqld"
+#define SENTRY_DEPOT_EXT ".txt"
 
 #define DBUSER_MAP_FILE "/etc/container/dbuser-map"
 #define DUPLICATE_CONFIG_PATH "/var/run/mysql-governor-config.xml"
@@ -191,7 +196,7 @@ typedef struct _dbtop_exch
 	time_t start_count;
 } dbtop_exch;
 
-typedef struct __dbgov_statitrics
+typedef struct __dbgov_statistics
 {
 	char username[USERNAMEMAXLEN];
 	int max_simultaneous_requests;
@@ -214,7 +219,7 @@ typedef struct __dbgov_statitrics
 
 	int cause;
 	MODE_TYPE ignored;
-} dbgov_statitrics;
+} dbgov_statistics;
 
 typedef struct _user_map
 {

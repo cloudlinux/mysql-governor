@@ -1,8 +1,14 @@
+/*
+ * Copyright © Cloud Linux GmbH & Cloud Linux Software, Inc 2010-2019 All Rights Reserved
+ *
+ * Licensed under CLOUD LINUX LICENSE AGREEMENT
+ * http://cloudlinux.com/docs/LICENSE.TXT
+ *
+ */
+
 // severities:
-// (NOTE: DON'T MOVE THE FIRST TWO LINES (ERR and INFO),
-// because L_ERR and L_INFO values depend on the order, but are hardcoded in mysql patches.
-// TODO: create "governor-mysql-devel" package and make mysql dependent on it.)
 DEFINE_LOG_TAG(ERR)			// ALWAYS ENABLED
+DEFINE_LOG_TAG(ERRSENTRY)	// error severe enough to be duplicated to Sentry; ALWAYS ENABLED
 DEFINE_LOG_TAG(INFO)		// informational
 DEFINE_LOG_TAG(IMPORTANT)	// informational, but ALWAYS ENABLED
 // facilities:
@@ -14,6 +20,7 @@ DEFINE_LOG_TAG(USRMAPRQ)	// user map on request
 DEFINE_LOG_TAG(MON)			// resource monitor
 DEFINE_LOG_TAG(SRV)			// systemd service
 DEFINE_LOG_TAG(DMN)			// daemon
+DEFINE_LOG_TAG(LVE)			// LVE immediate operations and thread state
 // activities:
 DEFINE_LOG_TAG(FRZ)			// freeze
 DEFINE_LOG_TAG(UNFRZ)		// unfreeze

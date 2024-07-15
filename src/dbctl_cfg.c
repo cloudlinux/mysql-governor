@@ -22,46 +22,32 @@
 GPtrArray *FoundTag = NULL;
 #define SIZEOF_OUTPUT_BUFFER 512
 
-char *
-get_mb_str(char *s, char *buf, int flag)
+static const char *get_mb_str(const char *s, char *buf, int flag)
 {
 	long long divider = 1024 * 1024;
 	if (flag == 1)
-	{
 		divider = 1024;
-	} else if (flag == 2)
-	{
+	else if (flag == 2)
 		divider = 1;
-	}
-	long long mb = (atoll(s));
-	if(mb != -1)
-	{
-		mb = mb / divider;
-	}
-
-	snprintf(buf, SIZEOF_OUTPUT_BUFFER - 1, "%lld", (mb < -1 ? 0 : mb));
-
+	long long mb = atoll(s);
+	if (mb != -1)
+		mb /= divider;
+	snprintf(buf, SIZEOF_OUTPUT_BUFFER - 1, "%lld", mb < -1 ? 0 : mb);
 	return buf;
 }
 
-char *
-GetAttr(GHashTable * attr, char *name_attr)
+const char *GetAttr(const GHashTable *attr, const char *name_attr)
 {
-	char *value = NULL;
-	if (value = (char *) g_hash_table_lookup(attr, name_attr))
-		return value;
-	else
-		return NULL;
+	return (const char*)g_hash_table_lookup((GHashTable*)attr, name_attr);
 }
 
-char *
-GetLimitAttr(GPtrArray * limit_attr, char *name_limit, char *name_attr)
+const char *GetLimitAttr(const GPtrArray *limit_attr, const char *name_limit, const char *name_attr)
 {
-	int i = 0;
+	int i;
 
-	for (; i < limit_attr->len; i++)
+	for (i=0; i < limit_attr->len; i++)
 	{
-		DbCtlLimitAttr *attr = g_ptr_array_index (limit_attr, i);
+		const DbCtlLimitAttr *attr = g_ptr_array_index(limit_attr, i);
 		if (strcmp(attr->l_name, name_limit) == 0)
 		{
 			if (strcmp(name_attr, "current") == 0)
@@ -78,24 +64,14 @@ GetLimitAttr(GPtrArray * limit_attr, char *name_limit, char *name_attr)
 	return "0";
 }
 
-char *
-GetUserName(GHashTable * attr)
+const char *GetUserName(const GHashTable *attr)
 {
-	char *value = NULL;
-	if (value = (char *) g_hash_table_lookup(attr, "name"))
-		return value;
-	else
-		return NULL;
+	return (const char*)g_hash_table_lookup((GHashTable*)attr, "name");
 }
 
-char *
-GetUserMysqlName(GHashTable * attr)
+const char *GetUserMysqlName(const GHashTable *attr)
 {
-	char *value = NULL;
-	if (value = (char *) g_hash_table_lookup(attr, "mysql_name"))
-		return value;
-	else
-		return NULL;
+	return (const char*)g_hash_table_lookup((GHashTable*)attr, "mysql_name");
 }
 
 xml_data *ParseXmlCfg(char *file_name)
@@ -122,15 +98,10 @@ void found_tag_data_destroyed(gpointer data)
 
 void ReadCfg(char *file_name, char *tag)
 {
-	char *key_ = NULL, *val_ = NULL;
-	char *key_l = NULL, *val_l = NULL;
-	DbCtlFoundTag *found_tag = NULL;
-	DbCtlLimitAttr *dbctl_l_attr = NULL;
 	FoundTag = g_ptr_array_new();
 
 	char xml_parse_error[MAX_XML_PATH] = { 0 };
 	void *tmp_xml = NULL, *tmp_xml_attr = NULL, *tmp_xml_limit = NULL;
-	const char *ptr;
 	xml_data *xml = parseConfigData(file_name, xml_parse_error,
 			MAX_XML_PATH - 1);
 	if (xml == NULL)
@@ -141,7 +112,7 @@ void ReadCfg(char *file_name, char *tag)
 
 	for (tmp_xml = getNextChild(xml->root, tag, NULL); tmp_xml; tmp_xml = getNextChild(xml->root, tag, tmp_xml))
 	{
-		found_tag = (DbCtlFoundTag *) malloc(sizeof(DbCtlFoundTag));
+		DbCtlFoundTag *found_tag = (DbCtlFoundTag *) malloc(sizeof(DbCtlFoundTag));
 		strncpy(found_tag->tag, tag, sizeof(found_tag->tag) - 1);
 		found_tag->attr = g_hash_table_new_full(g_str_hash, g_str_equal,
 				(GDestroyNotify) found_tag_key_destroyed,
@@ -156,7 +127,7 @@ void ReadCfg(char *file_name, char *tag)
 		found_tag->limit_attr = g_ptr_array_new();
 		for (tmp_xml_limit = getNextChild(tmp_xml, "limit", NULL); tmp_xml_limit; tmp_xml_limit = getNextChild(tmp_xml, "limit", tmp_xml_limit))
 		{
-			dbctl_l_attr = (DbCtlLimitAttr *) calloc(1, sizeof(DbCtlLimitAttr));
+			DbCtlLimitAttr *dbctl_l_attr = (DbCtlLimitAttr *) calloc(1, sizeof(DbCtlLimitAttr));
 			const char *attr_value = NULL;
 			attr_value = getElemAttr(tmp_xml_limit, "name");
 			if (attr_value)
@@ -209,7 +180,7 @@ GetCfg(void)
 
 void FreeCfg(void)
 {
-	int i = 0, j = 0;
+	int i = 0;
 	for (; i < FoundTag->len; i++)
 	{
 		DbCtlFoundTag *found_tag_ = g_ptr_array_index (FoundTag, i);
@@ -217,6 +188,7 @@ void FreeCfg(void)
 			g_hash_table_destroy(found_tag_->attr);
 		if (found_tag_->limit_attr)
 		{
+			int j = 0;
 			for (j = 0; j < found_tag_->limit_attr->len; j++)
 			{
 				DbCtlLimitAttr *ptr =
@@ -273,14 +245,14 @@ static void PrepareLimitsForOutput(DbCtlPrintList *print_list_t, int flag, const
 	if (flag)
 	{
 		gchar *tmp_param[8] = { 0 };
-		tmp_param[0] = g_strdup_printf("%i", read_curr);
-		tmp_param[1] = g_strdup_printf("%i", read_short);
-		tmp_param[2] = g_strdup_printf("%i", read_mid);
-		tmp_param[3] = g_strdup_printf("%i", read_long);
-		tmp_param[4] = g_strdup_printf("%i", write_curr);
-		tmp_param[5] = g_strdup_printf("%i", write_short);
-		tmp_param[6] = g_strdup_printf("%i", write_mid);
-		tmp_param[7] = g_strdup_printf("%i", write_long);
+		tmp_param[0] = g_strdup_printf("%lld", read_curr);
+		tmp_param[1] = g_strdup_printf("%lld", read_short);
+		tmp_param[2] = g_strdup_printf("%lld", read_mid);
+		tmp_param[3] = g_strdup_printf("%lld", read_long);
+		tmp_param[4] = g_strdup_printf("%lld", write_curr);
+		tmp_param[5] = g_strdup_printf("%lld", write_short);
+		tmp_param[6] = g_strdup_printf("%lld", write_mid);
+		tmp_param[7] = g_strdup_printf("%lld", write_long);
 		print_list_t->name = g_strdup_printf("%s", name);
 		print_list_t->data = g_strdup_printf(
 				"\t%d/%d/%d/%d\t%s/%s/%s/%s\t%s/%s/%s/%s", cpu_curr,
@@ -310,10 +282,10 @@ static void PrepareLimitsForOutput(DbCtlPrintList *print_list_t, int flag, const
 		snprintf(buffer_cpu, 24, "%d/%d/%d/%d", cpu_curr, //cpu
 				cpu_short, cpu_mid, cpu_long);
 		gchar *tmp_param[4] = { 0 };
-		tmp_param[0] = g_strdup_printf("%i", read_curr);
-		tmp_param[1] = g_strdup_printf("%i", read_short);
-		tmp_param[2] = g_strdup_printf("%i", read_mid);
-		tmp_param[3] = g_strdup_printf("%i", read_long);
+		tmp_param[0] = g_strdup_printf("%lld", read_curr);
+		tmp_param[1] = g_strdup_printf("%lld", read_short);
+		tmp_param[2] = g_strdup_printf("%lld", read_mid);
+		tmp_param[3] = g_strdup_printf("%lld", read_long);
 		snprintf(buffer_read, 28, "%s/%s/%s/%s",
 				(read_curr < 1 && read_curr!=-1) ? "<1" : tmp_param[0],
 				(read_short < 1 && read_short!=-1) ? "<1" : tmp_param[1],
@@ -323,10 +295,10 @@ static void PrepareLimitsForOutput(DbCtlPrintList *print_list_t, int flag, const
 		g_free(tmp_param[1]);
 		g_free(tmp_param[2]);
 		g_free(tmp_param[3]);
-		tmp_param[0] = g_strdup_printf("%i", write_curr);
-		tmp_param[1] = g_strdup_printf("%i", write_short);
-		tmp_param[2] = g_strdup_printf("%i", write_mid);
-		tmp_param[3] = g_strdup_printf("%i", write_long);
+		tmp_param[0] = g_strdup_printf("%lld", write_curr);
+		tmp_param[1] = g_strdup_printf("%lld", write_short);
+		tmp_param[2] = g_strdup_printf("%lld", write_mid);
+		tmp_param[3] = g_strdup_printf("%lld", write_long);
 
 		snprintf(buffer_write, 28, "%s/%s/%s/%s",
 				(write_curr < 1 && write_curr!=-1) ? "<1" : tmp_param[0],
@@ -349,21 +321,15 @@ GetLimitsForUsers(GPtrArray * tags, DbCtlLimitAttr * cpu_def,
 			int flag, int raw, int json)
 {
 	char mb_buffer[SIZEOF_OUTPUT_BUFFER] = { 0 };
-	int i = 0, cnt_line = 1;
+	int i = 0;
 
 	DbCtlPrintList *print_list_t = NULL;
 	GList *arr_print_list = NULL;
 	for (; i < (cpu_def ? tags->len : 1); i++)
 	{
-		char *buffer_name = (char *) alloca (16 * sizeof (char)), *buffer_data =
-				(char *) alloca (90 * sizeof (char));
-		DbCtlFoundTag *found_tag_ = g_ptr_array_index (tags, i);
-		char *name = cpu_def ? GetUserName(found_tag_->attr) : "default";
-		char *mode = cpu_def ? GetAttr(found_tag_->attr, "mode") : "monitor";
-		char digit_buf_c[G_ASCII_DTOSTR_BUF_SIZE];
-		char digit_buf_s[G_ASCII_DTOSTR_BUF_SIZE];
-		char digit_buf_m[G_ASCII_DTOSTR_BUF_SIZE];
-		char digit_buf_l[G_ASCII_DTOSTR_BUF_SIZE];
+		const DbCtlFoundTag *found_tag_ = g_ptr_array_index(tags, i);
+		const char *name = cpu_def ? GetUserName(found_tag_->attr) : "default";
+		const char *mode = cpu_def ? GetAttr(found_tag_->attr, "mode") : "monitor";
 
 		if (strcmp(mode, "ignore") != 0)
 		{
@@ -583,7 +549,8 @@ void reread_cfg_cmd(void)
 	if (opensock(&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite(&ctt, sizeof(client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
 
 		DbCtlCommand command;
@@ -621,7 +588,8 @@ void reinit_users_list_cmd(void)
 	if (opensock(&_socket, &in, &out))
 	{
 		client_type_t ctt = DBCTL;
-		fwrite(&ctt, sizeof(client_type_t), 1, out);
+		int res __attribute__((unused));
+		res = fwrite(&ctt, sizeof(client_type_t), 1, out);
 		fflush(out);
 
 		DbCtlCommand command;

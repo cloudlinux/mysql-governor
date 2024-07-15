@@ -38,7 +38,7 @@
 
 void accept_connections (int s);
 static void *run_writer (void *data);
-static void *run_dbctl_command (void *data);
+static void *run_dbctl_command(void *data);
 void send_account (const char *key, Account * ac, FILE * out);
 
 void *
@@ -145,10 +145,10 @@ run_dbtop_command (void *data)
 */
 void *handle_client_connect(void *fd)
 {
-	int ns = (int) ((intptr_t) fd), result;
+	int ns = (int) ((intptr_t) fd);
 
 	client_type_t ctt;
-	result = read (ns, &ctt, sizeof (client_type_t));
+	int result = read(ns, &ctt, sizeof(client_type_t));
 	switch (result)
 	{
 		case 0:
@@ -177,18 +177,14 @@ void *handle_client_connect(void *fd)
 	return NULL;
 }
 
-void
-accept_connections (int s)
+void accept_connections(int s)
 {
-	struct sockaddr_un fsaun;
-	int fromlen = sizeof (fsaun);
-	pthread_t thread;
-
 	while (1)
 	{
-		int ns;
-
-		if ((ns = accept (s, (struct sockaddr *) &fsaun, &fromlen)) < 0)
+		struct sockaddr_un from;
+		socklen_t fromlen = sizeof(from);
+		int ns = accept(s, (struct sockaddr*)&from, &fromlen);
+		if (ns < 0)
 		{
 			if (errno == EINTR)
 			{
@@ -203,8 +199,11 @@ accept_connections (int s)
 			}
 		}
 		intptr_t accept_socket = (intptr_t) ns;
-		pthread_create (&thread, NULL, handle_client_connect, (void*) accept_socket);
-		pthread_detach (thread);
+		pthread_t thread;
+		if (pthread_create(&thread, NULL, handle_client_connect, (void*) accept_socket))
+			LOG(L_ERR|L_DBTOP, "failed to create client thread");
+		else
+			pthread_detach(thread);
 	}
 }
 
@@ -277,17 +276,16 @@ dbctl_restrict_set_safe(GHashTable *accounts_hash, DbCtlCommand *command)
     This function is called from handle_client_connect, open file descriptor is passed as a pointer.
     handle_client_connect expects that this function will close file descriptor
 */
-static void *
-run_dbctl_command (void *data)
+static void *run_dbctl_command(void *data)
 {
-	int result;
 	intptr_t ns = (intptr_t) data;
 
 	DbCtlCommand command;
-	result = read (ns, &command, sizeof (DbCtlCommand));
+	if (read(ns, &command, sizeof(DbCtlCommand)) != sizeof(DbCtlCommand))
+		LOG(L_ERR|L_DBTOP, "failed to read command");
 
 	struct governor_config data_cfg;
-	get_config_data (&data_cfg);
+	get_config_data(&data_cfg);
 
 	if (command.command == REREAD_CFG)
 	{

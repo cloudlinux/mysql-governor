@@ -20,7 +20,7 @@ void calc_stats_difference_inner (long long cpu, long long read,
 					long long write, tid_table * old,
 					Stats * st);
 void process_accounts (double tm);
-Stats *add_new_stats (username_t username, Stats * st, long long tick_id);
+Stats *add_new_stats(const username_t username, const Stats *st, long long tick_id);
 void add_empty_stats_for_uid (username_t username);
 void free_accounts_and_users (void);
 void init_accounts_and_users (void);
@@ -38,7 +38,7 @@ void calc_stats_difference_inner_add_to_counters (double cpu,
 					long long read,
 					long long write,
 					tid_table * old);
-int is_user_ignored (char *user_name);
+int is_user_ignored(const char *user_name);
 double calc_cpu_from_rusage(tid_table * item);
 
 //--- for dbctl ---------------------------------------------------------------

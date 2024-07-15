@@ -37,11 +37,3 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
          lve-stats
 Description: DB control utilities
  This package provides dbtop, db_governor utilities.
-
-Package: governor-mysql-dev
-Architecture: any
-Section: libdevel
-Depends: ${misc:Depends}
-Description: db_governor development headers
- This package contains the development header files necessary
- to develop db_governor client applications.
