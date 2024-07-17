@@ -510,6 +510,8 @@ fi
 %changelog
 * Tue Jul 16 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-114
 - CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval
+- CLOS-2711: Added extended logging rotation
+- CLOS-2780: Fixed governor restarts
 - CLOS-2596: Do not install missing MariaDB-compat package in case of CL9
 - CLOS-2735: Changed semaphore retry logic to timed wait
 
