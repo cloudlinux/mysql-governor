@@ -91,17 +91,22 @@ class SentryDaemon:
         self.internal_logger = logging.getLogger("sentry_daemon")  # for internal, non-forwarded events
         self.preface_sent = False
 
-    def handle_sigterm(self, signum, frame):
+    class TerminateException(Exception):
+        def __init__(self):
+            super().__init__()
+
+    @staticmethod
+    def handle_sigterm(signum, frame):
         """
-        Handles SIGTERM signal to perform clean shutdown of the daemon.
+        On SIGTERM signal, throw an exception
+        caught in the outermost code and triggering daemon shutdown.
+        Make sure this type of exception is re-thrown in all of inner try/except's.
 
         Args:
             signum (int): signal number.
             frame (frame): current stack frame.
         """
-        self.print("SIGTERM received, shutting down gracefully...")
-        self.cleanup()
-        sys.exit(0)
+        raise SentryDaemon.TerminateException()
 
     @staticmethod
     def is_healthy():
@@ -161,6 +166,8 @@ class SentryDaemon:
                     (self.mysqld_logs_wildcard,      "mysqld")]:
                 try:
                     logs = glob.glob(wildcard)
+                except TerminateException:  # handling it separately spares us of knowing possible exception types from glob()
+                    raise
                 except Exception as e:
                     self.internal_logger.error(f"Failed to scan '{wildcard}': {e}")  # bug, can't normally happen -> print locally + report to Sentry (loggers are intercepted by 'sentry_sdk')
                 n_sent, n_deleted = 0, 0
@@ -182,8 +189,12 @@ class SentryDaemon:
                                 with open(log, 'r') as f:
                                     try:
                                         message = f.read()
+                                    except TerminateException:
+                                        raise
                                     except Exception as e:
                                         self.print(f"Failed to read {log}: {e}")     # races -> print only
+                            except TerminateException:
+                                raise
                             except Exception as e:
                                 self.print(f"Failed to open {log}: {e}")             # races -> print only
                             if message is not None:
@@ -192,6 +203,8 @@ class SentryDaemon:
                     try:
                         os.remove(log)
                         n_deleted += 1
+                    except TerminateException:
+                        raise
                     except Exception as e:
                         self.print(f"Failed to delete {log}: {e}")                   # races -> print only
                 if len(report):
@@ -299,9 +312,12 @@ def VIS(x):
 
 if __name__ == "__main__":
     daemon = SentryDaemon(DB_GOVERNOR_LOGS_WILDCARD, MYSQLD_LOGS_WILDCARD, SENTRY_DSN_FILE)
-    signal.signal(signal.SIGTERM, daemon.handle_sigterm)
+    signal.signal(signal.SIGTERM, SentryDaemon.handle_sigterm)
     try:
         daemon.run()
+    except SentryDaemon.TerminateException:
+        daemon.print("SIGTERM received, shutting down gracefully...")
+        daemon.cleanup()
     except KeyboardInterrupt:
         daemon.cleanup()
     finally:
