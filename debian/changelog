@@ -1,3 +1,10 @@
+governor-mysql (1.2-115) stable; urgency=medium
+
+  * CLOS-2795: Replaced semaphore with RW-lock in bad_list protection
+  * CLOS-2817: Fixed Sentry reporting
+
+ -- Timur Averianov <taverianov@cloudlinux.com>  Tue, 30 Jul 2024 10:00:00 +0000
+
 governor-mysql (1.2-114) stable; urgency=medium
 
   * CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval

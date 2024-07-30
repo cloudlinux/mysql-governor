@@ -1,6 +1,6 @@
 %define g_version   1.2
-%define g_release   114
-%define g_key_library 13
+%define g_release   115
+%define g_key_library 14
 
 %if %{undefined _unitdir}
 %define _unitdir /usr/lib/systemd/system
@@ -334,7 +334,7 @@ fi
 
 if [ $1 -gt 0 ]; then
     # Initial installation or upgrade
-    [ -e /dev/shm/governor_bad_users_list ] && rm /dev/shm/governor_bad_users_list 2>&1 >/dev/null || :
+    [ -e /var/lve/dbgovernor-shm/governor_bad_users_list ] && rm /var/lve/dbgovernor-shm/governor_bad_users_list 2>&1 >/dev/null || :
 fi
 
 #check if in signal file saved U, than need to start mysql
@@ -508,6 +508,10 @@ fi
 %dir %attr(0700, -, -) /usr/share/lve/dbgovernor/storage
 
 %changelog
+* Tue Jul 30 2024 Timur Averianov <taverianov@cloudlinux.com> 1.2-115
+- CLOS-2795: Replaced semaphore with RW-lock in bad_list protection
+- CLOS-2817: Fixed Sentry reporting
+
 * Tue Jul 16 2024 Sandro Kalatozishvili <skalatozishvili@cloudlinux.com> Timur Averianov <taverianov@cloudlinux.com> 1.2-114
 - CLOS-2719: Re-enabled watchdog monitoring utility with adjusted logic and interval
 - CLOS-2711: Added extended logging rotation
