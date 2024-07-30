@@ -517,7 +517,7 @@ fi
 - CLOS-2711: Added extended logging rotation
 - CLOS-2780: Fixed governor restarts
 - CLOS-2596: Do not install missing MariaDB-compat package in case of CL9
-- CLOS-2735: Changed semaphore retry logic to timed wait
+- CLOS-2735: Reduced probability of Governor limits being not applied (changed semaphore retry logic to timed wait)
 
 * Tue Jun 11 2024 Alexandr Demeshko <ademeshko@cloudlinux.com> 1.2-113
 - CLOS-2653: Deprecated outdated mysql/mariadb/percona versions
