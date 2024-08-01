@@ -1,6 +1,6 @@
 governor-mysql (1.2-115) stable; urgency=medium
 
-  * CLOS-2795: Replaced semaphore with RW-lock in bad_list protection
+  * CLOS-2795: Further reduced probability of Governor limits being not applied (replaced semaphore with RW-lock in bad_list protection)
   * CLOS-2817: Fixed Sentry reporting
 
  -- Timur Averianov <taverianov@cloudlinux.com>  Tue, 30 Jul 2024 10:00:00 +0000
@@ -11,7 +11,7 @@ governor-mysql (1.2-114) stable; urgency=medium
   * CLOS-2711: Added extended logging rotation
   * CLOS-2780: Fixed governor restarts
   * CLOS-2596: Do not install missing MariaDB-compat package in case of CL9
-  * CLOS-2735: Changed semaphore retry logic to timed wait
+  * CLOS-2735: Reduced probability of Governor limits being not applied (changed semaphore retry logic to timed wait in bad_list protection)
 
  -- Sandro Kalatozishvili <skalatozishvili@cloudlinux.com>, Timur Averianov <taverianov@cloudlinux.com>  Tue, 16 Jul 2024 10:00:00 +0000
 

@@ -370,7 +370,7 @@ int add_user_to_list(const char *username, int is_all)
 	int rc = governor_rwlock_timedwrlock(&bad_list->rwlock, 1);
 	if (rc)
 	{
-		LOG(L_ERRSENTRY|L_FRZ, "(%s, %d): governor_rwlock_timedwrlock()=%d", username, is_all, rc);
+		LOG(L_ERRSENTRY|L_FRZ, "failed to add to bad_list, username '%s', is_all=%d, timedwrlock()=%d", username, is_all, rc);
 		return -3;
 	}
 	LOG(L_FRZ, "(%s, %d): adding it with uid %d to %ld pos", username, is_all, uid, bad_list->item_count);
@@ -396,7 +396,7 @@ int delete_user_from_list(const char *username)
 		{
 			int rc = governor_rwlock_timedwrlock(&bad_list->rwlock, 1);
 			if (rc)
-				LOG(L_ERRSENTRY|L_UNFRZ, "governor_rwlock_timedwrlock()=%d", rc);
+				LOG(L_ERRSENTRY|L_UNFRZ, "failed to delete from bad_list, username '%s', timedwrlock()=%d", username, rc);
 			else
 			{
 				if (i < bad_list->item_count-1)
@@ -679,7 +679,7 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 
 	int rc = governor_rwlock_timedrdlock(&bad_list_clients_global->rwlock, 1);
 	if (rc)
-		LOG(L_ERRSENTRY|L_LVE, "failed to acquire rwlock, username '%s', governor_rwlock_timedrdlock()=%d", username, rc);	// the only critical place with rwlock acquisition
+		LOG(L_ERRSENTRY|L_LVE, "failed to check bad_list, username '%s', timedrdlock()=%d", username, rc);
 	else
 	{
 		bool found = false;
@@ -697,7 +697,7 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 		}
 		rc = pthread_rwlock_unlock(&bad_list_clients_global->rwlock);
 		if (rc)
-			LOG(L_ERR|L_LVE, "pthread_rwlock_unlock()=%d", rc);	// the only critical place with rwlock acquisition
+			LOG(L_ERR|L_LVE, "pthread_rwlock_unlock()=%d", rc);
 		if (!found)
 		{
 			fnd = 0;
