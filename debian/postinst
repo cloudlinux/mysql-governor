@@ -65,7 +65,7 @@ do_install_or_upgrade() {
     systemctl enable db_governor >/dev/null 2>&1 || :
     systemctl enable governor_sentry_daemon >/dev/null 2>&1 || :
 
-    [ -e /dev/shm/governor_bad_users_list ] && rm /dev/shm/governor_bad_users_list 2>&1 >/dev/null || :
+    [ -e /var/lve/dbgovernor-shm/governor_bad_users_list ] && rm /var/lve/dbgovernor-shm/governor_bad_users_list 2>&1 >/dev/null || :
 
     if [ -e "/usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" ]; then
         echo "15 */12 * * * root /usr/share/lve/dbgovernor/scripts/dbgovernor_watchdog.py" > /etc/cron.d/dbgovernor_watchdog_cron

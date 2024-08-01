@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <semaphore.h>
 #include <pthread.h>
 #include <pwd.h>
 #include <grp.h>
@@ -26,11 +25,6 @@
 #include "dbgovernor_string_functions.h"
 #include "shared_memory.h"
 #include "dbuser_map.h"
-
-//#ifdef TEST
-#include <sys/syscall.h>
-#include <stdarg.h>
-//#endif
 
 #define MAX_ITEMS_IN_TABLE 100000
 
@@ -45,7 +39,7 @@ static const char *shared_memory_name = SHARED_MEMORY_NAME_PRIVATE;
 
 #define cl_stat_shared_memory_file(st) stat(shared_memory_name, (st))
 
-int cl_shm_open (int oflag, mode_t mode)
+int cl_shm_open(int oflag, mode_t mode)
 {
 	oflag |= O_NOFOLLOW | O_CLOEXEC;
 
@@ -73,8 +67,8 @@ typedef struct __items_structure
 
 typedef struct __shm_structure
 {
-	sem_t sem;
-	long numbers;
+	pthread_rwlock_t rwlock;
+	long item_count;
 	items_structure items[MAX_ITEMS_IN_TABLE];
 } shm_structure;
 
@@ -83,24 +77,27 @@ int shm_fd = -1;
 
 int init_bad_users_list_utility(void)
 {
-	if ((shm_fd = cl_shm_open((O_RDWR), 0600)) < 0)
+	if ((shm_fd = cl_shm_open(O_RDWR, 0600)) < 0)
 	{
 		return -1;
 	}
 
-	if ((bad_list = (shm_structure *) cl_mmap (0, sizeof (shm_structure),
-		(PROT_READ | PROT_WRITE), MAP_SHARED,
-		shm_fd, 0)) == MAP_FAILED)
+	if ((bad_list = (shm_structure *) cl_mmap(0, sizeof (shm_structure), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)) == MAP_FAILED)
 	{
 		close(shm_fd);
 		shm_fd = -1;
 		return -1;
 	}
 
-	if (sem_wait(&bad_list->sem) == 0)
+	int rc = pthread_rwlock_wrlock(&bad_list->rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_wrlock()=%d", rc);
+	else
 	{
 		clear_bad_users_list();
-		sem_post(&bad_list->sem);
+		rc = pthread_rwlock_unlock(&bad_list->rwlock);
+		if (rc)
+			LOG(L_ERR, "pthread_rwlock_unlock()=%d", rc);
 	}
 
 	return 0;
@@ -108,9 +105,9 @@ int init_bad_users_list_utility(void)
 
 int remove_bad_users_list_utility(void)
 {
-	if (bad_list && (bad_list != MAP_FAILED))
+	if (bad_list && bad_list != MAP_FAILED)
 	{
-		cl_munmap ((void *) bad_list, sizeof (shm_structure));
+		cl_munmap(bad_list, sizeof(shm_structure));
 	}
 	if (shm_fd >= 0)
 	{
@@ -154,19 +151,16 @@ int init_bad_users_list(void)
 {
 	//if(shared_memory_name) shm_unlink(shared_memory_name);
 	//sem_unlink(SHARED_MEMORY_SEM);
-	int rc;
 	mode_t old_umask = umask(0);
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
 
 	if (mysql_uid == UNINITED_UID || mysql_gid == UNINITED_GID)
 	{
 		init_mysql_uidgid();
 	}
-	int first = 0;
-	if ((shm_fd = cl_shm_open((O_CREAT | O_EXCL | O_RDWR), 0600)) > 0)
+	bool first = false;
+	if ((shm_fd = cl_shm_open(O_CREAT | O_EXCL | O_RDWR, 0600)) > 0)
 	{
-		first = 1;
+		first = true;
 	}
 	else if ((shm_fd = cl_shm_open(O_RDWR, 0600)) < 0)
 	{
@@ -179,12 +173,13 @@ int init_bad_users_list(void)
 		struct stat file;
 		if (cl_stat_shared_memory_file(&file) == 0)
 		{
-			first = file.st_size < sizeof(shm_structure) ? 1 : first;
+			if (file.st_size < sizeof(shm_structure))
+				first = true;
 		}
 	}
 
 	/* Make chown even if file existed before open - to fix possible previous errors */
-	rc = fchown(shm_fd, mysql_uid, mysql_gid);
+	int rc = fchown(shm_fd, mysql_uid, mysql_gid);
 	if (rc)
 		LOG(L_ERR, "chown(%s, %d, %d) failed with %d code - IGNORING", shared_memory_name, (int)mysql_uid, (int)mysql_gid, errno);
 	rc = fchmod(shm_fd, S_IRUSR | S_IWUSR);
@@ -193,14 +188,11 @@ int init_bad_users_list(void)
 
 	if (first)
 	{
-		rc = ftruncate(shm_fd, sizeof(shm_structure));
-		if (rc)
+		if (ftruncate(shm_fd, sizeof(shm_structure)))
 			LOG(L_ERR, "truncate(%s, %u) failed with %d code - IGNORING", shared_memory_name, (unsigned)sizeof(shm_structure), errno);
 	}
 
-	if ((bad_list = (shm_structure *) cl_mmap (0, sizeof (shm_structure),
-			(PROT_READ | PROT_WRITE), MAP_SHARED,
-			shm_fd, 0)) == MAP_FAILED)
+	if ((bad_list = (shm_structure *) cl_mmap(0, sizeof (shm_structure), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)) == MAP_FAILED)
 	{
 		LOG(L_ERR, "cl_map(%s) failed with %d code - EXITING", shared_memory_name, errno);
 		close(shm_fd);
@@ -211,53 +203,98 @@ int init_bad_users_list(void)
 
 	if (first)
 	{
-		if (sem_init(&bad_list->sem, 1, 1) < 0)
+		pthread_rwlockattr_t attr;
+		rc = pthread_rwlockattr_init(&attr);
+		if (rc)
 		{
-			LOG(L_ERR, "sem_init(%s) failed with %d code - EXITING", shared_memory_name, errno);
-			cl_munmap ((void *) bad_list, sizeof (shm_structure));
-			close(shm_fd);
-			shm_fd = -1;
-			umask(old_umask);
-			return -1;
+			LOG(L_ERR, "pthread_rwlockattr_init()=%d", rc);
+			goto fail;
 		}
+		rc = pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+		if (rc)
+		{
+			LOG(L_ERR, "pthread_rwlockattr_setpshared()=%d", rc);
+			goto fail;
+		}
+		rc = pthread_rwlock_init(&bad_list->rwlock, &attr);
+		if (rc)
+		{
+			LOG(L_ERR, "pthread_rwlock_init()=%d", rc);
+			goto fail;
+		}
+		goto end;
+fail:
+		cl_munmap(bad_list, sizeof(shm_structure));
+		close(shm_fd);
+		shm_fd = -1;
+		umask(old_umask);
+		return -1;
+end:	;
 	}
 
 	umask(old_umask);
 
-	if (sem_wait(&bad_list->sem) == 0)
+	rc = pthread_rwlock_wrlock(&bad_list->rwlock);
+	if (rc)
+		LOG(L_ERR, "pthread_rwlock_wrlock()=%d", rc);
+	else
 	{
 		clear_bad_users_list();
-		sem_post(&bad_list->sem);
+		rc = pthread_rwlock_unlock(&bad_list->rwlock);
+		if (rc)
+			LOG(L_ERR, "pthread_rwlock_unlock()=%d", rc);
 	}
 
 	return 0;
 }
 
+// looks like never called
 int init_bad_users_list_if_not_exitst(void)
 {
-	if (!bad_list || (bad_list == MAP_FAILED))
-	{
+	if (!bad_list || bad_list == MAP_FAILED)
 		return init_bad_users_list();
-	}
 	return 0;
 }
 
 #endif // LIBGOVERNOR
 
+static int governor_rwlock_timedrdlock(pthread_rwlock_t *rwlock, unsigned timeout_sec)
+{
+	struct timespec ts;
+	if (clock_gettime(CLOCK_REALTIME, &ts))
+	{
+		LOG(L_ERR, "clock_gettime() failed, errno=%d", errno);
+		return -1;
+	}
+	ts.tv_sec += timeout_sec;
+	return pthread_rwlock_timedrdlock(rwlock, &ts);
+}
+
+static int governor_rwlock_timedwrlock(pthread_rwlock_t *rwlock, unsigned timeout_sec)
+{
+	struct timespec ts;
+	if (clock_gettime(CLOCK_REALTIME, &ts))
+	{
+		LOG(L_ERR, "clock_gettime() failed, errno=%d", errno);
+		return -1;
+	}
+	ts.tv_sec += timeout_sec;
+	return pthread_rwlock_timedwrlock(rwlock, &ts);
+}
 
 void clear_bad_users_list(void)
 {
-	if (!bad_list || (bad_list == MAP_FAILED))
+	if (!bad_list || bad_list == MAP_FAILED)
 		return;
-	bad_list->numbers = 0;
-	memset((void *) bad_list->items, 0, sizeof(bad_list->items));
+	bad_list->item_count = 0;
+	memset(bad_list->items, 0, sizeof(bad_list->items));
 }
 
 int remove_bad_users_list(void)
 {
-	if (bad_list && (bad_list != MAP_FAILED))
+	if (bad_list && bad_list != MAP_FAILED)
 	{
-		cl_munmap ((void *) bad_list, sizeof (shm_structure));
+		cl_munmap(bad_list, sizeof(shm_structure));
 	}
 	if (shm_fd >= 0)
 	{
@@ -270,35 +307,30 @@ int remove_bad_users_list(void)
 
 #ifndef LIBGOVERNOR
 
-static int is_user_in_list(const char *username, struct governor_config *cfgptr)
+static int is_user_in_list(const char *username)
 {
-	if (!bad_list || (bad_list == MAP_FAILED))
+	if (!bad_list || bad_list == MAP_FAILED)
 	{
 		LOG(L_FRZ, "(%s): EXIT as bad_list is NOT INITED %p", username, bad_list);
 		return -1;
 	}
-	long index;
-	for (index = 0; index < bad_list->numbers; index++)
+	long i;
+	for (i=0; i < bad_list->item_count; i++)
 	{
-		LOG(L_FRZ, "(%s): %ld/%ld: before check against(%s)", username,
-			index, bad_list->numbers, bad_list->items[index].username);
-		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN-1))
+		LOG(L_FRZ, "(%s): %ld/%ld: before check against(%s)", username, i, bad_list->item_count, bad_list->items[i].username);
+		if (!strncmp(bad_list->items[i].username, username, USERNAMEMAXLEN-1))
 		{
-			LOG(L_FRZ, "(%s): %ld/%ld: FOUND(%s)", username,
-				index, bad_list->numbers, bad_list->items[index].username);
+			LOG(L_FRZ, "(%s): %ld/%ld: FOUND(%s)", username, i, bad_list->item_count, bad_list->items[i].username);
 			return 1;
 		}
 	}
-	LOG(L_FRZ, "(%s): NOT FOUND from %ld", username, bad_list->numbers);
+	LOG(L_FRZ, "(%s): NOT FOUND from %ld", username, bad_list->item_count);
 	return 0;
 }
 
 int add_user_to_list(const char *username, int is_all)
 {
-	struct governor_config data_cfg;
-	get_config_data(&data_cfg);
-
-	if (!bad_list || (bad_list == MAP_FAILED))
+	if (!bad_list || bad_list == MAP_FAILED)
 	{
 		LOG(L_FRZ, "(%s, %d): FAILED as bad_list is NOT INITED %p", username, is_all, bad_list);
 		return -1;
@@ -306,7 +338,7 @@ int add_user_to_list(const char *username, int is_all)
 
 	// First check if the user is already in the list
 	// before any locks and heavy operation on the map
-	if (is_user_in_list(username, &data_cfg))
+	if (is_user_in_list(username))
 	{
 		LOG(L_FRZ, "(%s, %d): EXIT as is_user_in_list FOUND it", username, is_all);
 		return 0;
@@ -329,58 +361,53 @@ int add_user_to_list(const char *username, int is_all)
 		uid = 0;
 	}
 
-	if ((bad_list->numbers + 1) == MAX_ITEMS_IN_TABLE)
+	if (bad_list->item_count+1 == MAX_ITEMS_IN_TABLE)
 	{
 		LOG(L_FRZ, "(%s, %d): FAILED as must add it but NO SPACE", username, is_all);
 		return -2;
 	}
 
-	if (sem_wait(&bad_list->sem) == 0)
+	int rc = governor_rwlock_timedwrlock(&bad_list->rwlock, 1);
+	if (rc)
 	{
-		LOG(L_FRZ, "(%s, %d): adding it with uid %d to %ld pos", username, is_all, uid, bad_list->numbers);
-		strlcpy(bad_list->items[bad_list->numbers].username, username, USERNAMEMAXLEN);
-		bad_list->items[bad_list->numbers++].uid = uid;
-		sem_post(&bad_list->sem);
-	}
-	else
-	{
-		LOG(L_FRZ, "(%s, %d): FAILED as must add it but sem_wait FAILED %d", username, is_all, errno);
+		LOG(L_ERRSENTRY|L_FRZ, "failed to add to bad_list, username '%s', is_all=%d, timedwrlock()=%d", username, is_all, rc);
 		return -3;
 	}
+	LOG(L_FRZ, "(%s, %d): adding it with uid %d to %ld pos", username, is_all, uid, bad_list->item_count);
+	strlcpy(bad_list->items[bad_list->item_count].username, username, USERNAMEMAXLEN);
+	bad_list->items[bad_list->item_count++].uid = uid;
+	rc = pthread_rwlock_unlock(&bad_list->rwlock);
+	if (rc)
+		LOG(L_ERR|L_FRZ, "(%s, %d): pthread_rwlock_unlock()=%d", username, is_all, rc);
 
 	return 0;
 }
+
 #endif // LIBGOVERNOR
 
 int delete_user_from_list(const char *username)
 {
-	if (!bad_list || (bad_list == MAP_FAILED))
+	if (!bad_list || bad_list == MAP_FAILED)
 		return -1;
-	long index;
-	for (index = 0; index < bad_list->numbers; index++)
+	long i;
+	for (i=0; i < bad_list->item_count; i++)
 	{
-		if (!strncmp(bad_list->items[index].username, username, USERNAMEMAXLEN-1))
+		if (!strncmp(bad_list->items[i].username, username, USERNAMEMAXLEN-1))
 		{
-			if (sem_wait(&bad_list->sem) == 0)
+			int rc = governor_rwlock_timedwrlock(&bad_list->rwlock, 1);
+			if (rc)
+				LOG(L_ERRSENTRY|L_UNFRZ, "failed to delete from bad_list, username '%s', timedwrlock()=%d", username, rc);
+			else
 			{
-				if (index == (bad_list->numbers - 1))
-				{
-					bad_list->numbers--;
-					sem_post(&bad_list->sem);
-					return 0;
-				} else
-				{
-					memmove(
-							bad_list->items + index,
-							bad_list->items + (index + 1),
-							sizeof(items_structure) * (bad_list->numbers
-									- index - 1));
-
-					bad_list->numbers--;
-					sem_post(&bad_list->sem);
-					return 0;
-				}
-				//sem_post(sem);
+				if (i < bad_list->item_count-1)
+					memmove(bad_list->items + i,
+							bad_list->items + (i + 1),
+							sizeof(items_structure) * (bad_list->item_count - i - 1));
+				bad_list->item_count--;
+				rc = pthread_rwlock_unlock(&bad_list->rwlock);
+				if (rc)
+					LOG(L_ERR|L_UNFRZ, "pthread_rwlock_unlock()=%d", rc);
+				return 0;
 			}
 		}
 	}
@@ -389,62 +416,36 @@ int delete_user_from_list(const char *username)
 
 int delete_allusers_from_list(void)
 {
-	if (!bad_list || (bad_list == MAP_FAILED))
+	if (!bad_list || bad_list == MAP_FAILED)
 		return -1;
-	if (sem_wait(&bad_list->sem) == 0)
+
+	int rc = governor_rwlock_timedwrlock(&bad_list->rwlock, 10);
+	if (rc)
 	{
-		clear_bad_users_list();
-		sem_post(&bad_list->sem);
-		return 0;
+		LOG(L_ERR|L_MON, "governor_rwlock_timedwrlock()=%d", rc);
+		return -2;
 	}
-	return -2;
+	clear_bad_users_list();
+	rc = pthread_rwlock_unlock(&bad_list->rwlock);
+	if (rc)
+		LOG(L_ERR|L_MON, "pthread_rwlock_unlock()=%d", rc);
+	return 0;
 }
 
 long get_users_list_size(void)
 {
-	if (!bad_list || (bad_list == MAP_FAILED))
+	if (!bad_list || bad_list == MAP_FAILED)
 		return 0;
-	return bad_list->numbers;
+	return bad_list->item_count;
 }
 
 void printf_bad_users_list(void)
 {
-	if (!bad_list || (bad_list == MAP_FAILED))
+	if (!bad_list || bad_list == MAP_FAILED)
 		return;
-	long index;
-	for (index = 0; index < bad_list->numbers; index++)
-	{
-		printf("%ld) user - %s, uid - %d\n", index,
-				bad_list->items[index].username, bad_list->items[index].uid);
-	}
-	return;
-}
-
-// Use sem_timedwait() on newer Linuxes, emulate it on older ones
-static int governor_sem_wait(sem_t *sem, unsigned timeout_sec)
-{
-#ifdef SYSTEMD_FLAG		// CL7,8,9,..., Ubuntu:
-	struct timespec ts;
-	if (clock_gettime(CLOCK_REALTIME, &ts))
-	{
-		LOG(L_ERR, "clock_gettime() failed, errno=%d", errno);
-		return -1;
-	}
-	ts.tv_sec += timeout_sec;
-	return sem_timedwait(sem, &ts);
-#else					// CL6:
-	unsigned ms;
-	for (ms=0; ms < timeout_sec * 1000; ms++)
-	{
-		if (!sem_trywait(sem))
-			return 0;			// succeeded
-		if (errno != EAGAIN)	// failed, but not because locked by other thread -
-			return -1;			// - no sense to insist
-		usleep(1000);	// 1 ms
-	}
-	errno = ETIMEDOUT;		// for timeout error, rely on reporting in the caller
-	return -1;
-#endif
+	long i;
+	for (i=0; i < bad_list->item_count; i++)
+		printf("%ld) user - %s, uid - %d\n", i, bad_list->items[i].username, bad_list->items[i].uid);
 }
 
 // Seems like not used. Not called form the MySQL patches, at least modern.
@@ -457,11 +458,7 @@ int32_t is_user_in_bad_list_client(const char *username)
 	{
 		return 0;
 	}
-	if ((bad_list_clients
-			= (shm_structure *) cl_mmap (0, sizeof (shm_structure),
-					PROT_READ | PROT_WRITE, MAP_SHARED,
-					shm_fd_clients,
-					0)) == MAP_FAILED)
+	if ((bad_list_clients = (shm_structure *) cl_mmap(0, sizeof(shm_structure), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_clients, 0)) == MAP_FAILED)
 	{
 		close(shm_fd_clients);
 		return 0;
@@ -469,22 +466,25 @@ int32_t is_user_in_bad_list_client(const char *username)
 
 	if (bad_list_clients)
 	{
-		if (governor_sem_wait(&bad_list_clients->sem, 1))
-			LOG(L_ERR|L_FRZ, "(%s): failed to acquire semaphore, errno=%d", username, errno);
+		int rc = governor_rwlock_timedrdlock(&bad_list_clients->rwlock, 1);
+		if (rc)
+			LOG(L_ERR|L_FRZ, "(%s): pthread_rwlock_rdlock()=%d", username, rc);
 		else
 		{
 			long i;
-			for (i=0; i < bad_list_clients->numbers; i++)
+			for (i=0; i < bad_list_clients->item_count; i++)
 				if (!strncmp(bad_list_clients->items[i].username, username, USERNAMEMAXLEN))
 				{
 					fnd = bad_list_clients->items[i].uid;
 					break;
 				}
-			sem_post(&bad_list_clients->sem);
+			rc = pthread_rwlock_unlock(&bad_list_clients->rwlock);
+			if (rc)
+				LOG(L_ERR|L_FRZ, "(%s): pthread_rwlock_unlock()=%d", username, rc);
 		}
 	}
 
-	cl_munmap ((void *) bad_list_clients, sizeof (shm_structure));
+	cl_munmap(bad_list_clients, sizeof(shm_structure));
 	close(shm_fd_clients);
 	return fnd;
 }
@@ -500,11 +500,7 @@ int user_in_bad_list_client_show(void)
 		umask(old_umask);
 		return 0;
 	}
-	if ((bad_list_clients
-			= (shm_structure *) cl_mmap (0, sizeof (shm_structure),
-					PROT_READ | PROT_WRITE, MAP_SHARED,
-					shm_fd_clients,
-					0)) == MAP_FAILED)
+	if ((bad_list_clients = (shm_structure *) cl_mmap(0, sizeof(shm_structure), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_clients, 0)) == MAP_FAILED)
 	{
 		close(shm_fd_clients);
 		umask(old_umask);
@@ -515,18 +511,21 @@ int user_in_bad_list_client_show(void)
 
 	if (bad_list_clients)
 	{
-		if (governor_sem_wait(&bad_list_clients->sem, 1))
-			LOG(L_ERR|L_UNFRZ, "failed to acquire semaphore, errno=%d", errno);
+		int rc = governor_rwlock_timedrdlock(&bad_list_clients->rwlock, 10);
+		if (rc)
+			LOG(L_ERR|L_UNFRZ, "governor_rwlock_timedrdlock()=%d", rc);
 		else
 		{
 			long i;
-			for (i=0; i < bad_list_clients->numbers; i++)
+			for (i=0; i < bad_list_clients->item_count; i++)
 				printf("%s\n", bad_list_clients->items[i].username);
-			sem_post(&bad_list_clients->sem);
+			rc = pthread_rwlock_unlock(&bad_list_clients->rwlock);
+			if (rc)
+				LOG(L_ERR|L_UNFRZ, "pthread_rwlock_unlock()=%d", rc);
 		}
 	}
 
-	cl_munmap ((void *) bad_list_clients, sizeof (shm_structure));
+	cl_munmap(bad_list_clients, sizeof(shm_structure));
 	close(shm_fd_clients);
 	return fnd;
 }
@@ -539,10 +538,10 @@ int init_bad_users_list_client(void)
 {
 	mode_t old_umask = umask(0);
 	pthread_mutex_lock(&mtx_shared);
-	int first = 0, need_truncate = 0;
+	bool first = false, need_truncate = false;
 	if ((shm_fd_clients_global = cl_shm_open((O_CREAT | O_EXCL | O_RDWR), 0600)) > 0)
 	{
-		first = 1;
+		first = true;
 	}
 	else if ((shm_fd_clients_global = cl_shm_open(O_RDWR, 0600)) < 0)
 	{
@@ -555,7 +554,8 @@ int init_bad_users_list_client(void)
 		struct stat file;
 		if (cl_stat_shared_memory_file(&file) == 0)
 		{
-			need_truncate = file.st_size < sizeof(shm_structure) ? 1 : need_truncate;
+			if (file.st_size < sizeof(shm_structure))
+				need_truncate = true;
 		}
 	}
 
@@ -575,23 +575,48 @@ int init_bad_users_list_client(void)
 		if (ftruncate(shm_fd_clients_global, sizeof(shm_structure)))
 			LOG(L_ERR, "ftruncate() failed, errno=%d", errno);
 
-		if (sem_init(&bad_list_clients_global->sem, 1, 1) < 0)
+		pthread_rwlockattr_t attr;
+		int rc = pthread_rwlockattr_init(&attr);
+		if (rc)
 		{
-			cl_munmap ((void *) bad_list_clients_global, sizeof (shm_structure));
-			bad_list_clients_global = NULL;
-			close(shm_fd_clients_global);
-			shm_fd_clients_global = -1;
-			pthread_mutex_unlock(&mtx_shared);
-			return -2;
+			LOG(L_ERR, "pthread_rwlockattr_init()=%d", rc);
+			goto fail;
 		}
+		rc = pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+		if (rc)
+		{
+			LOG(L_ERR, "pthread_rwlockattr_setpshared()=%d", rc);
+			goto fail;
+		}
+		rc = pthread_rwlock_init(&bad_list_clients_global->rwlock, &attr);
+		if (rc)
+		{
+			LOG(L_ERR, "pthread_rwlock_init()=%d", rc);
+			goto fail;
+		}
+		goto end;
+fail:
+		cl_munmap(bad_list_clients_global, sizeof(shm_structure));
+		bad_list_clients_global = NULL;
+		close(shm_fd_clients_global);
+		shm_fd_clients_global = -1;
+		pthread_mutex_unlock(&mtx_shared);
+		umask(old_umask);
+		return -2;
+end:	;
 	}
 
 	if (first)
 	{
-		if (sem_wait(&bad_list_clients_global->sem) == 0)
+		int rc = pthread_rwlock_wrlock(&bad_list_clients_global->rwlock);
+		if (rc)
+			LOG(L_ERR, "pthread_rwlock_wrlock()=%d", rc);
+		else
 		{
 			clear_bad_users_list();
-			sem_post(&bad_list_clients_global->sem);
+			rc = pthread_rwlock_unlock(&bad_list_clients_global->rwlock);
+			if (rc)
+				LOG(L_ERR, "pthread_rwlock_unlock()=%d", rc);
 		}
 	}
 
@@ -613,7 +638,7 @@ int init_bad_users_list_client_without_init(void)
 		return -1;
 	}
 
-	bad_list_clients_global = (shm_structure *) cl_mmap (0, sizeof(shm_structure), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_clients_global, 0);
+	bad_list_clients_global = (shm_structure *)cl_mmap(0, sizeof(shm_structure), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_clients_global, 0);
 
 	if (bad_list_clients_global == MAP_FAILED)
 	{
@@ -630,8 +655,8 @@ int init_bad_users_list_client_without_init(void)
 int remove_bad_users_list_client(void)
 {
 	pthread_mutex_lock(&mtx_shared);
-	if (bad_list_clients_global && (bad_list_clients_global != MAP_FAILED))
-		cl_munmap ((void *) bad_list_clients_global, sizeof (shm_structure));
+	if (bad_list_clients_global && bad_list_clients_global != MAP_FAILED)
+		cl_munmap(bad_list_clients_global, sizeof(shm_structure));
 	if (shm_fd_clients_global >= 0)
 	{
 		close(shm_fd_clients_global);
@@ -644,32 +669,35 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 {
 	int32_t fnd = -1;
 
-	if (!bad_list_clients_global || (bad_list_clients_global == MAP_FAILED))
+	if (!bad_list_clients_global || bad_list_clients_global == MAP_FAILED)
 	{
 		LOG(L_ERR|L_LVE, "(%s): FAILED as bad_list is not inited: %p", username, bad_list_clients_global);
 		return fnd;
 	}
 
-	LOG(L_LVE, "(%s): before search from %ld num", username, bad_list_clients_global->numbers);
+	LOG(L_LVE, "(%s): before search from %ld num", username, bad_list_clients_global->item_count);
 
-	if (governor_sem_wait(&bad_list_clients_global->sem, 1))
-		LOG(L_ERRSENTRY|L_LVE, "failed to acquire semaphore, username '%s', errno=%d", username, errno);	// the only critical place with semaphore acquisition
+	int rc = governor_rwlock_timedrdlock(&bad_list_clients_global->rwlock, 1);
+	if (rc)
+		LOG(L_ERRSENTRY|L_LVE, "failed to check bad_list, username '%s', timedrdlock()=%d", username, rc);
 	else
 	{
 		bool found = false;
 		long i;
-		for (i=0; i < bad_list_clients_global->numbers; i++)
+		for (i=0; i < bad_list_clients_global->item_count; i++)
 		{
-			LOG(L_LVE, "(%s): %ld/%ld before check against(%s)", username, i, bad_list_clients_global->numbers, bad_list_clients_global->items[i].username);
+			LOG(L_LVE, "(%s): %ld/%ld before check against(%s)", username, i, bad_list_clients_global->item_count, bad_list_clients_global->items[i].username);
 			if (!strncmp(bad_list_clients_global->items[i].username, username, USERNAMEMAXLEN))
 			{
 				fnd = bad_list_clients_global->items[i].uid;
 				found = true;
-				LOG(L_LVE, "(%s): %ld/%ld FOUND - uid %d", username, i, bad_list_clients_global->numbers, fnd);
+				LOG(L_LVE, "(%s): %ld/%ld FOUND - uid %d", username, i, bad_list_clients_global->item_count, fnd);
 				break;
 			}
 		}
-		sem_post(&bad_list_clients_global->sem);
+		rc = pthread_rwlock_unlock(&bad_list_clients_global->rwlock);
+		if (rc)
+			LOG(L_ERR|L_LVE, "pthread_rwlock_unlock()=%d", rc);
 		if (!found)
 		{
 			fnd = 0;
@@ -683,16 +711,19 @@ int32_t is_user_in_bad_list_client_persistent(const char *username)
 void printf_bad_list_client_persistent(void)
 {
 	printf(" USER             NUMBER\n");
-	if (bad_list_clients_global && (bad_list_clients_global != MAP_FAILED))
+	if (bad_list_clients_global && bad_list_clients_global != MAP_FAILED)
 	{
-		if (governor_sem_wait(&bad_list_clients_global->sem, 1))
-			LOG(L_ERR|L_DBTOP, "failed to acquire semaphore, errno=%d", errno);
+		int rc = governor_rwlock_timedrdlock(&bad_list_clients_global->rwlock, 10);
+		if (rc)
+			LOG(L_ERR|L_DBTOP, "governor_rwlock_timedrdlock()=%d", rc);
 		else
 		{
 			long i;
-			for (i=0; i < bad_list_clients_global->numbers; i++)
+			for (i=0; i < bad_list_clients_global->item_count; i++)
 				printf(" %-16s %ld\n", bad_list_clients_global->items[i].username, i);
-			sem_post(&bad_list_clients_global->sem);
+			rc = pthread_rwlock_unlock(&bad_list_clients_global->rwlock);
+			if (rc)
+				LOG(L_ERR|L_DBTOP, "pthread_rwlock_unlock()=%d", rc);
 		}
 	}
 }
